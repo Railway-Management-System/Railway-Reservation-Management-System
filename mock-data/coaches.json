@@ -1,0 +1,107 @@
+[
+  {
+    "coachId": 301,
+    "trainId": 101,
+    "coachNumber": "B1",
+    "coachType": "AC_3_TIER",
+    "classType": "3A"
+  },
+  {
+    "coachId": 302,
+    "trainId": 101,
+    "coachNumber": "B2",
+    "coachType": "AC_3_TIER",
+    "classType": "3A"
+  },
+  {
+    "coachId": 303,
+    "trainId": 101,
+    "coachNumber": "A1",
+    "coachType": "AC_2_TIER",
+    "classType": "2A"
+  },
+  {
+    "coachId": 304,
+    "trainId": 101,
+    "coachNumber": "H1",
+    "coachType": "AC_FIRST_CLASS",
+    "classType": "1A"
+  },
+  {
+    "coachId": 305,
+    "trainId": 102,
+    "coachNumber": "B1",
+    "coachType": "AC_3_TIER",
+    "classType": "3A"
+  },
+  {
+    "coachId": 306,
+    "trainId": 102,
+    "coachNumber": "A1",
+    "coachType": "AC_2_TIER",
+    "classType": "2A"
+  },
+  {
+    "coachId": 307,
+    "trainId": 103,
+    "coachNumber": "S1",
+    "coachType": "SLEEPER",
+    "classType": "SL"
+  },
+  {
+    "coachId": 308,
+    "trainId": 103,
+    "coachNumber": "S2",
+    "coachType": "SLEEPER",
+    "classType": "SL"
+  },
+  {
+    "coachId": 309,
+    "trainId": 103,
+    "coachNumber": "B1",
+    "coachType": "AC_3_TIER",
+    "classType": "3A"
+  },
+  {
+    "coachId": 310,
+    "trainId": 103,
+    "coachNumber": "A1",
+    "coachType": "AC_2_TIER",
+    "classType": "2A"
+  },
+  {
+    "coachId": 311,
+    "trainId": 105,
+    "coachNumber": "C1",
+    "coachType": "AC_CHAIR_CAR",
+    "classType": "CC"
+  },
+  {
+    "coachId": 312,
+    "trainId": 105,
+    "coachNumber": "C2",
+    "coachType": "AC_CHAIR_CAR",
+    "classType": "CC"
+  },
+  {
+    "coachId": 313,
+    "trainId": 105,
+    "coachNumber": "E1",
+    "coachType": "EXECUTIVE_CHAIR_CAR",
+    "classType": "EC"
+  },
+  {
+    "coachId": 314,
+    "trainId": 107,
+    "coachNumber": "C1",
+    "coachType": "AC_CHAIR_CAR",
+    "classType": "CC"
+  },
+  {
+    "coachId": 315,
+    "trainId": 107,
+    "coachNumber": "C2",
+    "coachType": "AC_CHAIR_CAR",
+    "classType": "CC"
+  }
+]

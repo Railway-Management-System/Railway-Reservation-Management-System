@@ -1,0 +1,20 @@
+[
+  {
+    "tdrId": 701,
+    "bookingId": 1003,
+    "pnr": "8491029482",
+    "reason": "TRAIN_DELAYED_OVER_3_HOURS",
+    "submittedAt": "2026-10-04T11:00:00Z",
+    "status": "APPROVED",
+    "refundAmount": 1850.00
+  },
+  {
+    "tdrId": 702,
+    "bookingId": 1001,
+    "pnr": "2849102841",
+    "reason": "AC_FAILURE_IN_COACH",
+    "submittedAt": "2026-10-05T15:20:00Z",
+    "status": "UNDER_REVIEW",
+    "refundAmount": null
+  }
+]

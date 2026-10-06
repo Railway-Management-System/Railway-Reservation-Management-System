@@ -1,0 +1,65 @@
+[
+  {
+    "userId": 1,
+    "name": "Rahul Sharma",
+    "email": "rahul.sharma@example.com",
+    "phone": "9876543210",
+    "role": "PASSENGER",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2026-01-15T10:30:00Z"
+  },
+  {
+    "userId": 2,
+    "name": "Priya Patel",
+    "email": "priya.patel@example.com",
+    "phone": "9876543211",
+    "role": "PASSENGER",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2026-02-20T11:45:00Z"
+  },
+  {
+    "userId": 3,
+    "name": "Amit Verma",
+    "email": "amit.verma@example.com",
+    "phone": "9876543212",
+    "role": "PASSENGER",
+    "accountStatus": "SUSPENDED",
+    "createdAt": "2026-03-05T09:15:00Z"
+  },
+  {
+    "userId": 4,
+    "name": "Vikram Singh",
+    "email": "vikram.singh@railways.gov.in",
+    "phone": "9876543213",
+    "role": "STAFF",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2025-11-10T08:00:00Z"
+  },
+  {
+    "userId": 5,
+    "name": "Sunita Rao",
+    "email": "sunita.rao@railways.gov.in",
+    "phone": "9876543214",
+    "role": "STAFF",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2025-11-12T08:30:00Z"
+  },
+  {
+    "userId": 6,
+    "name": "Ramesh Nair",
+    "email": "ramesh.nair@railways.gov.in",
+    "phone": "9876543215",
+    "role": "STAFF",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2025-12-01T09:00:00Z"
+  },
+  {
+    "userId": 7,
+    "name": "Rajesh Gupta",
+    "email": "admin@railways.gov.in",
+    "phone": "9876543216",
+    "role": "ADMIN",
+    "accountStatus": "ACTIVE",
+    "createdAt": "2025-10-01T00:00:00Z"
+  }
+]

@@ -1,0 +1,282 @@
+[
+  {
+    "routeId": 1001,
+    "trainId": 101,
+    "stationId": 7,
+    "stopSequence": 1,
+    "arrivalTime": "17:00",
+    "departureTime": "17:00",
+    "distanceFromOrigin": 0,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1002,
+    "trainId": 101,
+    "stationId": 8,
+    "stopSequence": 2,
+    "arrivalTime": "19:42",
+    "departureTime": "19:47",
+    "distanceFromOrigin": 263,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1003,
+    "trainId": 101,
+    "stationId": 9,
+    "stopSequence": 3,
+    "arrivalTime": "21:05",
+    "departureTime": "21:15",
+    "distanceFromOrigin": 392,
+    "platformNumber": 2
+  },
+  {
+    "routeId": 1004,
+    "trainId": 101,
+    "stationId": 1,
+    "stopSequence": 4,
+    "arrivalTime": "08:32",
+    "departureTime": "08:32",
+    "distanceFromOrigin": 1384,
+    "platformNumber": 3
+  },
+  {
+    "routeId": 1005,
+    "trainId": 102,
+    "stationId": 1,
+    "stopSequence": 1,
+    "arrivalTime": "16:55",
+    "departureTime": "16:55",
+    "distanceFromOrigin": 0,
+    "platformNumber": 3
+  },
+  {
+    "routeId": 1006,
+    "trainId": 102,
+    "stationId": 9,
+    "stopSequence": 2,
+    "arrivalTime": "03:45",
+    "departureTime": "03:55",
+    "distanceFromOrigin": 992,
+    "platformNumber": 2
+  },
+  {
+    "routeId": 1007,
+    "trainId": 102,
+    "stationId": 8,
+    "stopSequence": 3,
+    "arrivalTime": "05:10",
+    "departureTime": "05:15",
+    "distanceFromOrigin": 1121,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1008,
+    "trainId": 102,
+    "stationId": 7,
+    "stopSequence": 4,
+    "arrivalTime": "08:35",
+    "departureTime": "08:35",
+    "distanceFromOrigin": 1384,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1009,
+    "trainId": 105,
+    "stationId": 1,
+    "stopSequence": 1,
+    "arrivalTime": "06:00",
+    "departureTime": "06:00",
+    "distanceFromOrigin": 0,
+    "platformNumber": 16
+  },
+  {
+    "routeId": 1010,
+    "trainId": 105,
+    "stationId": 2,
+    "stopSequence": 2,
+    "arrivalTime": "10:08",
+    "departureTime": "10:10",
+    "distanceFromOrigin": 440,
+    "platformNumber": 5
+  },
+  {
+    "routeId": 1011,
+    "trainId": 105,
+    "stationId": 3,
+    "stopSequence": 3,
+    "arrivalTime": "12:08",
+    "departureTime": "12:10",
+    "distanceFromOrigin": 635,
+    "platformNumber": 6
+  },
+  {
+    "routeId": 1012,
+    "trainId": 105,
+    "stationId": 4,
+    "stopSequence": 4,
+    "arrivalTime": "14:00",
+    "departureTime": "14:00",
+    "distanceFromOrigin": 759,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1013,
+    "trainId": 106,
+    "stationId": 4,
+    "stopSequence": 1,
+    "arrivalTime": "15:00",
+    "departureTime": "15:00",
+    "distanceFromOrigin": 0,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1014,
+    "trainId": 106,
+    "stationId": 3,
+    "stopSequence": 2,
+    "arrivalTime": "16:30",
+    "departureTime": "16:32",
+    "distanceFromOrigin": 124,
+    "platformNumber": 6
+  },
+  {
+    "routeId": 1015,
+    "trainId": 106,
+    "stationId": 2,
+    "stopSequence": 3,
+    "arrivalTime": "18:30",
+    "departureTime": "18:32",
+    "distanceFromOrigin": 319,
+    "platformNumber": 5
+  },
+  {
+    "routeId": 1016,
+    "trainId": 106,
+    "stationId": 1,
+    "stopSequence": 4,
+    "arrivalTime": "23:00",
+    "departureTime": "23:00",
+    "distanceFromOrigin": 759,
+    "platformNumber": 16
+  },
+  {
+    "routeId": 1017,
+    "trainId": 103,
+    "stationId": 6,
+    "stopSequence": 1,
+    "arrivalTime": "16:50",
+    "departureTime": "16:50",
+    "distanceFromOrigin": 0,
+    "platformNumber": 9
+  },
+  {
+    "routeId": 1018,
+    "trainId": 103,
+    "stationId": 5,
+    "stopSequence": 2,
+    "arrivalTime": "23:10",
+    "departureTime": "23:20",
+    "distanceFromOrigin": 532,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1019,
+    "trainId": 103,
+    "stationId": 2,
+    "stopSequence": 3,
+    "arrivalTime": "05:20",
+    "departureTime": "05:25",
+    "distanceFromOrigin": 1012,
+    "platformNumber": 2
+  },
+  {
+    "routeId": 1020,
+    "trainId": 103,
+    "stationId": 1,
+    "stopSequence": 4,
+    "arrivalTime": "10:05",
+    "departureTime": "10:05",
+    "distanceFromOrigin": 1451,
+    "platformNumber": 4
+  },
+  {
+    "routeId": 1021,
+    "trainId": 107,
+    "stationId": 1,
+    "stopSequence": 1,
+    "arrivalTime": "06:15",
+    "departureTime": "06:15",
+    "distanceFromOrigin": 0,
+    "platformNumber": 1
+  },
+  {
+    "routeId": 1022,
+    "trainId": 107,
+    "stationId": 2,
+    "stopSequence": 2,
+    "arrivalTime": "11:20",
+    "departureTime": "11:20",
+    "distanceFromOrigin": 440,
+    "platformNumber": 3
+  },
+  {
+    "routeId": 1023,
+    "trainId": 109,
+    "stationId": 11,
+    "stopSequence": 1,
+    "arrivalTime": "06:00",
+    "departureTime": "06:00",
+    "distanceFromOrigin": 0,
+    "platformNumber": 2
+  },
+  {
+    "routeId": 1024,
+    "trainId": 109,
+    "stationId": 12,
+    "stopSequence": 2,
+    "arrivalTime": "10:45",
+    "departureTime": "10:45",
+    "distanceFromOrigin": 358,
+    "platformNumber": 7
+  },
+  {
+    "routeId": 1025,
+    "trainId": 110,
+    "stationId": 10,
+    "stopSequence": 1,
+    "arrivalTime": "06:00",
+    "departureTime": "06:00",
+    "distanceFromOrigin": 0,
+    "platformNumber": 6
+  },
+  {
+    "routeId": 1026,
+    "trainId": 110,
+    "stationId": 9,
+    "stopSequence": 2,
+    "arrivalTime": "07:15",
+    "departureTime": "07:20",
+    "distanceFromOrigin": 100,
+    "platformNumber": 3
+  },
+  {
+    "routeId": 1027,
+    "trainId": 110,
+    "stationId": 8,
+    "stopSequence": 3,
+    "arrivalTime": "08:55",
+    "departureTime": "09:00",
+    "distanceFromOrigin": 229,
+    "platformNumber": 2
+  },
+  {
+    "routeId": 1028,
+    "trainId": 110,
+    "stationId": 7,
+    "stopSequence": 4,
+    "arrivalTime": "13:05",
+    "departureTime": "13:05",
+    "distanceFromOrigin": 492,
+    "platformNumber": 5
+  }
+]

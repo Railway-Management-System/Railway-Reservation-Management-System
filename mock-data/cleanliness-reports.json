@@ -1,0 +1,38 @@
+[
+  {
+    "reportId": 751,
+    "reportedBy": 1,
+    "trainId": 101,
+    "coachId": 301,
+    "stationId": null,
+    "platformNumber": null,
+    "issueType": "TOILET_DIRTY",
+    "description": "Coach B1 western washroom hygiene issue reported by passenger.",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-01T17:30:00Z"
+  },
+  {
+    "reportId": 752,
+    "reportedBy": 2,
+    "trainId": null,
+    "coachId": null,
+    "stationId": 1,
+    "platformNumber": 16,
+    "issueType": "LITTER",
+    "description": "Accumulation of plastic cups and packaging near waiting area seats.",
+    "status": "ATTENDING",
+    "createdAt": "2026-10-06T06:15:00Z"
+  },
+  {
+    "reportId": 753,
+    "reportedBy": 1,
+    "trainId": 101,
+    "coachId": 303,
+    "stationId": null,
+    "platformNumber": null,
+    "issueType": "WATER_SHORTAGE",
+    "description": "Low overhead tank water pressure in coach A1 washrooms.",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-01T21:00:00Z"
+  }
+]

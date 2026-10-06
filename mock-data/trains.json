@@ -1,0 +1,102 @@
+[
+  {
+    "trainId": 101,
+    "trainNumber": "12951",
+    "trainName": "Mumbai Tejas Rajdhani Express",
+    "trainType": "RAJDHANI",
+    "sourceStationId": 7,
+    "destinationStationId": 1,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 102,
+    "trainNumber": "12952",
+    "trainName": "New Delhi Mumbai Tejas Rajdhani",
+    "trainType": "RAJDHANI",
+    "sourceStationId": 1,
+    "destinationStationId": 7,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 103,
+    "trainNumber": "12301",
+    "trainName": "Howrah Rajdhani Express",
+    "trainType": "RAJDHANI",
+    "sourceStationId": 6,
+    "destinationStationId": 1,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 104,
+    "trainNumber": "12302",
+    "trainName": "New Delhi Howrah Rajdhani",
+    "trainType": "RAJDHANI",
+    "sourceStationId": 1,
+    "destinationStationId": 6,
+    "runningDays": ["TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 105,
+    "trainNumber": "22436",
+    "trainName": "Vande Bharat Express",
+    "trainType": "VANDE_BHARAT",
+    "sourceStationId": 1,
+    "destinationStationId": 4,
+    "runningDays": ["TUE", "WED", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 106,
+    "trainNumber": "22435",
+    "trainName": "Varanasi New Delhi Vande Bharat",
+    "trainType": "VANDE_BHARAT",
+    "sourceStationId": 4,
+    "destinationStationId": 1,
+    "runningDays": ["TUE", "WED", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 107,
+    "trainNumber": "12002",
+    "trainName": "Shatabdi Express",
+    "trainType": "SHATABDI",
+    "sourceStationId": 1,
+    "destinationStationId": 2,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 108,
+    "trainNumber": "12622",
+    "trainName": "Tamil Nadu Superfast Express",
+    "trainType": "EXPRESS",
+    "sourceStationId": 1,
+    "destinationStationId": 11,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 109,
+    "trainNumber": "12007",
+    "trainName": "Chennai Bengaluru Shatabdi",
+    "trainType": "SHATABDI",
+    "sourceStationId": 11,
+    "destinationStationId": 12,
+    "runningDays": ["MON", "WED", "THU", "FRI", "SAT", "SUN"],
+    "status": "ACTIVE"
+  },
+  {
+    "trainId": 110,
+    "trainNumber": "12932",
+    "trainName": "Ahmedabad Mumbai Central Double Decker",
+    "trainType": "EXPRESS",
+    "sourceStationId": 10,
+    "destinationStationId": 7,
+    "runningDays": ["MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "status": "ACTIVE"
+  }
+]

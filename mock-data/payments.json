@@ -1,0 +1,56 @@
+[
+  {
+    "paymentId": 501,
+    "bookingId": 1001,
+    "amount": 3840.50,
+    "paymentMode": "UPI",
+    "paymentStatus": "SUCCESS",
+    "gatewayTransactionId": "TXN_IRCTC_8829104",
+    "paidAt": "2026-10-01T14:24:00Z"
+  },
+  {
+    "paymentId": 502,
+    "bookingId": 1002,
+    "amount": 1750.00,
+    "paymentMode": "DEBIT_CARD",
+    "paymentStatus": "SUCCESS",
+    "gatewayTransactionId": "TXN_IRCTC_4910283",
+    "paidAt": "2026-10-02T10:17:15Z"
+  },
+  {
+    "paymentId": 503,
+    "bookingId": 1003,
+    "amount": 1850.00,
+    "paymentMode": "NET_BANKING",
+    "paymentStatus": "SUCCESS",
+    "gatewayTransactionId": "TXN_IRCTC_9910481",
+    "paidAt": "2026-10-03T16:42:00Z"
+  },
+  {
+    "paymentId": 504,
+    "bookingId": 1004,
+    "amount": 675.00,
+    "paymentMode": "CREDIT_CARD",
+    "paymentStatus": "SUCCESS",
+    "gatewayTransactionId": "TXN_IRCTC_1029384",
+    "paidAt": "2026-10-01T08:02:10Z"
+  },
+  {
+    "paymentId": 505,
+    "bookingId": 1005,
+    "amount": 1750.00,
+    "paymentMode": "UPI",
+    "paymentStatus": "PENDING",
+    "gatewayTransactionId": "TXN_IRCTC_7719280",
+    "paidAt": null
+  },
+  {
+    "paymentId": 506,
+    "bookingId": 1006,
+    "amount": 1120.00,
+    "paymentMode": "CREDIT_CARD",
+    "paymentStatus": "FAILED",
+    "gatewayTransactionId": "TXN_IRCTC_3391820",
+    "paidAt": null
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "staffId": 1,
+    "userId": 4,
+    "employeeId": "EMP-TC-101",
+    "name": "Vikram Singh",
+    "designation": "Ticket Collector (TC)",
+    "assignedStationId": 1,
+    "status": "ON_DUTY"
+  },
+  {
+    "staffId": 2,
+    "userId": 5,
+    "employeeId": "EMP-SM-205",
+    "name": "Sunita Rao",
+    "designation": "Station Manager",
+    "assignedStationId": 1,
+    "status": "ON_DUTY"
+  },
+  {
+    "staffId": 3,
+    "userId": 6,
+    "employeeId": "EMP-TC-108",
+    "name": "Ramesh Nair",
+    "designation": "Ticket Collector (TC)",
+    "assignedStationId": 7,
+    "status": "OFF_DUTY"
+  }
+]

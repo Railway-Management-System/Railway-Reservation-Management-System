@@ -1,0 +1,74 @@
+[
+  {
+    "passengerId": 1,
+    "userId": 1,
+    "name": "Rahul Sharma",
+    "age": 28,
+    "gender": "MALE",
+    "idProofType": "AADHAAR",
+    "idProofReference": "XXXX-XXXX-1920",
+    "disabilityType": "NONE",
+    "concessionType": "NONE",
+    "berthPreference": "LOWER"
+  },
+  {
+    "passengerId": 2,
+    "userId": 1,
+    "name": "Sunita Sharma",
+    "age": 56,
+    "gender": "FEMALE",
+    "idProofType": "AADHAAR",
+    "idProofReference": "XXXX-XXXX-3829",
+    "disabilityType": "NONE",
+    "concessionType": "SENIOR_CITIZEN",
+    "berthPreference": "LOWER"
+  },
+  {
+    "passengerId": 3,
+    "userId": 1,
+    "name": "Rohan Sharma",
+    "age": 22,
+    "gender": "MALE",
+    "idProofType": "PAN",
+    "idProofReference": "ABCDE1234F",
+    "disabilityType": "NONE",
+    "concessionType": "STUDENT",
+    "berthPreference": "UPPER"
+  },
+  {
+    "passengerId": 4,
+    "userId": 2,
+    "name": "Priya Patel",
+    "age": 31,
+    "gender": "FEMALE",
+    "idProofType": "PASSPORT",
+    "idProofReference": "P1928401",
+    "disabilityType": "NONE",
+    "concessionType": "NONE",
+    "berthPreference": "WINDOW"
+  },
+  {
+    "passengerId": 5,
+    "userId": 2,
+    "name": "Kavita Patel",
+    "age": 62,
+    "gender": "FEMALE",
+    "idProofType": "AADHAAR",
+    "idProofReference": "XXXX-XXXX-7712",
+    "disabilityType": "ORTHOPEDIC",
+    "concessionType": "DIVYAANG",
+    "berthPreference": "LOWER"
+  },
+  {
+    "passengerId": 6,
+    "userId": 3,
+    "name": "Amit Verma",
+    "age": 34,
+    "gender": "MALE",
+    "idProofType": "DRIVING_LICENSE",
+    "idProofReference": "DL-0420190012",
+    "disabilityType": "NONE",
+    "concessionType": "NONE",
+    "berthPreference": "SIDE_LOWER"
+  }
+]

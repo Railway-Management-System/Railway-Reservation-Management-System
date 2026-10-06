@@ -1,0 +1,26 @@
+[
+  {
+    "incidentId": 851,
+    "reportedBy": 1,
+    "type": "MEDICAL_EMERGENCY",
+    "severity": "HIGH",
+    "locationType": "TRAIN",
+    "stationId": null,
+    "trainId": 101,
+    "description": "Elderly passenger experienced acute breathing difficulty between Surat and Vadodara. First aid administered; medical team requested at Vadodara Junction.",
+    "status": "RESOLVED",
+    "createdAt": "2026-10-01T20:50:00Z"
+  },
+  {
+    "incidentId": 852,
+    "reportedBy": 2,
+    "type": "TECHNICAL_FAILURE",
+    "severity": "MEDIUM",
+    "locationType": "STATION",
+    "stationId": 1,
+    "trainId": null,
+    "description": "Display screen malfunction on Platform 16 causing passenger confusion.",
+    "status": "ACKNOWLEDGED",
+    "createdAt": "2026-10-05T07:20:00Z"
+  }
+]
