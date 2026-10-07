@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Thin scrollbar ───────────────────────────────────────────── */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 #1e293b;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #f97316;
+  border-radius: 3px;
+}
+
+/* ── Focus visible ring (accessibility) ───────────────────────── */
+:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* ── Smooth page transitions ──────────────────────────────────── */
+* {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* ── Disable transition on interactive drag / resize ────────────  */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
