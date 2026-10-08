@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Track base -->
+  <rect x="4" y="52" width="56" height="4" rx="2" fill="#f97316"/>
+  <!-- Left rail -->
+  <rect x="8" y="20" width="4" height="32" rx="2" fill="#f97316"/>
+  <!-- Right rail -->
+  <rect x="52" y="20" width="4" height="32" rx="2" fill="#f97316"/>
+  <!-- Sleepers -->
+  <rect x="8" y="30" width="48" height="3" rx="1" fill="#fb923c"/>
+  <rect x="8" y="40" width="48" height="3" rx="1" fill="#fb923c"/>
+  <!-- Train body -->
+  <rect x="10" y="8" width="44" height="28" rx="6" fill="#ea580c"/>
+  <!-- Windows -->
+  <rect x="16" y="14" width="8" height="6" rx="2" fill="#fff7ed"/>
+  <rect x="28" y="14" width="8" height="6" rx="2" fill="#fff7ed"/>
+  <rect x="40" y="14" width="8" height="6" rx="2" fill="#fff7ed"/>
+  <!-- Front light -->
+  <circle cx="32" cy="34" r="3" fill="#fed7aa"/>
+</svg>
