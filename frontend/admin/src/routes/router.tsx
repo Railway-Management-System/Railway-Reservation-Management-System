@@ -1,3 +1,4 @@
+import HomePage from '../pages/HomePage';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AdminLayout } from '../layouts/AdminLayout';
@@ -27,7 +28,7 @@ import { SettingsPage } from '../pages/settings/SettingsPage';
 export const router = createBrowserRouter([
   {
     path: '/admin/login',
-    element: <LoginPage />,
+    element: <HomePage/>,
   },
   {
     path: '/admin',
