@@ -1,0 +1,32 @@
+[
+  {
+    "auditId": 101,
+    "userId": 7,
+    "action": "SUSPEND_USER",
+    "entityType": "USER",
+    "entityId": "3",
+    "oldValue": { "accountStatus": "ACTIVE" },
+    "newValue": { "accountStatus": "SUSPENDED", "reason": "Repeated booking bot activity detected" },
+    "createdAt": "2026-10-04T11:20:00Z"
+  },
+  {
+    "auditId": 102,
+    "userId": 7,
+    "action": "APPROVE_TDR",
+    "entityType": "TDR",
+    "entityId": "701",
+    "oldValue": { "status": "FILED", "refundAmount": null },
+    "newValue": { "status": "APPROVED", "refundAmount": 1850.00 },
+    "createdAt": "2026-10-04T12:00:00Z"
+  },
+  {
+    "auditId": 103,
+    "userId": 7,
+    "action": "UPDATE_SCHEDULE_DELAY",
+    "entityType": "SCHEDULE",
+    "entityId": "502",
+    "oldValue": { "status": "ON_TIME", "delayMinutes": 0 },
+    "newValue": { "status": "DELAYED", "delayMinutes": 25 },
+    "createdAt": "2026-10-06T18:25:00Z"
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "cancellationId": 401,
+    "bookingId": 1004,
+    "passengerId": 5,
+    "cancellationDate": "2026-10-05T09:30:00Z",
+    "cancellationCharge": 120.00,
+    "refundAmount": 555.00,
+    "status": "PROCESSED"
+  }
+]
