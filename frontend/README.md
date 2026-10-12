@@ -1,92 +1,63 @@
-# Frontend Engineering Guide
+# Staff / Ticket Collector (TC) Operations Terminal (Track 2)
 
-Welcome to the frontend directory of the **Railway Reservation & Management System**.
+Welcome to the **Staff / Ticket Collector (TC) Operations Dashboard** for the **Railway Reservation & Management System**.
 
-## 1. Frontend Team Assignments
+## 1. Overview & Capabilities
 
-Frontend development is divided among three independent engineering tracks:
+This dashboard is engineered for onboard train conductors, ticket examiners, and station personnel. It runs 100% offline-ready against standardized mock fixtures with reactive `localStorage` persistence.
 
-```
-frontend/
-├── passenger/    # Team 1: Public Website & Passenger Portal
-├── staff/        # Team 2: Staff / Ticket Collector (TC) Operations
-└── admin/        # Team 3: Administrator Dashboard & Master Data Management
-```
+### Key Functional Modules
 
----
+1. **Duty Roster & Shift Overview**:
+   - Real-time roster details: Assigned Train (12951 Mumbai Tejas Rajdhani), assigned coaches (`B1`, `B2`, `A1`), shift timing, and active personnel profile.
+   - Quick KPI metrics: Total passengers, boarded count, no-shows, vacant berth pool, and penalty revenues collected.
+   - Instant personnel switcher between Vikram Singh (TC), Sunita Rao (Station Manager), and Ramesh Nair (TC).
 
-## 2. Team Scope & Deliverables
+2. **Passenger Chart & Manifest**:
+   - Coach-wise passenger manifest (`B1`, `B2`, `A1`, `H1`).
+   - Real-time search across Name, PNR, Seat Number, and ID Reference.
+   - 1-click **Boarded** (`BOARDED`) vs **No-Show** (`NO_SHOW`) status toggle.
+   - Marking a passenger as `NO_SHOW` automatically releases their occupied berth directly into the Vacancy Reallocation Pool!
 
-### Track 1: Passenger / Public Portal (`frontend/passenger`)
-- **Public Entry**: Landing page, Train Search widget, Timetable lookup, Live train tracker, PNR enquiry.
-- **Authentication**: Passenger Self-Registration and Passenger Login.
-- **6-Step Booking Lifecycle**:
-  1. Train Search & Filters
-  2. Search Results & Class/Quota Selection
-  3. Passenger Details (Saved master list integration + 10-minute hold timer)
-  4. Booking Summary & Dynamic Fare Breakdown
-  5. Mock Payment Gateway (Card, UPI, Netbanking simulation)
-  6. Confirmation & Printable E-Ticket
-- **My Account**: Profile settings, Passenger Master List (CRUD), Booking History, Ticket Cancellation with penalty preview, TDR Filing, Grievances ticket tracker, Support page.
+3. **Digital PNR & Identity Scanner**:
+   - Quick PNR inspection terminal with sample quick-test buttons (`2849102841`, `5183920194`, `4920194820`).
+   - Real-time inspection of official ID proof on record (`AADHAAR`, `PAN`, `PASSPORT`, `DRIVING_LICENSE`, `VOTER_ID`).
+   - Official TC verification stamps: `VALID`, `INVALID`, `MISMATCH` with inspector remarks.
 
-### Track 2: Staff / TC Dashboard (`frontend/staff`)
-- **Authentication**: Staff / TC Login.
-- **Duty Dashboard**: Current roster (assigned train/date/coach or station/platform).
-- **Chart & Verification**: Real-time passenger manifest, PNR lookup, ID proof validation (`VALID`, `INVALID`, `MISMATCH`).
-- **Boarding Tracking**: Toggle passenger status (`BOARDED`, `NO_SHOW`).
-- **Vacancy & Promotions**: Identify unoccupied berths and trigger RAC/WL promotion.
-- **On-Spot Fine Management**: Issue penalties for ticketless travel, unbooked luggage, etc.
-- **Operations & Reporting**: Log train delays, update platform numbers, report crowd densities, submit cleanliness tickets, and escalate safety incidents.
+4. **Vacancy Management & RAC Promotion**:
+   - Real-time vacant berths pool detailing coach, seat, berth type, and vacancy reason (e.g. No-Show, cancellation).
+   - Priority queue of passengers in `RAC` (Reservation Against Cancellation) and `WAITING_LIST`.
+   - 1-click **Promote RAC Passenger** which automatically assigns the vacant berth and upgrades booking status to `CONFIRMED`.
 
-### Track 3: Administrator Dashboard (`frontend/admin`)
-- **Authentication**: Dedicated Admin Login.
-- **System Overview**: Live operational metrics, active trains, revenue summary, system alerts.
-- **User & Staff Management**: View passengers, block/unblock accounts, register railway staff, assign duty shifts.
-- **Master Data Management (MDM)**: Complete CRUD screens for Stations, Platforms, Trains, Routes (stop sequences), Schedules, Coaches, Seats, Base Fares, and Quota allocations.
-- **Reservation Oversight**: Global PNR search, ticket overrides, and administrative cancellations.
-- **TDR Adjudication**: Review passenger refund claims, approve/reject with refund amount.
-- **Analytics & Reports**: Interactive charts and data tables for Revenue, Occupancy %, Cancellation Trends, Fine Collections, Punctuality/Delays, and Grievance metrics.
-- **Audit Logs**: Forensic timeline of all administrative system edits.
+5. **On-Spot Penalty Fine Management**:
+   - Issue official fine challans for violations: `TICKETLESS_TRAVEL`, `TRAVELLING_IN_HIGHER_CLASS_WITHOUT_UPGRADE`, `UNBOOKED_EXCESS_LUGGAGE`, `SMOKING_NUISANCE`, etc.
+   - Real-time calculation of collected vs unpaid penalties.
+   - Digital printable/downloadable penalty e-receipt with official Indian Railways styling.
+
+6. **Operations & Delay Dispatcher**:
+   - Live route timetable with intermediate arrival/departure times, distances, and assigned platforms.
+   - Operational delay broadcaster (reporting minutes delayed, operational status `ON_TIME` / `DELAYED`, and platform shifts).
+
+7. **Crowd & Cleanliness Monitoring**:
+   - Platform headcount and crowd density assessor (`LOW`, `MODERATE`, `HIGH`, `OVERCROWDED`).
+   - Housekeeping ticket dispatcher for coach/washroom hygiene issues (`TOILET_DIRTY`, `LITTER`, `WATER_SHORTAGE`, `AC_NOT_WORKING`) with resolution tracking.
+
+8. **Emergency Escalation & SOS**:
+   - Rapid emergency broadcast to Central Control Room, RPF, and medical teams with severity grading (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
+   - Incident action trail and resolution logging.
 
 ---
 
-## 3. How to Consume Mock Data
+## 2. Running Locally
 
-All teams **MUST** read from `/mock-data/*.json`. To ensure future compatibility when the backend REST API is introduced:
+The dashboard is completely standalone. You can run it via any local web server or open it directly in a browser:
 
-### Central Service Wrapper Pattern
-Create a dedicated `services/` directory within your portal. Wrap all data access inside async functions:
+```bash
+# Option A: Python HTTP Server (Port 8080)
+python -m http.server 8080 --directory "frontend/staff"
 
-```javascript
-// Example: src/services/trainService.js
-import trainsData from '../../../mock-data/trains.json';
-import stationsData from '../../../mock-data/stations.json';
-
-const USE_MOCK = true; // Toggle to false when backend API is live
-
-export async function searchTrains(sourceStationId, destinationStationId) {
-  if (USE_MOCK) {
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 200));
-    return trainsData.filter(
-      t => t.sourceStationId === Number(sourceStationId) && 
-           t.destinationStationId === Number(destinationStationId)
-    );
-  }
-
-  const response = await fetch(`/api/trains/search?sourceStationId=${sourceStationId}&destinationStationId=${destinationStationId}`);
-  const json = await response.json();
-  return json.data;
-}
+# Open in browser:
+# http://localhost:8080/index.html
 ```
 
----
-
-## 4. Mandatory Development Rules
-
-1. **Exact Field Names**: Use only the field names documented in `docs/DATA_SCHEMA.md` (e.g. `trainNumber`, `journeyDate`, `pnr`). Do not rename or create aliases.
-2. **Uppercase Enums**: Values like `CONFIRMED`, `WAITING_LIST`, `ACTIVE`, `GENERAL` must remain exact uppercase strings.
-3. **No Food Ordering**: Do NOT create any UI elements, tabs, or screens for Food Ordering.
-4. **Standard Fare Formula**:
-   $$\text{Total} = \text{Base} + \text{Reservation} + \text{Tatkal} + \text{Insurance} + \text{GST} - \text{Concession}$$
-5. **Hold Timer**: Implement the 10-minute hold countdown on the booking summary screen.
+Or simply open `frontend/staff/index.html` directly in your browser.
