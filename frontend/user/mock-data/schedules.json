@@ -1,0 +1,107 @@
+[
+  {
+    "scheduleId": 501,
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 502,
+    "trainId": 101,
+    "journeyDate": "2026-10-11",
+    "status": "DELAYED",
+    "delayMinutes": 25
+  },
+  {
+    "scheduleId": 503,
+    "trainId": 101,
+    "journeyDate": "2026-10-12",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 504,
+    "trainId": 102,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 505,
+    "trainId": 102,
+    "journeyDate": "2026-10-11",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 506,
+    "trainId": 103,
+    "journeyDate": "2026-10-10",
+    "status": "DELAYED",
+    "delayMinutes": 45
+  },
+  {
+    "scheduleId": 507,
+    "trainId": 103,
+    "journeyDate": "2026-10-12",
+    "status": "CANCELLED",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 508,
+    "trainId": 105,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 509,
+    "trainId": 105,
+    "journeyDate": "2026-10-11",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 510,
+    "trainId": 105,
+    "journeyDate": "2026-10-15",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 511,
+    "trainId": 106,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 512,
+    "trainId": 107,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 513,
+    "trainId": 108,
+    "journeyDate": "2026-10-10",
+    "status": "DELAYED",
+    "delayMinutes": 15
+  },
+  {
+    "scheduleId": 514,
+    "trainId": 109,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  },
+  {
+    "scheduleId": 515,
+    "trainId": 110,
+    "journeyDate": "2026-10-10",
+    "status": "ON_TIME",
+    "delayMinutes": 0
+  }
+]

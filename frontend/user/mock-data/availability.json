@@ -1,0 +1,110 @@
+[
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "classType": "3A",
+    "quota": "GENERAL",
+    "availableSeats": 42,
+    "racCount": 10,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "classType": "3A",
+    "quota": "TATKAL",
+    "availableSeats": 12,
+    "racCount": 0,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "classType": "3A",
+    "quota": "LADIES",
+    "availableSeats": 6,
+    "racCount": 2,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "classType": "2A",
+    "quota": "GENERAL",
+    "availableSeats": 18,
+    "racCount": 4,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-10",
+    "classType": "1A",
+    "quota": "GENERAL",
+    "availableSeats": 4,
+    "racCount": 0,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 101,
+    "journeyDate": "2026-10-11",
+    "classType": "3A",
+    "quota": "GENERAL",
+    "availableSeats": 0,
+    "racCount": 2,
+    "waitingListCount": 14
+  },
+  {
+    "trainId": 102,
+    "journeyDate": "2026-10-10",
+    "classType": "3A",
+    "quota": "GENERAL",
+    "availableSeats": 35,
+    "racCount": 8,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 103,
+    "journeyDate": "2026-10-10",
+    "classType": "SL",
+    "quota": "GENERAL",
+    "availableSeats": 0,
+    "racCount": 0,
+    "waitingListCount": 28
+  },
+  {
+    "trainId": 103,
+    "journeyDate": "2026-10-10",
+    "classType": "3A",
+    "quota": "GENERAL",
+    "availableSeats": 15,
+    "racCount": 5,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 105,
+    "journeyDate": "2026-10-10",
+    "classType": "CC",
+    "quota": "GENERAL",
+    "availableSeats": 54,
+    "racCount": 12,
+    "waitingListCount": 0
+  },
+  {
+    "trainId": 105,
+    "journeyDate": "2026-10-11",
+    "classType": "CC",
+    "quota": "GENERAL",
+    "availableSeats": 0,
+    "racCount": 4,
+    "waitingListCount": 8
+  },
+  {
+    "trainId": 107,
+    "journeyDate": "2026-10-10",
+    "classType": "CC",
+    "quota": "GENERAL",
+    "availableSeats": 22,
+    "racCount": 6,
+    "waitingListCount": 0
+  }
+]
