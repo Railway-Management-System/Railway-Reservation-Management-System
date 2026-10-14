@@ -1,0 +1,42 @@
+[
+  {
+    "notificationId": 801,
+    "userId": 1,
+    "type": "BOOKING_CONFIRMATION",
+    "title": "Booking Confirmed - PNR 2849102841",
+    "message": "Your booking for Train 12951 (Mumbai Tejas Rajdhani) on 2026-10-10 has been confirmed in Coach B1 (Berths 23, 24).",
+    "referenceId": "2849102841",
+    "isRead": true,
+    "createdAt": "2026-10-01T14:25:00Z"
+  },
+  {
+    "notificationId": 802,
+    "userId": 1,
+    "type": "DELAY",
+    "title": "Train Delay Alert",
+    "message": "Train 12951 on 2026-10-11 is running late by 25 minutes.",
+    "referenceId": "12951",
+    "isRead": false,
+    "createdAt": "2026-10-06T18:30:00Z"
+  },
+  {
+    "notificationId": 803,
+    "userId": 2,
+    "type": "STATUS_UPDATE",
+    "title": "RAC Ticket Update",
+    "message": "PNR 4920194820 on Train 22436 is currently RAC-1. Check back after chart preparation for possible berth promotion.",
+    "referenceId": "4920194820",
+    "isRead": false,
+    "createdAt": "2026-10-02T10:20:00Z"
+  },
+  {
+    "notificationId": 804,
+    "userId": 4,
+    "type": "EMERGENCY",
+    "title": "Duty Roster Alert",
+    "message": "You are assigned to Train 12951 (Coach B1, B2) on 2026-10-10. Report to Platform 1 at 16:00.",
+    "referenceId": "EMP-TC-101",
+    "isRead": true,
+    "createdAt": "2026-10-05T08:00:00Z"
+  }
+]
