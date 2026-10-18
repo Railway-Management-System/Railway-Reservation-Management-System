@@ -1,0 +1,22 @@
+[
+  {
+    "grievanceId": 901,
+    "userId": 1,
+    "category": "TRAIN_CLEANLINESS",
+    "subject": "Unhygienic washrooms in coach B1",
+    "description": "Washrooms in coach B1 of train 12951 were not sanitized prior to departure from Mumbai Central.",
+    "status": "RESOLVED",
+    "response": "Housekeeping on board (OBHS) was dispatched and sanitization was completed at Surat station halt.",
+    "createdAt": "2026-10-01T18:00:00Z"
+  },
+  {
+    "grievanceId": 902,
+    "userId": 2,
+    "category": "REFUND",
+    "subject": "Delay in cancellation refund for PNR 1938472910",
+    "description": "Cancelled ticket on 2026-10-05 but refund of Rs 555 is not yet credited to bank account.",
+    "status": "IN_PROGRESS",
+    "response": "Refund has been processed from our payment gateway. Banking clearance usually takes 3 to 5 business days.",
+    "createdAt": "2026-10-06T10:15:00Z"
+  }
+]

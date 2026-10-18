@@ -1,0 +1,65 @@
+[
+  {
+    "bookingPassengerId": 2001,
+    "bookingId": 1001,
+    "passengerId": 1,
+    "coachNumber": "B1",
+    "seatNumber": 23,
+    "berthType": "LOWER",
+    "passengerStatus": "CONFIRMED"
+  },
+  {
+    "bookingPassengerId": 2002,
+    "bookingId": 1001,
+    "passengerId": 2,
+    "coachNumber": "B1",
+    "seatNumber": 24,
+    "berthType": "MIDDLE",
+    "passengerStatus": "CONFIRMED"
+  },
+  {
+    "bookingPassengerId": 2003,
+    "bookingId": 1002,
+    "passengerId": 4,
+    "coachNumber": "C1",
+    "seatNumber": 1,
+    "berthType": "WINDOW",
+    "passengerStatus": "RAC"
+  },
+  {
+    "bookingPassengerId": 2004,
+    "bookingId": 1003,
+    "passengerId": 3,
+    "coachNumber": null,
+    "seatNumber": null,
+    "berthType": null,
+    "passengerStatus": "WAITING_LIST"
+  },
+  {
+    "bookingPassengerId": 2005,
+    "bookingId": 1004,
+    "passengerId": 5,
+    "coachNumber": "S1",
+    "seatNumber": 15,
+    "berthType": "LOWER",
+    "passengerStatus": "CANCELLED"
+  },
+  {
+    "bookingPassengerId": 2006,
+    "bookingId": 1005,
+    "passengerId": 1,
+    "coachNumber": null,
+    "seatNumber": null,
+    "berthType": null,
+    "passengerStatus": "WAITING_LIST"
+  },
+  {
+    "bookingPassengerId": 2007,
+    "bookingId": 1006,
+    "passengerId": 6,
+    "coachNumber": null,
+    "seatNumber": null,
+    "berthType": null,
+    "passengerStatus": "CANCELLED"
+  }
+]

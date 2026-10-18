@@ -1,0 +1,35 @@
+[
+  {
+    "fineId": 601,
+    "staffId": 1,
+    "passengerName": "Ajay Kumar",
+    "idProofReference": "VOTER-88491",
+    "trainId": 101,
+    "amount": 550.00,
+    "reason": "TICKETLESS_TRAVEL",
+    "paymentStatus": "PAID",
+    "issuedAt": "2026-10-01T20:15:00Z"
+  },
+  {
+    "fineId": 602,
+    "staffId": 1,
+    "passengerName": "Kishore Dave",
+    "idProofReference": "PAN-BRK1920",
+    "trainId": 101,
+    "amount": 300.00,
+    "reason": "TRAVELLING_IN_HIGHER_CLASS_WITHOUT_UPGRADE",
+    "paymentStatus": "PAID",
+    "issuedAt": "2026-10-01T22:30:00Z"
+  },
+  {
+    "fineId": 603,
+    "staffId": 3,
+    "passengerName": "Manish Gupta",
+    "idProofReference": "AADHAAR-9901-2244",
+    "trainId": 110,
+    "amount": 250.00,
+    "reason": "UNBOOKED_EXCESS_LUGGAGE",
+    "paymentStatus": "UNPAID",
+    "issuedAt": "2026-10-04T08:45:00Z"
+  }
+]

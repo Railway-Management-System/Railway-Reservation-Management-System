@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Railway Reservation System - Passenger Portal. Book train tickets, check PNR status, manage bookings and more." />
+  <title>RailConnect – Passenger Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- PUBLIC PASSENGER LANDING PAGE -->
+<div id="public-home" class="public-home">
+  <header class="public-nav">
+    <a class="public-brand" href="javascript:void(0)" onclick="switchPublicView('home')" aria-label="RailConnect home">
+      <span class="public-brand-mark" aria-hidden="true">🚆</span>
+      <span><strong>Railway Reservation</strong><small>& Management System</small></span>
+    </a>
+    <nav class="public-links" id="public-nav-links" aria-label="Main navigation">
+      <a class="current" href="javascript:void(0)" onclick="switchPublicView('home', this)">Home</a>
+      <a href="javascript:void(0)" onclick="switchPublicView('book', this)">Book Tickets</a>
+      <a href="javascript:void(0)" onclick="openAuthModal('login')">My Account</a>
+      <a href="javascript:void(0)" onclick="switchPublicView('trains', this)">Trains</a>
+      <a href="javascript:void(0)" onclick="switchPublicView('alerts', this)">Alerts</a>
+      <a href="javascript:void(0)" onclick="switchPublicView('contact', this)">Contact Us</a>
+    </nav>
+    <div class="public-nav-actions">
+      <button class="public-icon-button" aria-label="Sign in to see notifications" onclick="openAuthModal('login')">♧</button>
+      <button class="public-account" onclick="openAuthModal('login')"><span class="account-avatar">PU</span><span><strong>Passenger User</strong><small>Passenger Account</small></span></button>
+      <button class="public-login" onclick="openAuthModal('login')">Sign in</button>
+    </div>
+    <button class="public-menu-toggle" aria-label="Open navigation" onclick="document.getElementById('public-nav-links').classList.toggle('open')">☰</button>
+  </header>
+
+  <main id="top">
+    <section class="public-hero" aria-labelledby="public-hero-title">
+      <div class="hero-shade"></div>
+      <div class="public-hero-copy">
+        <h1 id="public-hero-title">Every great journey<br>begins with a <em>ticket.</em></h1>
+        <p>Find your train, choose your seat, and travel with confidence.</p>
+        <div class="hero-proof"><span>✦ Trusted journeys</span><span>✦ Easy booking</span><span>✦ Live updates</span></div>
+      </div>
+      <div class="hero-station-stamp"><span>INDIAN RAILWAYS</span><strong>Connecting<br>every mile.</strong></div>
+    </section>
+
+    <section class="public-search-wrap" id="journey-search" aria-label="Search train tickets">
+      <form class="public-search-card" onsubmit="handlePublicSearch(event)">
+        <div class="search-card-heading"><div><span class="search-eyebrow">PLAN YOUR NEXT TRIP</span><h2>Search train tickets</h2></div></div>
+        <div class="public-search-grid">
+          <label class="public-field"><span>FROM STATION</span><div class="public-field-control"><b aria-hidden="true">⌖</b><select id="public-from" required></select></div></label>
+          <button class="public-swap" type="button" onclick="swapPublicStations()" aria-label="Swap stations">⇄</button>
+          <label class="public-field"><span>TO STATION</span><div class="public-field-control"><b aria-hidden="true">⌖</b><select id="public-to" required></select></div></label>
+          <label class="public-field"><span>JOURNEY DATE</span><div class="public-field-control"><b aria-hidden="true">▦</b><input id="public-date" type="date" required></div></label>
+        </div>
+        <div class="public-search-options">
+          <label>Class <select id="public-class"><option value="">All Classes</option><option value="1A">First AC (1A)</option><option value="2A">AC 2 Tier (2A)</option><option value="3A">AC 3 Tier (3A)</option><option value="SL">Sleeper (SL)</option><option value="CC">Chair Car (CC)</option><option value="2S">Second Sitting (2S)</option><option value="EC">Executive Chair (EC)</option></select></label>
+          <label>Quota <select id="public-quota"><option value="GENERAL">General (GN)</option><option value="LADIES">Ladies</option><option value="TATKAL">Tatkal</option><option value="SENIOR_CITIZEN">Senior Citizen</option><option value="DIVYAANG">Divyaang</option></select></label>
+          <button class="public-search-button" type="submit"><span aria-hidden="true">⌕</span> Search trains <b>→</b></button>
+        </div>
+      </form>
+      <div id="public-results" class="public-results" aria-live="polite"></div>
+    </section>
+
+    <section class="travel-highlights" id="travel-info">
+      <div class="highlights-heading"><div><span class="search-eyebrow">TRAVEL, MADE SIMPLER</span><h2>Your trip, all in one place</h2></div><button class="text-link" onclick="openAuthModal('register')">Create passenger account <span>→</span></button></div>
+      <div class="highlight-grid">
+        <article class="highlight-card"><span class="highlight-icon blue">⌕</span><div><h3>Find your train</h3><p>Search schedules and availability across the network.</p></div></article>
+        <article class="highlight-card"><span class="highlight-icon green">▣</span><div><h3>Keep plans together</h3><p>Manage your bookings, passengers, and trip details.</p></div></article>
+        <article class="highlight-card"><span class="highlight-icon amber">◉</span><div><h3>Stay up to date</h3><p>Check PNR status and receive journey alerts.</p></div></article>
+      </div>
+      <div class="public-photo-credit">Platform photograph by <a href="https://unsplash.com/photos/people-walking-on-a-busy-train-station-platform-lyU8971Llrs" target="_blank" rel="noreferrer">Dhruv Bhatt on Unsplash</a>.</div>
+    </section>
+
+    <section class="public-tools-section" id="train-tools">
+      <div class="public-section-heading"><span class="search-eyebrow">QUICK LINKS · NO LOGIN REQUIRED</span><h2>Train information</h2><p>Check a timetable, look up a PNR, or view the latest mock running update.</p></div>
+      <div class="public-tool-grid">
+        <article class="public-tool-card">
+          <div class="public-tool-title"><span class="highlight-icon blue">▤</span><div><h3>Train schedule</h3><p>Stops, timings and platforms</p></div></div>
+          <form class="public-inline-form" onsubmit="lookupPublicSchedule(event)"><label>Train<select id="public-schedule-train" required></select></label><button type="submit">View schedule →</button></form>
+          <div id="public-schedule-result" class="public-tool-result" aria-live="polite"></div>
+        </article>
+        <article class="public-tool-card">
+          <div class="public-tool-title"><span class="highlight-icon green">◉</span><div><h3>Track your train</h3><p>Run status and route progress</p></div></div>
+          <form class="public-inline-form" onsubmit="trackPublicTrain(event)"><label>Train<select id="public-track-train" required></select></label><label>Journey date<input id="public-track-date" type="date" required></label><button type="submit">Check status →</button></form>
+          <div id="public-track-result" class="public-tool-result" aria-live="polite"></div>
+        </article>
+        <article class="public-tool-card">
+          <div class="public-tool-title"><span class="highlight-icon amber">▣</span><div><h3>PNR enquiry</h3><p>Check passenger ticket status</p></div></div>
+          <form class="public-inline-form" onsubmit="lookupPublicPNR(event)"><label>10-digit PNR<input id="public-pnr-input" type="text" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="Enter PNR" required></label><button type="submit">Check PNR →</button></form>
+          <div id="public-pnr-result" class="public-tool-result" aria-live="polite"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="public-connect-section" id="connecting-search">
+      <div class="public-section-heading"><span class="search-eyebrow">PLAN A TWO-LEG JOURNEY</span><h2>Connecting train search</h2><p>Explore mock connections with a transfer at an intermediate station.</p></div>
+      <form class="connecting-search-card" onsubmit="searchPublicConnections(event)">
+        <label class="public-field"><span>FROM STATION</span><select id="connect-from" required></select></label>
+        <label class="public-field"><span>TO STATION</span><select id="connect-to" required></select></label>
+        <label class="public-field"><span>JOURNEY DATE</span><input id="connect-date" type="date" required></label>
+        <button class="public-search-button" type="submit">Find connections <b>→</b></button>
+      </form>
+      <div id="public-connection-results" class="public-tool-result" aria-live="polite"></div>
+    </section>
+
+    <section class="public-alerts-section" id="public-alerts">
+      <div class="public-section-heading"><span class="search-eyebrow">SERVICE UPDATES</span><h2>Travel alerts</h2><p>Notices derived from the sample dated train schedules.</p></div>
+      <div id="public-alert-list" class="public-alert-list" aria-live="polite"></div>
+    </section>
+
+    <section class="public-support-section" id="public-support">
+      <div class="public-section-heading"><span class="search-eyebrow">HELP & SUPPORT</span><h2>Need a hand with your journey?</h2><p>Find quick answers or sign in to send a support request.</p></div>
+      <div class="public-support-grid">
+        <details><summary>How do I book a ticket?</summary><p>Search a route and date, select an available train and class, add passengers, review the fare, then complete the mock payment.</p></details>
+        <details><summary>Where can I check my booking?</summary><p>Use PNR Enquiry above for sample tickets, or sign in to view your booking history and passenger details.</p></details>
+        <details><summary>How do I report a problem?</summary><p>Sign in and open Grievances to submit a support request and review the sample response status.</p></details>
+        <button class="public-support-cta" onclick="openAuthModal('login')">Sign in to contact support <span>→</span></button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ AUTH PAGES -->
+<div id="auth-container" class="auth-container auth-overlay hidden">
+
+  <!-- LOGIN PAGE -->
+  <div id="page-login" class="auth-page active">
+    <div class="auth-hero">
+      <div class="hero-pattern"></div>
+      <div class="hero-content">
+        <div class="brand-logo">
+          <svg class="train-icon" viewBox="0 0 64 64" fill="none">
+            <rect x="8" y="20" width="48" height="26" rx="6" fill="currentColor" opacity="0.9"/>
+            <rect x="14" y="26" width="10" height="8" rx="2" fill="white" opacity="0.8"/>
+            <rect x="28" y="26" width="10" height="8" rx="2" fill="white" opacity="0.8"/>
+            <rect x="42" y="26" width="8" height="8" rx="2" fill="white" opacity="0.8"/>
+            <circle cx="18" cy="50" r="5" fill="currentColor"/>
+            <circle cx="18" cy="50" r="2.5" fill="white" opacity="0.8"/>
+            <circle cx="46" cy="50" r="5" fill="currentColor"/>
+            <circle cx="46" cy="50" r="2.5" fill="white" opacity="0.8"/>
+            <rect x="2" y="44" width="60" height="3" rx="1.5" fill="currentColor" opacity="0.5"/>
+            <rect x="56" y="20" width="4" height="10" rx="2" fill="currentColor" opacity="0.7"/>
+          </svg>
+          <span class="brand-name">RailConnect</span>
+        </div>
+        <h1 class="hero-title">Your Journey,<br/>Our Priority</h1>
+        <p class="hero-subtitle">Book tickets, track trains, manage bookings — all in one place</p>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-num">10+</span>
+            <span class="stat-label">Train Routes</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">12</span>
+            <span class="stat-label">Major Stations</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">24/7</span>
+            <span class="stat-label">Live Support</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-panel">
+      <div class="auth-card">
+        <button class="auth-modal-close" type="button" aria-label="Close sign in" onclick="closeAuthModal()">×</button>
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+          <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register</button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+          <div class="form-header">
+            <h2 class="form-title">Welcome back!</h2>
+            <p class="form-subtitle">Sign in to your passenger account</p>
+          </div>
+
+          <div class="form-group">
+            <label for="login-email" class="form-label">Email Address</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+              </svg>
+              <input type="email" id="login-email" class="form-input" placeholder="rahul.sharma@example.com" value="rahul.sharma@example.com" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="login-password" class="form-label">Password</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+              </svg>
+              <input type="password" id="login-password" class="form-input" placeholder="Enter password" value="Password123!" required />
+              <button type="button" class="toggle-password" onclick="togglePassword('login-password')">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-options">
+            <label class="remember-me">
+              <input type="checkbox" checked /> Remember me
+            </label>
+            <a href="#" class="forgot-link">Forgot Password?</a>
+          </div>
+
+          <button type="submit" class="btn-primary btn-full" id="login-btn">
+            <span class="btn-text">Sign In</span>
+            <div class="btn-spinner hidden"></div>
+          </button>
+
+          <div class="demo-hint">
+            <span>🔑 Demo: rahul.sharma@example.com / Password123!</span>
+          </div>
+        </form>
+
+        <!-- REGISTER FORM -->
+        <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+          <div class="form-header">
+            <h2 class="form-title">Create Account</h2>
+            <p class="form-subtitle">Join millions of travellers on RailConnect</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+              <input type="text" id="reg-name" class="form-input" placeholder="Full Name" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+              <input type="email" id="reg-email" class="form-input" placeholder="your@email.com" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mobile Number</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+              <input type="tel" id="reg-phone" class="form-input" placeholder="10-digit mobile number" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+              <input type="password" id="reg-password" class="form-input" placeholder="Min. 8 characters" required />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary btn-full" id="register-btn">
+            <span class="btn-text">Create Account</span>
+            <div class="btn-spinner hidden"></div>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ DASHBOARD -->
+<div id="dashboard-container" class="dashboard-container hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <svg class="train-icon-sm" viewBox="0 0 64 64" fill="none">
+          <rect x="8" y="20" width="48" height="26" rx="6" fill="currentColor" opacity="0.9"/>
+          <rect x="14" y="26" width="10" height="8" rx="2" fill="white" opacity="0.8"/>
+          <rect x="28" y="26" width="10" height="8" rx="2" fill="white" opacity="0.8"/>
+          <circle cx="18" cy="50" r="4" fill="currentColor"/>
+          <circle cx="46" cy="50" r="4" fill="currentColor"/>
+        </svg>
+        <span class="brand-name-sm">RailConnect</span>
+      </div>
+      <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+    </div>
+
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-avatar">RS</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-name">Rahul Sharma</div>
+        <div class="user-badge">🟢 ACTIVE Passenger</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <span class="nav-section-label">Main</span>
+        <a href="#" class="nav-item active" onclick="navigateTo('home')" id="nav-home">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+          <span>Home</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('search')" id="nav-search">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M9 3a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+          <span>Book Tickets</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('bookings')" id="nav-bookings">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/></svg>
+          <span>My Bookings</span>
+          <span class="nav-badge" id="booking-count-badge">3</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('pnr')" id="nav-pnr">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+          <span>PNR Enquiry</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-section-label">My Account</span>
+        <a href="#" class="nav-item" onclick="navigateTo('profile')" id="nav-profile">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+          <span>Profile</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('passengers')" id="nav-passengers">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+          <span>Saved Passengers</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('tdr')" id="nav-tdr">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v7a1 1 0 102 0V8z" clip-rule="evenodd"/></svg>
+          <span>TDR / Refunds</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-section-label">Support</span>
+        <a href="#" class="nav-item" onclick="navigateTo('grievances')" id="nav-grievances">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+          <span>Grievances</span>
+        </a>
+        <a href="#" class="nav-item" onclick="navigateTo('alerts')" id="nav-alerts">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+          <span>Alerts</span>
+          <span class="nav-badge unread" id="alerts-badge">1</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="handleLogout()">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay hidden" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- TOP NAVBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" onclick="toggleSidebar()">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+        </button>
+        <div class="page-breadcrumb" id="page-breadcrumb">Home</div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+          <span id="current-date"></span>
+        </div>
+        <button class="notif-btn" onclick="navigateTo('alerts')" id="topbar-notif-btn">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+          <span class="notif-dot" id="notif-dot"></span>
+        </button>
+        <div class="topbar-user">
+          <div class="topbar-avatar" id="topbar-avatar">RS</div>
+          <span class="topbar-username" id="topbar-username">Rahul</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE VIEWS -->
+    <main class="content-area" id="content-area">
+
+      <!-- ══════════════════════════════════════════ HOME PAGE -->
+      <div id="page-home" class="page active">
+        <div class="welcome-section">
+          <div class="welcome-text">
+            <h1 class="welcome-title">Good <span id="time-greeting">evening</span>, <span id="welcome-name">Rahul</span>! 👋</h1>
+            <p class="welcome-sub">Ready for your next journey?</p>
+          </div>
+          <div class="welcome-actions">
+            <button class="btn-primary" onclick="navigateTo('search')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              Book a Ticket
+            </button>
+          </div>
+        </div>
+
+        <!-- STATS CARDS -->
+        <div class="stats-grid" id="home-stats"></div>
+
+        <!-- QUICK SEARCH -->
+        <div class="quick-search-card">
+          <h2 class="section-title">Quick Train Search</h2>
+          <div class="quick-search-form">
+            <div class="search-row">
+              <div class="form-group flex-1">
+                <label class="form-label">From Station</label>
+                <select class="form-select" id="qs-from"></select>
+              </div>
+              <button class="swap-btn" onclick="swapQuickSearch()" title="Swap stations">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/></svg>
+              </button>
+              <div class="form-group flex-1">
+                <label class="form-label">To Station</label>
+                <select class="form-select" id="qs-to"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Journey Date</label>
+                <input type="date" class="form-input" id="qs-date" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Class</label>
+                <select class="form-select" id="qs-class">
+                  <option value="">Any Class</option>
+                  <option value="1A">1A - First AC</option>
+                  <option value="2A">2A - Second AC</option>
+                  <option value="3A" selected>3A - Third AC</option>
+                  <option value="SL">SL - Sleeper</option>
+                  <option value="CC">CC - Chair Car</option>
+                  <option value="EC">EC - Exec Chair</option>
+                </select>
+              </div>
+              <button class="btn-primary search-go-btn" onclick="goToSearch()">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                Search
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECENT BOOKINGS -->
+        <div class="section-block">
+          <div class="section-header">
+            <h2 class="section-title">Recent Bookings</h2>
+            <button class="btn-text-sm" onclick="navigateTo('bookings')">View All →</button>
+          </div>
+          <div id="recent-bookings-list" class="booking-cards-grid"></div>
+        </div>
+
+        <!-- ANNOUNCEMENTS -->
+        <div class="section-block">
+          <h2 class="section-title">📢 Alerts & Announcements</h2>
+          <div class="alert-list" id="home-alerts"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════ BOOK TICKETS / SEARCH -->
+      <div id="page-search" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">Book Tickets</h1>
+          <p class="page-sub">Search and book train tickets across India</p>
+        </div>
+
+        <!-- STEP INDICATOR -->
+        <div class="booking-steps" id="booking-steps">
+          <div class="step active" id="step-1"><span class="step-num">1</span><span class="step-label">Search</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-2"><span class="step-num">2</span><span class="step-label">Select</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-3"><span class="step-num">3</span><span class="step-label">Passengers</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-4"><span class="step-num">4</span><span class="step-label">Summary</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-5"><span class="step-num">5</span><span class="step-label">Payment</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-6"><span class="step-num">6</span><span class="step-label">Confirm</span></div>
+        </div>
+
+        <!-- STEP 1: SEARCH FORM -->
+        <div id="booking-step-1" class="booking-step active">
+          <div class="search-card">
+            <form onsubmit="handleSearchTrains(event)">
+              <div class="search-grid">
+                <div class="form-group">
+                  <label class="form-label">From Station *</label>
+                  <select class="form-select" id="search-from" required></select>
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;justify-content:center;margin-top:24px;">
+                  <button type="button" class="swap-btn large" onclick="swapSearchStations()">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z"/></svg>
+                  </button>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">To Station *</label>
+                  <select class="form-select" id="search-to" required></select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Journey Date *</label>
+                  <input type="date" class="form-input" id="search-date" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Class Preference</label>
+                  <select class="form-select" id="search-class">
+                    <option value="">Any Class</option>
+                    <option value="1A">1A - First AC</option>
+                    <option value="2A">2A - Second AC</option>
+                    <option value="3A">3A - Third AC</option>
+                    <option value="SL">SL - Sleeper</option>
+                    <option value="CC">CC - Chair Car</option>
+                    <option value="EC">EC - Executive Chair</option>
+                    <option value="2S">2S - Second Sitting</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Quota</label>
+                  <select class="form-select" id="search-quota">
+                    <option value="GENERAL">General</option>
+                    <option value="TATKAL">Tatkal</option>
+                    <option value="LADIES">Ladies</option>
+                    <option value="DIVYAANG">Divyaang</option>
+                    <option value="SENIOR_CITIZEN">Senior Citizen</option>
+                  </select>
+                </div>
+              </div>
+              <div class="search-footer">
+                <button type="submit" class="btn-primary btn-large" id="search-trains-btn">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                  Search Trains
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- STEP 2: SEARCH RESULTS -->
+        <div id="booking-step-2" class="booking-step hidden">
+          <div class="results-header">
+            <button class="btn-back" onclick="goToStep(1)">← Modify Search</button>
+            <div class="results-summary" id="results-summary"></div>
+          </div>
+          <div id="train-results" class="train-results-list"></div>
+        </div>
+
+        <!-- STEP 3: PASSENGER DETAILS -->
+        <div id="booking-step-3" class="booking-step hidden">
+          <div class="results-header">
+            <button class="btn-back" onclick="goToStep(2)">← Back to Results</button>
+            <h2 class="step-title">Passenger Details</h2>
+          </div>
+          <div class="step3-layout">
+            <div class="passengers-section">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Add Passengers</h3>
+                  <button class="btn-secondary-sm" onclick="addPassengerRow()">+ Add New</button>
+                </div>
+                <div class="saved-passengers-list" id="saved-pax-list"></div>
+                <div id="new-pax-forms"></div>
+              </div>
+
+              <div class="card" style="margin-top:16px;">
+                <div class="card-header"><h3>Booking Preferences</h3></div>
+                <div class="preferences-grid">
+                  <label class="toggle-option">
+                    <input type="checkbox" id="pref-auto-upgrade" checked />
+                    <span class="toggle-label">
+                      <strong>Auto Upgrade</strong>
+                      <small>Upgrade to higher class if available</small>
+                    </span>
+                  </label>
+                  <label class="toggle-option">
+                    <input type="checkbox" id="pref-confirmed-only" />
+                    <span class="toggle-label">
+                      <strong>Confirmed Berths Only</strong>
+                      <small>Cancel if not all berths confirmed</small>
+                    </span>
+                  </label>
+                  <label class="toggle-option">
+                    <input type="checkbox" id="pref-insurance" checked />
+                    <span class="toggle-label">
+                      <strong>Travel Insurance</strong>
+                      <small>₹1.50 per passenger coverage</small>
+                    </span>
+                  </label>
+                </div>
+                <div class="form-group" style="margin-top:12px;">
+                  <label class="form-label">Preferred Coach (Optional)</label>
+                  <input type="text" class="form-input" id="pref-coach" placeholder="e.g. B1, S2" />
+                </div>
+              </div>
+            </div>
+
+            <div class="booking-sidebar-info">
+              <div class="card journey-card">
+                <h3>Journey Details</h3>
+                <div id="selected-journey-info"></div>
+                <div class="hold-timer hidden" id="hold-timer">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                  Seat Hold: <span id="hold-countdown">10:00</span>
+                </div>
+              </div>
+              <button class="btn-primary btn-full" onclick="goToStep(4)" style="margin-top:12px;">
+                Proceed to Summary →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4: BOOKING SUMMARY -->
+        <div id="booking-step-4" class="booking-step hidden">
+          <div class="results-header">
+            <button class="btn-back" onclick="goToStep(3)">← Back</button>
+            <h2 class="step-title">Booking Summary</h2>
+          </div>
+          <div class="summary-layout">
+            <div class="summary-main">
+              <div class="card" id="summary-journey-card"></div>
+              <div class="card" id="summary-passengers-card" style="margin-top:16px;"></div>
+            </div>
+            <div class="summary-sidebar">
+              <div class="card fare-card">
+                <h3>Fare Breakdown</h3>
+                <div id="fare-breakdown"></div>
+                <div class="hold-timer" id="hold-timer-4">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                  Seat Hold: <span id="hold-countdown-4">10:00</span>
+                </div>
+              </div>
+              <button class="btn-primary btn-full" onclick="goToStep(5)" style="margin-top:12px;">
+                Proceed to Payment →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5: PAYMENT -->
+        <div id="booking-step-5" class="booking-step hidden">
+          <div class="results-header">
+            <button class="btn-back" onclick="goToStep(4)">← Back</button>
+            <h2 class="step-title">Payment Gateway</h2>
+          </div>
+          <div class="payment-layout">
+            <div class="card payment-card">
+              <h3>Select Payment Method</h3>
+              <div class="payment-methods">
+                <label class="payment-option active" id="pay-upi">
+                  <input type="radio" name="paymentMode" value="UPI" checked />
+                  <div class="pay-icon">📱</div>
+                  <div><strong>UPI</strong><small>Google Pay, PhonePe, etc.</small></div>
+                </label>
+                <label class="payment-option" id="pay-card">
+                  <input type="radio" name="paymentMode" value="CREDIT_CARD" />
+                  <div class="pay-icon">💳</div>
+                  <div><strong>Credit/Debit Card</strong><small>Visa, Mastercard, RuPay</small></div>
+                </label>
+                <label class="payment-option" id="pay-netbanking">
+                  <input type="radio" name="paymentMode" value="NET_BANKING" />
+                  <div class="pay-icon">🏦</div>
+                  <div><strong>Net Banking</strong><small>All major banks supported</small></div>
+                </label>
+              </div>
+
+              <div class="payment-details" id="payment-details-upi">
+                <div class="form-group">
+                  <label class="form-label">UPI ID</label>
+                  <input type="text" class="form-input" placeholder="yourname@paytm" id="upi-id" />
+                </div>
+              </div>
+
+              <div class="payment-amount-box">
+                <span>Total Amount</span>
+                <span class="amount-large" id="payment-total-amount">₹3,840.50</span>
+              </div>
+
+              <button class="btn-primary btn-full btn-large" onclick="processPaymentFlow()" id="pay-now-btn">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                Pay Securely Now
+              </button>
+              <p class="secure-note">🔒 All transactions are 256-bit SSL encrypted</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 6: CONFIRMATION -->
+        <div id="booking-step-6" class="booking-step hidden">
+          <div class="confirmation-page">
+            <div class="confirm-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <h2 class="confirm-title">Booking Confirmed!</h2>
+            <p class="confirm-sub">Your e-ticket has been generated successfully</p>
+
+            <div class="e-ticket" id="e-ticket-card"></div>
+
+            <div class="confirm-actions">
+              <button class="btn-primary" onclick="printTicket()">🖨️ Print Ticket</button>
+              <button class="btn-secondary" onclick="navigateTo('bookings')">View All Bookings</button>
+              <button class="btn-secondary" onclick="bookAnotherTicket()">Book Another</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ MY BOOKINGS -->
+      <div id="page-bookings" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">My Bookings</h1>
+          <button class="btn-primary" onclick="navigateTo('search')">+ Book New Ticket</button>
+        </div>
+
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterBookings('all', this)">All</button>
+          <button class="filter-btn" onclick="filterBookings('CONFIRMED', this)">Confirmed</button>
+          <button class="filter-btn" onclick="filterBookings('RAC', this)">RAC</button>
+          <button class="filter-btn" onclick="filterBookings('WAITING_LIST', this)">Waitlist</button>
+          <button class="filter-btn" onclick="filterBookings('CANCELLED', this)">Cancelled</button>
+        </div>
+
+        <div id="bookings-list" class="bookings-full-list"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ PNR ENQUIRY -->
+      <div id="page-pnr" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">PNR Enquiry</h1>
+          <p class="page-sub">Check the current status of any ticket</p>
+        </div>
+
+        <div class="card pnr-search-card">
+          <h2>Enter PNR Number</h2>
+          <div class="pnr-search-row">
+            <input type="text" class="form-input pnr-input" id="pnr-input" placeholder="Enter 10-digit PNR number" maxlength="10" />
+            <button class="btn-primary" onclick="searchPNR()">Check Status</button>
+          </div>
+          <p class="pnr-hint">e.g. 2849102841</p>
+        </div>
+
+        <div id="pnr-result" class="hidden"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ PROFILE -->
+      <div id="page-profile" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">My Profile</h1>
+        </div>
+
+        <div class="profile-layout">
+          <div class="profile-card card">
+            <div class="profile-avatar-section">
+              <div class="profile-avatar" id="profile-avatar">RS</div>
+              <div class="profile-name-section">
+                <h2 id="profile-name-display">Rahul Sharma</h2>
+                <span class="status-badge active">ACTIVE</span>
+              </div>
+            </div>
+
+            <form onsubmit="updateProfile(event)">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Full Name</label>
+                  <input type="text" class="form-input" id="profile-name" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email Address</label>
+                  <input type="email" class="form-input" id="profile-email" disabled />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phone Number</label>
+                  <input type="tel" class="form-input" id="profile-phone" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Member Since</label>
+                  <input type="text" class="form-input" id="profile-since" disabled />
+                </div>
+              </div>
+              <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ SAVED PASSENGERS -->
+      <div id="page-passengers" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">Saved Passengers</h1>
+          <button class="btn-primary" onclick="openAddPassengerModal()">+ Add Passenger</button>
+        </div>
+        <div id="passengers-grid" class="passengers-grid"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ TDR -->
+      <div id="page-tdr" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">TDR / Refunds</h1>
+          <button class="btn-primary" onclick="openFileTDRModal()">+ File TDR</button>
+        </div>
+        <div id="tdr-list" class="tdr-list"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ GRIEVANCES -->
+      <div id="page-grievances" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">Grievances</h1>
+          <button class="btn-primary" onclick="openFileGrievanceModal()">+ File Complaint</button>
+        </div>
+        <div id="grievances-list" class="grievances-list"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════ ALERTS -->
+      <div id="page-alerts" class="page hidden">
+        <div class="page-header">
+          <h1 class="page-title">Alerts & Notifications</h1>
+          <button class="btn-secondary" onclick="markAllRead()">Mark All Read</button>
+        </div>
+        <div id="alerts-list" class="alerts-full-list"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MODALS -->
+
+<!-- ADD PASSENGER MODAL -->
+<div class="modal-overlay hidden" id="modal-add-passenger">
+  <div class="modal">
+    <div class="modal-header">
+          <h3 id="passenger-modal-title">Add Passenger</h3>
+      <button class="modal-close" onclick="closeModal('modal-add-passenger')">✕</button>
+    </div>
+    <form onsubmit="savePassenger(event)" class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" class="form-input" id="modal-pax-name" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Age *</label>
+          <input type="number" class="form-input" id="modal-pax-age" min="1" max="120" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender *</label>
+          <select class="form-select" id="modal-pax-gender" required>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Proof Type *</label>
+          <select class="form-select" id="modal-pax-id-type" required>
+            <option value="AADHAAR">Aadhaar Card</option>
+            <option value="PAN">PAN Card</option>
+            <option value="PASSPORT">Passport</option>
+            <option value="DRIVING_LICENSE">Driving License</option>
+            <option value="VOTER_ID">Voter ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Proof Number *</label>
+          <input type="text" class="form-input" id="modal-pax-id-ref" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Berth Preference</label>
+          <select class="form-select" id="modal-pax-berth">
+            <option value="LOWER">Lower</option>
+            <option value="MIDDLE">Middle</option>
+            <option value="UPPER">Upper</option>
+            <option value="SIDE_LOWER">Side Lower</option>
+            <option value="SIDE_UPPER">Side Upper</option>
+            <option value="WINDOW">Window</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Concession Type</label>
+          <select class="form-select" id="modal-pax-concession">
+            <option value="NONE">None</option>
+            <option value="SENIOR_CITIZEN">Senior Citizen</option>
+            <option value="STUDENT">Student</option>
+            <option value="DIVYAANG">Divyaang (Disabled)</option>
+            <option value="DEFENCE">Defence Personnel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Disability Type</label>
+          <select class="form-select" id="modal-pax-disability">
+            <option value="NONE">None</option>
+            <option value="ORTHOPEDIC">Orthopedic</option>
+            <option value="VISUAL">Visual Impairment</option>
+            <option value="HEARING">Hearing Impairment</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-add-passenger')">Cancel</button>
+        <button type="submit" class="btn-primary" id="passenger-modal-submit">Save Passenger</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILE TDR MODAL -->
+<div class="modal-overlay hidden" id="modal-file-tdr">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>File TDR (Ticket Deposit Receipt)</h3>
+      <button class="modal-close" onclick="closeModal('modal-file-tdr')">✕</button>
+    </div>
+    <form onsubmit="submitTDR(event)" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">PNR Number *</label>
+        <input type="text" class="form-input" id="tdr-pnr" placeholder="10-digit PNR" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason for TDR *</label>
+        <select class="form-select" id="tdr-reason" required>
+          <option value="">Select Reason</option>
+          <option value="TRAIN_CANCELLED">Train Cancelled</option>
+          <option value="TRAIN_DELAYED_OVER_3_HOURS">Train Delayed Over 3 Hours</option>
+          <option value="AC_FAILURE_IN_COACH">AC Failure in Coach</option>
+          <option value="MISSED_CONNECTION">Missed Connecting Train</option>
+          <option value="OVERCHARGED">Overcharged</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-file-tdr')">Cancel</button>
+        <button type="submit" class="btn-primary">File TDR</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILE GRIEVANCE MODAL -->
+<div class="modal-overlay hidden" id="modal-file-grievance">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>File a Complaint</h3>
+      <button class="modal-close" onclick="closeModal('modal-file-grievance')">✕</button>
+    </div>
+    <form onsubmit="submitGrievance(event)" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-select" id="griev-category" required>
+          <option value="">Select Category</option>
+          <option value="TICKETING">Ticketing Issue</option>
+          <option value="TRAIN_CLEANLINESS">Train Cleanliness</option>
+          <option value="STATION_CLEANLINESS">Station Cleanliness</option>
+          <option value="STAFF_BEHAVIOUR">Staff Behaviour</option>
+          <option value="SECURITY">Security</option>
+          <option value="REFUND">Refund Issue</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <input type="text" class="form-input" id="griev-subject" placeholder="Brief subject of complaint" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <textarea class="form-textarea" id="griev-desc" rows="4" placeholder="Describe your complaint in detail..." required></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-file-grievance')">Cancel</button>
+        <button type="submit" class="btn-primary">Submit Complaint</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CANCEL BOOKING MODAL -->
+<div class="modal-overlay hidden" id="modal-cancel-booking">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Cancel Booking</h3>
+      <button class="modal-close" onclick="closeModal('modal-cancel-booking')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="warning-box">
+        ⚠️ Cancellation charges may apply based on time remaining before departure.
+      </div>
+      <div id="cancel-booking-info"></div>
+      <div class="cancellation-preview">
+        <div class="cancel-row"><span>Cancellation Charge:</span><span class="text-danger" id="cancel-charge">₹0.00</span></div>
+        <div class="cancel-row"><span>Estimated Refund:</span><span class="text-success" id="cancel-refund">₹0.00</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-cancel-booking')">Keep Booking</button>
+      <button class="btn-danger" onclick="confirmCancellation()">Confirm Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="toast hidden">
+  <div class="toast-icon" id="toast-icon">✓</div>
+  <div class="toast-message" id="toast-message">Operation successful</div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div class="loading-spinner"></div>
+  <p class="loading-text" id="loading-text">Processing...</p>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

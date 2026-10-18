@@ -1,0 +1,86 @@
+[
+  {
+    "stationId": 1,
+    "stationCode": "NDLS",
+    "stationName": "New Delhi Railway Station",
+    "city": "New Delhi",
+    "state": "Delhi"
+  },
+  {
+    "stationId": 2,
+    "stationCode": "CNB",
+    "stationName": "Kanpur Central",
+    "city": "Kanpur",
+    "state": "Uttar Pradesh"
+  },
+  {
+    "stationId": 3,
+    "stationCode": "PRYJ",
+    "stationName": "Prayagraj Junction",
+    "city": "Prayagraj",
+    "state": "Uttar Pradesh"
+  },
+  {
+    "stationId": 4,
+    "stationCode": "BSB",
+    "stationName": "Varanasi Junction",
+    "city": "Varanasi",
+    "state": "Uttar Pradesh"
+  },
+  {
+    "stationId": 5,
+    "stationCode": "PNBE",
+    "stationName": "Patna Junction",
+    "city": "Patna",
+    "state": "Bihar"
+  },
+  {
+    "stationId": 6,
+    "stationCode": "HWH",
+    "stationName": "Howrah Junction",
+    "city": "Kolkata",
+    "state": "West Bengal"
+  },
+  {
+    "stationId": 7,
+    "stationCode": "BCT",
+    "stationName": "Mumbai Central",
+    "city": "Mumbai",
+    "state": "Maharashtra"
+  },
+  {
+    "stationId": 8,
+    "stationCode": "ST",
+    "stationName": "Surat",
+    "city": "Surat",
+    "state": "Gujarat"
+  },
+  {
+    "stationId": 9,
+    "stationCode": "BRC",
+    "stationName": "Vadodara Junction",
+    "city": "Vadodara",
+    "state": "Gujarat"
+  },
+  {
+    "stationId": 10,
+    "stationCode": "ADI",
+    "stationName": "Ahmedabad Junction",
+    "city": "Ahmedabad",
+    "state": "Gujarat"
+  },
+  {
+    "stationId": 11,
+    "stationCode": "MAS",
+    "stationName": "MGR Chennai Central",
+    "city": "Chennai",
+    "state": "Tamil Nadu"
+  },
+  {
+    "stationId": 12,
+    "stationCode": "SBC",
+    "stationName": "KSR Bengaluru City Junction",
+    "city": "Bengaluru",
+    "state": "Karnataka"
+  }
+]
