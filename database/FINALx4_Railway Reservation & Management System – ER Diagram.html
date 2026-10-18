@@ -30,7 +30,7 @@ const PN=[['1','USER / RESERVATION','#2563eb','Booking · Passenger · Reservati
 ['2','RAILWAY INFRASTRUCTURE','#059669','Station · Platform · Route (stop order) · Train · Schedule · Coach · Seat · Fare · Seat inventory'],
 ['3','STAFF / OPERATIONS','#c2410c','Staff · Duty assignment · Ticket verification · Fines · Maintenance · Incidents · Reports'],
 ['4','ADMIN / MANAGEMENT','#7c3aed','Admin · Reports · Audit log · Settings'],
-['5','MONGODB (NoSQL)','#15803d','Live train status · Notifications · Complaints · Activity logs']];
+['5','MONGODB (NoSQL)','#15803d','Live train status · Notifications · Complaints · Activity logs · Raw gateway replies']];
 var E={};
 function e(k,p,x,y,s){const a=s.split(',');E[k]={k,p,x,y:y+Y0[p-1],a,n:k,h:HH+RH*a.length+10}}
 function g(k,n,p,x,y,pk,sec){const ks=pk.split(',');E[k]={k,p,x,y:y+Y0[p-1],a:ks.map(t=>'#'+t),n,g:1,sec,h:HH+RH*ks.length+29}}
@@ -94,6 +94,7 @@ e('LTS',5,40,130,'#_id,@schedule_id,@station_id,delay_min,status,updated_at');E.
 e('NTF',5,470,130,'#_id,@user_id,message,type,sent_at,is_read');E.NTF.n='notifications';
 e('CMP',5,900,130,'#_id,@user_id,type,message,rating,status,extra_fields{}');E.CMP.n='complaints';
 e('ACT',5,1330,130,'#_id,@user_id,event,ip,user_agent,meta{},at');E.ACT.n='activity_logs';
+e('RGR',5,1760,130,'#_id,gateway_payment_id,payload{},received_at');E.RGR.n='raw_gateway_replies';
 /* ---- Section 4 ---- */
 g('g4u','USER_ACCOUNT',4,900,130,'user_id','Section 1');
 e('ADMIN',4,700,330,'#admin_id,@user_id,employee_no,access_level');
@@ -210,7 +211,7 @@ out+=note(40,Y0[0]+1540,1960,'#2563eb','Rules the ER diagram cannot enforce — 
 '7. SCHEDULE_CLASS_INVENTORY (available, rac_count, wl_count) must stay consistent with RESERVATION status changes, via a trigger or application logic, which also blocks a booking when the waitlist is full.',
 '8. TDR_FILING is a claim, REFUND is the payout; REFUND_RULE has no FK and is only read by the refund function. AUDIT_LOG.table_name + record_id is a generic pointer, not an FK.']);
 out+=note(1760,Y0[2]+120,280,'#c2410c','Rules',['result = VERIFIED /','  FAILED / PENDING','MAINTENANCE CHECK: exactly','  one of coach_id or','  platform_id is filled']);
-out+=note(40,Y0[4]+420,1700,'#15803d','MongoDB + MySQL (hybrid)',['AUDIT_LOG stays in MySQL — a trigger fills it (Section 4).','live_train_status replaces TRAIN_STATUS (now with station_id) · notifications replaces NOTIFICATION · complaints replaces COMPLAINT_FEEDBACK (varying fields).','activity_logs is new: logins and API events.','user_id / schedule_id / station_id are plain references to MySQL ids, not enforced foreign keys. Solid PK/FK lines apply only to the MySQL sections.']);
+out+=note(40,Y0[4]+420,1700,'#15803d','MongoDB + MySQL (hybrid)',['AUDIT_LOG stays in MySQL — a trigger fills it (Section 4).','live_train_status replaces TRAIN_STATUS (now with station_id) · notifications replaces NOTIFICATION · complaints replaces COMPLAINT_FEEDBACK (varying fields).','activity_logs: logins and API events · raw_gateway_replies: Razorpay webhooks.','user_id / schedule_id / station_id are plain references to MySQL ids, not enforced foreign keys. Solid PK/FK lines apply only to the MySQL sections.']);
 document.getElementById('s').innerHTML=out;
 var sc=.75;const S=document.getElementById('s'),Wr=document.getElementById('wrap');
 function ap(){S.setAttribute('width',Math.round(2080*sc))}

@@ -1,0 +1,5 @@
+rule_id,min_hours,max_hours,deduction_pct,flat_min_charge,clerkage
+1,72,,0,240,60
+2,24,72,25,200,60
+3,8,24,50,180,60
+4,0,8,100,120,60

@@ -1,0 +1,37 @@
+[
+  {
+    "_id": "act_1001",
+    "user_id": 50001,
+    "event": "USER_LOGIN",
+    "ip": "103.21.144.12",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "meta": {
+      "channel": "WEB"
+    },
+    "at": "2026-10-18T08:30:00Z"
+  },
+  {
+    "_id": "act_1002",
+    "user_id": 50004,
+    "event": "STAFF_DUTY_START",
+    "ip": "192.168.1.101",
+    "user_agent": "Handheld-HHT-v2.1",
+    "meta": {
+      "duty_type": "TRAIN_DUTY",
+      "train_id": 129
+    },
+    "at": "2026-10-18T09:00:00Z"
+  },
+  {
+    "_id": "act_1003",
+    "user_id": 50007,
+    "event": "ADMIN_SETTING_UPDATE",
+    "ip": "10.0.0.5",
+    "user_agent": "Mozilla/5.0 (AdminPortal)",
+    "meta": {
+      "setting": "BOOKING_WINDOW_DAYS",
+      "new_value": "7"
+    },
+    "at": "2026-10-18T09:15:00Z"
+  }
+]

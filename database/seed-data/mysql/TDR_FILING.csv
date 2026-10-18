@@ -1,0 +1,2 @@
+tdr_ref_no,pnr,passenger_no,reason,filed_at,status,evidence_ref,refund_amount,reviewed_by,reviewed_at,remarks
+TDR-701,2849101129,,TRAIN_DELAYED_OVER_3_HOURS,2026-10-17 17:00:00,APPROVED,DELAY-VERIFIED,9522.1,1,2026-10-17 17:30:00,Delay > 3 hours confirmed from schedule telemetry.

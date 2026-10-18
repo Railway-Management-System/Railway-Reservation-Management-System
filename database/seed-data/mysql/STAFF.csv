@@ -1,0 +1,4 @@
+staff_id,user_id,employee_no,designation,status
+1,50004,EMP-TC-101,Ticket Collector (TC),ACTIVE
+2,50005,EMP-TC-102,Station Superintendent,ACTIVE
+3,50006,EMP-TC-103,Platform Inspector,ACTIVE

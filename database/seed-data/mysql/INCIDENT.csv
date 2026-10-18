@@ -1,0 +1,3 @@
+incident_id,staff_id,station_id,schedule_id,type,severity,status,reported_at
+851,1,,,MEDICAL_EMERGENCY,HIGH,RESOLVED,2026-10-01 20:50:00
+852,2,10,,TECHNICAL_FAILURE,MEDIUM,ACKNOWLEDGED,2026-10-05 07:20:00

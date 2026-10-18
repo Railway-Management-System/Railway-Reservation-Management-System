@@ -433,7 +433,7 @@ The approved ER diagram already has payment retries, a refund table, per-passeng
 
 **Fixes to the data files**
 
-- Trains: add display_name, built from the source city, destination city and type (example: “Pune – Howrah Duronto Express (12221)”), and keep the original short name as short_name. Correct the train type using a review list that the leaders approve first (at least 9 trains typed EXPRESS are Rajdhani or Shatabdi by name, and about 17 of the 23 carry a hint). Store running days as a real list.
+- Trains: add display_name, using the real, best-known train names with the train number in brackets (for example “Howrah Rajdhani Express (12301)”), and keep the original short name as short_name. Correct the train type using a review list that the leaders approve first (at least 9 trains typed EXPRESS are Rajdhani or Shatabdi by name, and about 17 of the 23 carry a hint). Store running days as a real list.
 
 - Routes: add day_offset to every stop, worked out from the clock times. Times only move forward and the longest gap between two stops is 6.8 hours, so this is exact (offsets are 0, 1 or 2). Replace placeholder 00:00 times: the arrival at a first stop becomes the departure (trains 114, 135, 157), and the departure at a last stop becomes the arrival (3 trains).
 
@@ -447,15 +447,7 @@ The approved ER diagram already has payment retries, a refund table, per-passeng
 
 - Mock data: do not keep mock bookings, schedules, seats, coaches, availability, payments, cancellations or TDR records; they are rebuilt. Keep and remap mock logins, grievances, incidents, fines, crowd and cleanliness reports. Stations: NDLS to 10, CNB 12, PNBE 90, HWH 69, BCT 21, ST 24, BRC 26, ADI 29, MAS 17, SBC 19. Trains, by number: 12951 to 129, 12952 to 130, 12301 to 111, 12302 to 112, 12002 to 140, 12007 to 153. Records that point to PRYJ, BSB or trains 22435, 22436, 12622 and 12932 are dropped or re-pointed to a real station or train.
 
-**Demo plan.** Rajdhani, Shatabdi and Duronto trains have 836 to 936 seats per run. Use 7 journey dates starting 18 Oct 2026, and only dates on which the train runs (BR-B1a). Fill runs on purpose:
-
-- 3 trains FULL: GENERAL seats sold out, RAC slots full, waiting list partly filled.
-
-- 4 trains HALF full.
-
-- All other runs empty, so live booking can still be shown.
-
-A FULL run needs about 1,100 booking rows (confirmed, RAC and waiting list) and a HALF run about 450. Filling the 7 chosen trains on 2 dates each needs about 10,000 booking rows, taken from the 75,000 saved passengers. A saved passenger can appear in bookings on different dates.
+**Demo plan.** Rajdhani, Shatabdi and Duronto trains have 836 to 936 seats per run. Use 7 journey dates starting 18 Oct 2026, and only dates on which the train runs (BR-B1a). Fill runs on purpose per the approved spread: RAC open (5 runs), RAC full with waiting list open (4), waiting list full (2), nearly full (6), busy (12), medium (15), light (25), all other runs empty, as in demo_fill_plan.csv; booking rows about 30,000 taken from the 75,000 saved passengers. A saved passenger can appear in bookings on different dates.
 
 Four stories to show the teacher, each with SQL screenshots: (1) a CONFIRMED passenger cancels and the first RAC passenger becomes CONFIRMED while the first WL passenger becomes RAC; (2) the same chain after an approved TDR; (3) the ticket collector marks a NO_SHOW and the same chain runs; (4) chart time cancels remaining WL tickets with full refunds and moves unused quota seats to GENERAL. Add a fifth: a full LADIES quota showing the fallback notice (BR-Q13).
 
@@ -496,6 +488,8 @@ Four stories to show the teacher, each with SQL screenshots: (1) a CONFIRMED pas
 9.  ★ Fare rates, CC and EC flat charges and train layouts are project values; Duronto joins Rajdhani and Shatabdi for the superfast charge and the 25% Divyangjan rate in 3A and CC (Vande Bharat only if such trains are added later).
 
 10. ★ Booking window set to 7 days.
+
+11. ★ Demo fill plan spread approved (69 filled runs, ~30,000 booking rows, real train display names).
 
 **Added after the dataset review ★**
 

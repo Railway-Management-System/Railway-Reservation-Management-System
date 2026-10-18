@@ -1,0 +1,4 @@
+fine_id,verify_id,staff_id,passenger_name,id_proof_reference,train_id,amount,reason,payment_status,issued_at
+601,,1,Ajay Kumar,VOTER-88491,129,550,TICKETLESS_TRAVEL,PAID,2026-10-01 20:15:00
+602,,1,Kishore Dave,PAN-BRK1920,129,300,UNAUTHORIZED_CLASS,PAID,2026-10-01 22:30:00
+603,,3,Manish Gupta,AADHAAR-9901-2244,110,250,UNBOOKED_LUGGAGE,UNPAID,2026-10-04 08:45:00

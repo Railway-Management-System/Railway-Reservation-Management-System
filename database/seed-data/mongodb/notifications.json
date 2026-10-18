@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "ntf_1001",
+    "user_id": 50001,
+    "message": "Your booking for PNR 2849100000 is CONFIRMED.",
+    "type": "BOOKING_CONFIRMATION",
+    "reference_id": "2849100000",
+    "sent_at": "2026-10-18T09:00:00Z",
+    "is_read": true
+  },
+  {
+    "_id": "ntf_1002",
+    "user_id": 50001,
+    "message": "Chart preparation completed for your scheduled departure.",
+    "type": "STATUS_UPDATE",
+    "reference_id": "2849100000",
+    "sent_at": "2026-10-18T10:00:00Z",
+    "is_read": false
+  }
+]
