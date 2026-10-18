@@ -119,10 +119,19 @@ Frontend Team Workspace ──> Centralized Service Layer ──> mock-data/*.js
 ```
 
 ### Golden Development Rules:
-1. **Never Rename Fields**: Always use exact camelCase property names defined in [docs/DATA_SCHEMA.md](file:///c:/Users/Rohan/Desktop/dbms%20pbl/docs/DATA_SCHEMA.md) (e.g. `trainNumber`, `journeyDate`, `pnr`).
+1. **Never Rename Fields**: Always use exact camelCase property names defined in [docs/DATA_SCHEMA.md](docs/DATA_SCHEMA.md) (e.g. `trainNumber`, `journeyDate`, `pnr`).
 2. **Never Change Enums**: Use exact uppercase enum values (`CONFIRMED`, `WAITING_LIST`, `ACTIVE`, `GENERAL`, etc.).
 3. **Use Centralized Service Layers**: Isolate mock JSON imports inside `services/` wrappers so switching to the live REST API requires changing only one toggle variable.
 4. **Enforce Seat Integrity**: A seat is legally bookable more than once on the same date only if the travel stop sequence segments do not overlap:
    $$\max(\text{Start}_A, \text{Start}_B) < \min(\text{End}_A, \text{End}_B)$$
-5. **Enforce the Canonical Fare Formula**:
-   $$\text{Total Fare} = \text{Base Fare} + \text{Reservation Charge} + \text{Tatkal Charge} + \text{Insurance} + \text{GST} - \text{Concession}$$
+5. **Enforce the Canonical Fare Formula (Section 6)**:
+   Per-passenger fare computation:
+   $$\text{Base Fare} = \text{Segment Distance (min 100 km)} \times \text{Class Slab Rate}$$
+   $$\text{Taxable Amount} = (\text{Base Fare} - \text{Concession}) + \text{Reservation Charge} + \text{Superfast Charge} + \text{Tatkal Charge} + \text{Dynamic Surcharge}$$
+   $$\text{Total Fare} = \text{Taxable Amount} + \text{GST} + \text{Insurance}$$
+   - **Concession**: Percentage discount applied strictly to Base Fare only (DIVYAANG active; SENIOR inactive; no STUDENT/MEDICAL).
+   - **Superfast Charge**: Flat charge applied to RAJDHANI, SHATABDI, and DURONTO trains.
+   - **GST**: 5% of Taxable Amount for AC classes (1A, 2A, 3A, CC, EC); 0% for non-AC (SL, 2S).
+   - **Insurance**: Optional flat 0.45 per passenger (not taxed).
+   - **Dynamic Surcharge (BR-F11 Switch)**: Optional TATKAL surcharge (Base Fare $\times$ 0.5) when `DYNAMIC_FARE_ENABLED` is true and class is $\ge 80\%$ booked.
+   - **Rounding**: Total fare is rounded to 2 decimal places, half-up, per passenger line.
