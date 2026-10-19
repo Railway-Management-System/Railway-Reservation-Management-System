@@ -1,0 +1,8 @@
+class_id,class_code,class_name,coach_type,has_berths,base_multiplier
+1,1A,AC First Class,AC,1,5.4
+2,2A,AC 2 Tier,AC,1,3.2
+3,3A,AC 3 Tier,AC,1,2.2
+4,SL,Sleeper,NON_AC,1,0.85
+5,CC,AC Chair Car,AC,0,1.9
+6,EC,Executive Chair Car,AC,0,3.6
+7,2S,Second Sitting,NON_AC,0,0.55

@@ -120,10 +120,18 @@ In the current phase, frontends consume data directly from `/mock-data/*.json`. 
 ## 6. Business Logic Rules to Enforce in Frontend Simulation
 
 ### 6.1 Canonical Fare Computation
-When computing fares during Booking Step 4, follow this formula strictly:
-$$\text{Base Fare} = \text{Route Distance (km)} \times \text{Class Base Rate}$$
-$$\text{Subtotal} = \text{Base Fare} + \text{Reservation Charge} + \text{Tatkal Charge (if quota is TATKAL)} + \text{Insurance Premium (if selected)}$$
-$$\text{Total Fare} = \text{Subtotal} + \text{GST (5% for AC classes)} - \text{Concession Discount (if applied)}$$
+When computing fares during Booking Step 4, follow this formula strictly per section 6 of the business rules:
+$$\text{Base Fare} = \text{Segment Distance (min 100 km)} \times \text{Class Slab Rate}$$
+$$\text{Taxable Amount} = (\text{Base Fare} - \text{Concession}) + \text{Reservation Charge} + \text{Superfast Charge} + \text{Tatkal Charge} + \text{Dynamic Surcharge}$$
+$$\text{Total Fare} = \text{Taxable Amount} + \text{GST} + \text{Insurance}$$
+- **Concession (BR-F6)**: Discount percentage applied strictly to Base Fare only before GST (DIVYAANG active: 75% in SL, 2S, 3A, CC; 50% in 1A, 2A; 25% in 3A and CC on Rajdhani, Shatabdi, Duronto; 0% in EC; SENIOR inactive; no STUDENT/MEDICAL).
+- **Reservation Charge (BR-F3)**: Flat charge per passenger by class (2S 15, SL 20, 3A 40, 2A 50, 1A 60, CC 40, EC 60).
+- **Superfast Charge (BR-F4)**: Flat charge per passenger applied on RAJDHANI, SHATABDI, and DURONTO trains (2S 15, SL 30, 3A 45, 2A 45, 1A 75, CC 45, EC 75).
+- **Tatkal Charge (BR-F5)**: Applicable when quota is TATKAL (30% of Base Fare for AC classes, 10% for non-AC).
+- **Dynamic Tatkal Surcharge (BR-F11 Switch)**: Optional surcharge (Base Fare $\times$ 0.5) applied only when `DYNAMIC_FARE_ENABLED` is true, quota is TATKAL, and $\ge 80\%$ of confirmed seats are booked.
+- **GST (BR-F8)**: 5% of Taxable Amount for AC classes (1A, 2A, 3A, CC, EC); 0% for non-AC (SL, 2S).
+- **Insurance (BR-F9)**: Optional flat premium of 0.45 per passenger (not taxed).
+- **Rounding (BR-B13)**: Every money amount is rounded to 2 decimal places, half-up, per passenger line.
 
 ### 6.2 Seat Hold Expiry
 - When a user enters Passenger Details, trigger a 10-minute countdown timer.
@@ -143,5 +151,5 @@ $$\text{Total Fare} = \text{Subtotal} + \text{GST (5% for AC classes)} - \text{C
 If a team identifies an unaddressed requirement or a missing data attribute:
 1. **Do NOT unilaterally alter mock JSON files.**
 2. Raise the proposed schema change with the Project Leader.
-3. Once approved, the change is updated in [DATA_SCHEMA.md](file:///c:/Users/Rohan/Desktop/dbms%20pbl/docs/DATA_SCHEMA.md), [API_CONTRACT.md](file:///c:/Users/Rohan/Desktop/dbms%20pbl/docs/API_CONTRACT.md), and the shared mock files.
+3. Once approved, the change is updated in [DATA_SCHEMA.md](DATA_SCHEMA.md), [API_CONTRACT.md](API_CONTRACT.md), and the shared mock files.
 4. All three teams pull the updated contract simultaneously.

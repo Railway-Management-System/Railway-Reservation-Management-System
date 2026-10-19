@@ -1,0 +1,61 @@
+train_id,train_number,short_name,display_name,train_type,source_station_id,destination_station_id,running_days,status
+101,12221,PA-HWH DURAN,Pune–Howrah Duronto Express (12221),DURONTO,43,69,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+102,12222,HWH-PUNE DUR,Howrah–Pune Duronto Express (12222),DURONTO,69,43,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+103,12223,LTT-ERS DURO,Ernakulam Duronto Express (12223),DURONTO,62,74,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+104,12224,ERS-LTT DURO,Ernakulam Duronto Express (12224),DURONTO,74,62,"[""TUE"", ""THU"", ""SAT"", ""SUN""]",ACTIVE
+105,12245,HWH - YPR WE,Howrah–Yesvantpur Duronto Express (12245),DURONTO,69,79,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+106,12246,YPR - HWH WE,Yesvantpur–Howrah Duronto Express (12246),DURONTO,79,69,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+107,12261,CSMT-HWH DUR,Mumbai–Howrah Duronto Express (12261),DURONTO,80,69,"[""WED"", ""SAT"", ""SUN""]",ACTIVE
+108,12262,HWH-CSMT DUR,Howrah–Mumbai Duronto Express (12262),DURONTO,69,80,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+109,12269,MAS-NZM DURA,Chennai–Nizamuddin Duronto Express (12269),DURONTO,17,83,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+110,12270,NZM-MAS DURA,Nizamuddin–Chennai Duronto Express (12270),DURONTO,83,17,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+111,12301,KOLKATA RAJD,Howrah Rajdhani Express (12301),RAJDHANI,69,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+112,12302,KOLKATA RAJD,Howrah Rajdhani Express (12302),RAJDHANI,10,69,"[""TUE"", ""THU"", ""SAT"", ""SUN""]",ACTIVE
+113,12309,PATNA RAJDHA,Patna Rajdhani Express (12309),RAJDHANI,89,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT""]",ACTIVE
+114,12310,PATNA RAJDHA,Patna Rajdhani Express (12310),RAJDHANI,10,89,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+115,12313,SDAH RAJDHAN,Sealdah Rajdhani Express (12313),RAJDHANI,91,10,"[""TUE"", ""THU"", ""SAT"", ""SUN""]",ACTIVE
+116,12314,SDAH RAJDHAN,Sealdah Rajdhani Express (12314),RAJDHANI,10,91,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+117,12423,DBRT-NDLS RA,Dibrugarh Rajdhani Express (12423),RAJDHANI,94,10,"[""MON"", ""WED"", ""FRI"", ""SUN""]",ACTIVE
+118,12424,NDLS-DBRT RA,Dibrugarh Rajdhani Express (12424),RAJDHANI,10,94,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+119,12431,TVC-NZM RAJD,Thiruvananthapuram Rajdhani Express (12431),RAJDHANI,109,83,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+120,12432,NZM-TVC RAJD,Thiruvananthapuram Rajdhani Express (12432),RAJDHANI,83,109,"[""TUE"", ""THU"", ""SAT"", ""SUN""]",ACTIVE
+121,12433,MAS-NZM RAJD,Chennai Rajdhani Express (12433),RAJDHANI,17,83,"[""TUE"", ""THU"", ""SAT""]",ACTIVE
+122,12434,NZM-MAS RAJD,Chennai Rajdhani Express (12434),RAJDHANI,83,17,"[""MON"", ""THU"", ""SUN""]",ACTIVE
+123,12437,RAJDHANI EXP,Secunderabad Rajdhani Express (12437),RAJDHANI,50,83,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+124,12438,NZM SC RAJDH,Secunderabad Rajdhani Express (12438),RAJDHANI,83,50,"[""TUE"", ""FRI""]",ACTIVE
+125,12441,BSP-NDLS,Bilaspur Rajdhani Express (12441),RAJDHANI,67,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+126,12442,NDLS-BSP,Bilaspur Rajdhani Express (12442),RAJDHANI,10,67,"[""MON"", ""WED"", ""FRI"", ""SUN""]",ACTIVE
+127,12453,RNC-NDLS,Ranchi Rajdhani Express (12453),RAJDHANI,127,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+128,12454,NDLS-RNC,Ranchi Rajdhani Express (12454),RAJDHANI,10,127,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+129,12951,MUMBAI RAJDH,Mumbai Rajdhani Express (12951),RAJDHANI,21,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+130,12952,MUMBAI RAJDH,Mumbai Rajdhani Express (12952),RAJDHANI,10,21,"[""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+131,12953,AUG KR RAJ E,August Kranti Rajdhani Express (12953),RAJDHANI,21,83,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+132,12954,AG KRANTI RJ,August Kranti Rajdhani Express (12954),RAJDHANI,83,21,"[""MON"", ""THU""]",ACTIVE
+133,12957,SWARNA J RAJ,Swarna Jayanti Rajdhani Express (12957),RAJDHANI,29,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+134,12958,ADI SJ RAJDH,Swarna Jayanti Rajdhani Express (12958),RAJDHANI,10,29,"[""MON"", ""THU""]",ACTIVE
+135,22691,BANGALORE RA,Bengaluru Rajdhani Express (22691),RAJDHANI,19,83,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+136,22692,BANGALORE RA,Bengaluru Rajdhani Express (22692),RAJDHANI,83,19,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+137,22811,BBS-NDLS RAJ,Bhubaneswar Rajdhani Express (22811),RAJDHANI,75,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+138,22812,NDLS-BBS RAJ,Bhubaneswar Rajdhani Express (22812),RAJDHANI,10,75,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+139,12001,BPL - NDLS S,Bhopal Shatabdi Express (12001),SHATABDI,1,10,"[""MON"", ""THU""]",ACTIVE
+140,12002,NDLS - BPL S,Bhopal Shatabdi Express (12002),SHATABDI,10,1,"[""TUE"", ""THU"", ""SAT""]",ACTIVE
+141,12003,LKO-NDLS SHA,Lucknow Swarna Shatabdi Express (12003),SHATABDI,11,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT""]",ACTIVE
+142,12004,NDLS-LKO SHA,Lucknow Swarna Shatabdi Express (12004),SHATABDI,10,11,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+143,12009,SHATABDI EXP,Mumbai–Ahmedabad Shatabdi Express (12009),SHATABDI,21,29,"[""MON"", ""WED"", ""FRI"", ""SUN""]",ACTIVE
+144,12010,SHATABDI EXP,Ahmedabad–Mumbai Shatabdi Express (12010),SHATABDI,29,21,"[""MON"", ""THU"", ""SUN""]",ACTIVE
+145,12013,NDLS-ASR SHA,Amritsar Shatabdi Express (12013),SHATABDI,10,36,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+146,12014,ASR-NDLS SHA,Amritsar Shatabdi Express (12014),SHATABDI,36,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+147,12017,NDLS-DDN SHA,Dehradun Shatabdi Express (12017),SHATABDI,10,42,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+148,12018,DDN-NDLS SHA,Dehradun Shatabdi Express (12018),SHATABDI,42,10,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+149,12025,PUNE-SC SHAT,Pune–Secunderabad Shatabdi Express (12025),SHATABDI,43,50,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+150,12026,SC-PUNE SHAT,Secunderabad–Pune Shatabdi Express (12026),SHATABDI,50,43,"[""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+151,12085,GHY-DBRG SHA,Guwahati–Dibrugarh Jan Shatabdi Express (12085),SHATABDI,52,61,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+152,12086,DBRG-GHY SHA,Dibrugarh–Guwahati Jan Shatabdi Express (12086),SHATABDI,61,52,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+153,12007,MAS-MYS SHAT,Mysuru Shatabdi Express (12007),SHATABDI,17,20,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+154,12008,MYS-MAS SHAT,Mysuru Shatabdi Express (12008),SHATABDI,20,17,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+155,12027,MAS-SBC SHAT,Bengaluru Shatabdi Express (12027),SHATABDI,17,19,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+156,12028,SBC-MAS SHAT,Bengaluru Shatabdi Express (12028),SHATABDI,19,17,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+157,12219,LTT-SC AC DU,Secunderabad AC Duronto Express (12219),DURONTO,62,50,"[""MON"", ""WED"", ""FRI"", ""SUN""]",ACTIVE
+158,12220,SC-LTT AC DU,Secunderabad AC Duronto Express (12220),DURONTO,50,62,"[""MON"", ""TUE"", ""WED"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+159,12425,NDLS-JAT RAJ,Jammu Rajdhani Express (12425),RAJDHANI,10,108,"[""MON"", ""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE
+160,12426,JAT-NDLS RAJ,Jammu Rajdhani Express (12426),RAJDHANI,108,10,"[""TUE"", ""WED"", ""THU"", ""FRI"", ""SAT"", ""SUN""]",ACTIVE

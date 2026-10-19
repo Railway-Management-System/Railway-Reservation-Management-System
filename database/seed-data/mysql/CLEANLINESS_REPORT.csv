@@ -1,0 +1,4 @@
+cleanliness_report_id,staff_id,train_id,coach_id,station_id,platform_no,issue_type,description,status,recorded_at
+751,1,129,,,,TOILET_DIRTY,Coach B1 western washroom hygiene issue reported by passenger.,RESOLVED,2026-10-01 17:30:00
+752,2,,,10,2,LITTER,Accumulation of plastic cups and packaging near waiting area seats.,ATTENDING,2026-10-06 06:15:00
+753,1,129,,,,WATER_SHORTAGE,Low overhead tank water pressure in coach A1 washrooms.,RESOLVED,2026-10-01 21:00:00

@@ -26,91 +26,136 @@ svg text{fill:var(--text)}
 <div id="wrap"><svg id="s" viewBox="0 0 2080 6510" width="1560"></svg></div>
 <script>
 var W=280,RH=27,HH=44,Y0=[0,1990,3410,4770,5710],PH=[1930,1360,1300,880,760];
-const PN=[['1','USER / RESERVATION','#2563eb','Booking · Passenger · Reservation · Payment · Cancellation · Refund · TDR · Fare & refund rules · Food'],
+const PN=[['1','USER / RESERVATION','#2563eb','Booking · Passenger · Reservation · Payment · Cancellation · Refund · TDR · Fare & refund rules'],
 ['2','RAILWAY INFRASTRUCTURE','#059669','Station · Platform · Route (stop order) · Train · Schedule · Coach · Seat · Fare · Seat inventory'],
-['3','STAFF / OPERATIONS','#c2410c','Staff · Duty assignment · Ticket verification · Fines · Maintenance · Incidents'],
-['4','ADMIN / MANAGEMENT','#7c3aed','Admin · Reports · Audit log'],
-['5','MONGODB (NoSQL)','#15803d','Live train status · Notifications · Complaints · Activity logs']];
+['3','STAFF / OPERATIONS','#c2410c','Staff · Duty assignment · Ticket verification · Fines · Maintenance · Incidents · Reports'],
+['4','ADMIN / MANAGEMENT','#7c3aed','Admin · Reports · Audit log · Settings'],
+['5','MONGODB (NoSQL)','#15803d','Live train status · Notifications · Complaints · Activity logs · Raw gateway replies']];
 var E={};
 function e(k,p,x,y,s){const a=s.split(',');E[k]={k,p,x,y:y+Y0[p-1],a,n:k,h:HH+RH*a.length+10}}
 function g(k,n,p,x,y,pk,sec){const ks=pk.split(',');E[k]={k,p,x,y:y+Y0[p-1],a:ks.map(t=>'#'+t),n,g:1,sec,h:HH+RH*ks.length+29}}
 /* ---- Section 1 ---- */
-e('USER_ACCOUNT',1,470,230,'#user_id,full_name,email,phone,password_hash,role');
-e('BOOKING',1,900,420,'#pnr,@user_id,@schedule_id,@class_id,@from_stop_id,@to_stop_id,channel,@booked_by_staff_id,total_fare,status');
-e('PAYMENT',1,700,830,'#payment_id,@pnr,amount,method,status,paid_at');
-e('CANCELLATION',1,1100,830,'#cancel_id,@pnr,@passenger_no,reason,charge,cancelled_at');
-e('REFUND',1,900,1290,'#refund_id,@cancel_id,@payment_id,amount,status');
-e('PASSENGER_BOOKING',1,1330,360,'$pnr,#passenger_no,name,age,gender,@concession_type');
-e('FOOD_ORDER',1,1330,620,'#order_id,@pnr,total_amount,status,ordered_at');
-e('FOOD_ORDER_ITEM',1,1330,1300,'#item_id,@order_id,@food_id,qty');
+e('USER_ACCOUNT',1,470,120,'#user_id,full_name,email,phone,password_hash,role,account_status,aadhaar_verified,created_at');
+e('BOOKING',1,900,370,'#pnr,@user_id,@schedule_id,@class_id,@from_stop_id,@to_stop_id,channel,@booked_by_staff_id,quota,requested_quota,berth_condition,total_fare,status');
+e('SEAT_HOLD',1,430,830,'#token,@user_id,@schedule_id,@class_id,quota,seat_count,expires_at');
+e('PAYMENT',1,730,830,'#payment_id,@pnr,amount,method,status,gateway_payment_id,paid_at');
+e('CANCELLATION',1,1030,830,'#cancel_id,@pnr,@passenger_no,reason,charge,cancelled_at');
+e('REFUND',1,900,1290,'#refund_id,@cancel_id,@tdr_ref_no,@payment_id,amount,reason,status');
+e('PASSENGER_BOOKING',1,1340,380,'$pnr,#passenger_no,@saved_passenger_id,name,age,gender,@concession_type,concession_proof,base_fare,concession_amt,resv_fee,superfast_fee,tatkal_fee,dynamic_surcharge,gst,insurance,total_fare');
+e('SAVED_PASSENGER',1,1360,940,'#passenger_id,@user_id,name,age,gender,id_proof_type,id_proof_ref,disability_type,berth_pref');
 e('RESERVATION',1,1760,330,'#res_id,@pnr,@passenger_no,@schedule_id,@seat_id (nullable),status,queue_position');
 g('g1j','TRAIN_SCHEDULE',1,1760,710,'schedule_id','Section 2');
-e('FOOD_ITEM',1,1760,1300,'#food_id,name,price,is_veg');
+e('CHART_SNAPSHOT',1,1760,1150,'#snapshot_id,@schedule_id,pnr,passenger_no,coach_no,seat_no,berth_type,status,@from_station_id,@to_station_id,concession_flag,generated_at');
 g('g1a','TRAIN_SCHEDULE',1,470,470,'schedule_id','Section 2');
 g('g1b','ROUTE_STOP — Origin',1,750,130,'stop_id','Section 2');
 g('g1c','SEAT',1,1760,130,'seat_id','Section 2');
 g('g1h','ROUTE_STOP — Destination',1,1090,130,'stop_id','Section 2');
 g('g1d','SEAT_CLASS',1,470,590,'class_id','Section 2');
 g('g1e','STAFF',1,470,710,'staff_id','Section 3');
-e('CONCESSION_RULE',1,1420,130,'#concession_type,discount_pct,min_age');
-e('REFUND_RULE',1,470,1290,'#rule_id,min_hours,max_hours,deduction_pct');
+e('CONCESSION_RULE',1,1420,100,'#rule_id,concession_type,@class_id,train_group,discount_pct,proof_types,is_active');
+e('REFUND_RULE',1,470,1290,'#rule_id,min_hours,max_hours,deduction_pct,flat_min_charge,clerkage');
 g('g1f','BOOKING',1,40,640,'pnr','this section');
-g('g1i','PASSENGER_BOOKING',1,1180,1140,'pnr,passenger_no','this section');
-g('g1g','PASSENGER_BOOKING',1,460,1060,'pnr,passenger_no','this section');
-e('TDR_FILING',1,40,840,'#tdr_ref_no,@pnr,@passenger_no,reason,filed_at,status,remarks');
+g('g1i','PASSENGER_BOOKING',1,1030,1110,'pnr,passenger_no','this section');
+g('g1g','PASSENGER_BOOKING',1,460,1110,'pnr,passenger_no','this section');
+e('TDR_FILING',1,40,750,'#tdr_ref_no,@pnr,@passenger_no,reason,filed_at,status,evidence_ref,refund_amount,@reviewed_by,reviewed_at,remarks');
 /* ---- Section 2 ---- */
 e('PLATFORM',2,40,130,'#platform_id,@station_id,platform_no,status');
-e('STATION',2,470,130,'#station_id,code,name,city,state');
-e('ROUTE_STOP',2,900,130,'#stop_id,@route_id,@station_id,stop_order,arrival_time,departure_time,distance_from_origin_km');
+e('STATION',2,470,130,'#station_id,code,name,display_name,city,state,platform_count');
+e('ROUTE_STOP',2,900,130,'#stop_id,@route_id,@station_id,stop_order,arrival_time,departure_time,day_offset,distance_from_origin_km,platform_no');
 e('ROUTE',2,1330,130,'#route_id,route_name,direction,total_km');
-e('TRAIN',2,1330,490,'#train_id,@route_id,train_no,train_name,train_type');
-e('TRAIN_SCHEDULE',2,1760,490,'#schedule_id,@train_id,journey_date,departure_time,status');
-e('FARE',2,470,830,'#fare_id,@class_id,base_fare,per_km_rate,effective_from');
+e('TRAIN',2,1330,490,'#train_id,@route_id,train_no,short_name,display_name,train_type,running_days');
+e('TRAIN_SCHEDULE',2,1760,490,'#schedule_id,@train_id,journey_date,departure_time,delay_minutes,chart_prepared_at,status');
+e('FARE',2,470,780,'#fare_id,@class_id,from_km,to_km,per_km_rate,resv_charge,superfast_charge,tatkal_pct');
 e('SEAT_CLASS',2,900,830,'#class_id,code,name');
 e('COACH',2,1330,830,'#coach_id,@train_id,@class_id,coach_no,total_seats');
 e('SEAT',2,1760,830,'#seat_id,@coach_id,seat_no,berth_type');
-e('SCHEDULE_CLASS_INVENTORY',2,900,1090,'$schedule_id,$class_id,total,available,rac_count,wl_count');
-g('g2a','TRAIN_SCHEDULE',2,470,1090,'schedule_id','above');
+e('SCHEDULE_CLASS_INVENTORY',2,900,1090,'$schedule_id,$class_id,quota,total,available,rac_count,wl_count');
+g('g2a','TRAIN_SCHEDULE',2,470,1140,'schedule_id','above');
+e('RUN_COACH_STATUS',2,1760,1090,'#run_coach_id,@schedule_id,@coach_id,status');
 /* ---- Section 3 ---- */
 g('g3u','USER_ACCOUNT',3,900,120,'user_id','Section 1');
 e('STAFF',3,900,400,'#staff_id,@user_id,employee_no,designation,status');
-e('STAFF_ASSIGNMENT',3,470,390,'#assign_id,@staff_id,@schedule_id,@station_id,duty_type,shift_start');
+e('STAFF_ASSIGNMENT',3,470,390,'#assign_id,@staff_id,@schedule_id,@station_id,duty_type,shift_start,shift_end');
 g('g3a','TRAIN_SCHEDULE',3,40,400,'schedule_id','Section 2');
 g('g3b','STATION',3,470,120,'station_id','Section 2');
-e('TICKET_VERIFICATION',3,1330,420,'#verify_id,@pnr,@passenger_no,@staff_id,id_checked,result,verified_at');
+e('TICKET_VERIFICATION',3,1330,420,'#verify_id,@pnr,@passenger_no,@staff_id,id_checked,concession_checked,result,verified_at');
 e('FINE',3,1330,120,'#fine_id,@verify_id,amount,reason,status');
 g('g3r','PASSENGER_BOOKING',3,1760,420,'pnr,passenger_no','Section 1');
 e('INCIDENT',3,700,740,'#incident_id,@staff_id,@station_id,@schedule_id,type,severity,status');
 g('g3c','STATION',3,270,780,'station_id','Section 2');
 g('g3d','TRAIN_SCHEDULE',3,700,1140,'schedule_id','Section 2');
-e('MAINTENANCE',3,1100,740,'#maint_id,@staff_id,@coach_id,@platform_id,type,status');
+e('MAINTENANCE',3,1100,740,'#maint_id,@staff_id,@coach_id,@platform_id,type,status,created_at,completed_at');
 g('g3e','COACH',3,1530,780,'coach_id','Section 2');
 g('g3f','PLATFORM',3,1100,1100,'platform_id','Section 2');
+e('CROWD_REPORT',3,270,1050,'#crowd_report_id,@station_id,platform_no,crowd_level,head_count,@staff_id,recorded_at');
+e('CLEANLINESS_REPORT',3,1530,1050,'#clean_id,@staff_id,@train_id,@coach_id,@station_id,platform_no,issue_type,status,recorded_at');
 /* ---- Section 5 ---- */
 e('LTS',5,40,130,'#_id,@schedule_id,@station_id,delay_min,status,updated_at');E.LTS.n='live_train_status';
 e('NTF',5,470,130,'#_id,@user_id,message,type,sent_at,is_read');E.NTF.n='notifications';
 e('CMP',5,900,130,'#_id,@user_id,type,message,rating,status,extra_fields{}');E.CMP.n='complaints';
 e('ACT',5,1330,130,'#_id,@user_id,event,ip,user_agent,meta{},at');E.ACT.n='activity_logs';
+e('RGR',5,1760,130,'#_id,gateway_payment_id,payload{},received_at');E.RGR.n='raw_gateway_replies';
 /* ---- Section 4 ---- */
 g('g4u','USER_ACCOUNT',4,900,130,'user_id','Section 1');
 e('ADMIN',4,700,330,'#admin_id,@user_id,employee_no,access_level');
 e('AUDIT_LOG',4,1100,330,'#log_id,@user_id,action,table_name,record_id,old_value,new_value,logged_at');
 e('REPORT',4,700,640,'#report_id,@admin_id,report_type,generated_at');
+e('SETTING',4,1100,640,'#setting_key,setting_value,description,updated_at');
 
 var LK=[
 ['USER_ACCOUNT','BOOKING','1','0M','makes'],
-['BOOKING','PASSENGER_BOOKING','1','M','contains'],['BOOKING','PAYMENT','1','0M','paid by'],['BOOKING','CANCELLATION','1','0M','cancelled by'],['BOOKING','FOOD_ORDER','1','0M','orders'],
-['PASSENGER_BOOKING','RESERVATION','1','01','has'],['g1j','RESERVATION','1','0M','journey'],['CANCELLATION','REFUND','1','01','results in'],['PAYMENT','REFUND','1','0M','refunded via'],
-['FOOD_ORDER','FOOD_ORDER_ITEM','1','M','contains'],['FOOD_ITEM','FOOD_ORDER_ITEM','1','0M','ordered as'],
-['g1a','BOOKING','1','0M','journey on'],['g1b','BOOKING','1','0M','Origin /|Boarding Stop'],['g1h','BOOKING','1','0M','Destination /|Alighting Stop'],['g1c','RESERVATION','01','0M','allocated'],['g1d','BOOKING','1','0M','class'],['g1f','TDR_FILING','1','0M','TDR claims'],['g1i','CANCELLATION','01','0M','passenger'],['g1g','TDR_FILING','01','0M','passenger'],['g1e','BOOKING','01','0M','counter booking'],['CONCESSION_RULE','PASSENGER_BOOKING','01','0M','discount'],
-['STATION','PLATFORM','1','M','has'],['STATION','ROUTE_STOP','1','0M','stop at'],['ROUTE','ROUTE_STOP','1','M','ordered stops'],['ROUTE','TRAIN','1','0M','serves'],
-['TRAIN','TRAIN_SCHEDULE','1','0M','runs'],['TRAIN','COACH','1','M','has'],['SEAT_CLASS','COACH','1','0M','type of'],
-['COACH','SEAT','1','M','has'],['SEAT_CLASS','FARE','1','0M','priced by'],['SEAT_CLASS','SCHEDULE_CLASS_INVENTORY','1','0M','stocked'],['g2a','SCHEDULE_CLASS_INVENTORY','1','0M','seat counts'],
-['g3u','STAFF','1','01','is'],['STAFF','STAFF_ASSIGNMENT','1','0M','assigned'],['g3a','STAFF_ASSIGNMENT','1','0M','duty on'],['g3b','STAFF_ASSIGNMENT','1','0M','posted at'],
-['STAFF','TICKET_VERIFICATION','1','0M','performs'],['g3r','TICKET_VERIFICATION','1','0M','verified'],['TICKET_VERIFICATION','FINE','1','0M','may lead to'],
-['STAFF','INCIDENT','1','0M','reports'],['g3c','INCIDENT','1','0M','at'],['g3d','INCIDENT','1','0M','on'],
-['STAFF','MAINTENANCE','1','0M','performs'],['g3e','MAINTENANCE','01','0M','of'],['g3f','MAINTENANCE','01','0M','of'],
-['g4u','ADMIN','1','01','is'],['g4u','AUDIT_LOG','1','0M','generates'],['ADMIN','REPORT','1','0M','generates']];
+['USER_ACCOUNT','SAVED_PASSENGER','1','0M','saves'],
+['BOOKING','PASSENGER_BOOKING','1','M','contains'],
+['BOOKING','PAYMENT','1','0M','paid by'],
+['BOOKING','CANCELLATION','1','0M','cancelled by'],
+['BOOKING','SEAT_HOLD','1','01','holds'],
+['SAVED_PASSENGER','PASSENGER_BOOKING','01','0M','profile for'],
+['PASSENGER_BOOKING','RESERVATION','1','01','has'],
+['g1j','RESERVATION','1','0M','journey'],
+['CANCELLATION','REFUND','1','01','results in'],
+['PAYMENT','REFUND','1','0M','refunded via'],
+['g1a','BOOKING','1','0M','journey on'],
+['g1b','BOOKING','1','0M','Origin /|Boarding Stop'],
+['g1h','BOOKING','1','0M','Destination /|Alighting Stop'],
+['g1c','RESERVATION','01','0M','allocated'],
+['g1d','BOOKING','1','0M','class'],
+['g1f','TDR_FILING','1','0M','TDR claims'],
+['g1i','CANCELLATION','01','0M','passenger'],
+['g1g','TDR_FILING','01','0M','passenger'],
+['g1e','BOOKING','01','0M','counter booking'],
+['CONCESSION_RULE','PASSENGER_BOOKING','01','0M','discount'],
+['STATION','PLATFORM','1','M','has'],
+['STATION','ROUTE_STOP','1','0M','stop at'],
+['ROUTE','ROUTE_STOP','1','M','ordered stops'],
+['ROUTE','TRAIN','1','0M','serves'],
+['TRAIN','TRAIN_SCHEDULE','1','0M','runs'],
+['TRAIN','COACH','1','M','has'],
+['SEAT_CLASS','COACH','1','0M','type of'],
+['COACH','SEAT','1','M','has'],
+['SEAT_CLASS','FARE','1','0M','priced by'],
+['SEAT_CLASS','SCHEDULE_CLASS_INVENTORY','1','0M','stocked'],
+['g2a','SCHEDULE_CLASS_INVENTORY','1','0M','seat counts'],
+['g3u','STAFF','1','01','is'],
+['STAFF','STAFF_ASSIGNMENT','1','0M','assigned'],
+['g3a','STAFF_ASSIGNMENT','1','0M','duty on'],
+['g3b','STAFF_ASSIGNMENT','1','0M','posted at'],
+['STAFF','TICKET_VERIFICATION','1','0M','performs'],
+['g3r','TICKET_VERIFICATION','1','0M','verified'],
+['TICKET_VERIFICATION','FINE','1','0M','may lead to'],
+['STAFF','INCIDENT','1','0M','reports'],
+['g3c','INCIDENT','1','0M','at'],
+['g3d','INCIDENT','1','0M','on'],
+['STAFF','MAINTENANCE','1','0M','performs'],
+['g3e','MAINTENANCE','01','0M','of'],
+['g3f','MAINTENANCE','01','0M','of'],
+['g4u','ADMIN','1','01','is'],
+['g4u','AUDIT_LOG','1','0M','generates'],
+['ADMIN','REPORT','1','0M','generates'],
+['STAFF','CROWD_REPORT','1','0M','records'],
+['STAFF','CLEANLINESS_REPORT','1','0M','logs'],
+['TRAIN_SCHEDULE','CHART_SNAPSHOT','1','0M','snapshot'],
+['TRAIN_SCHEDULE','RUN_COACH_STATUS','1','0M','coach status']
+];
 
 function sym(x,y,dx,dy,t){const px=-dy,py=dx,P=(d,l)=>[x+dx*d+px*l,y+dy*d+py*l];
  const ln=(a,b)=>`<line class="ln" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/>`;
@@ -144,14 +189,14 @@ PN.forEach((p,i)=>{out+=`<rect x="4" y="${Y0[i]}" width="2072" height="${PH[i]}"
 LK.forEach(l=>out+=link(...l));
 Object.values(E).forEach(o=>out+=ent(o));
 /* legend (section 2) */
-{const lx=40,ly=Y0[1]+400;out+=`<rect x="${lx}" y="${ly}" width="1230" height="372" rx="12" fill="var(--card)" stroke="var(--line)"/><text x="${lx+24}" y="${ly+38}" font-size="20" font-weight="700">HOW TO READ THIS DIAGRAM</text>`;
+{const lx=40,ly=Y0[1]+440;out+=`<rect x="${lx}" y="${ly}" width="1230" height="372" rx="12" fill="var(--card)" stroke="var(--line)"/><text x="${lx+24}" y="${ly+38}" font-size="20" font-weight="700">HOW TO READ THIS DIAGRAM</text>`;
  [['1','1 — exactly one'],['01','0..1 — zero or one'],['M','1..M — one or many'],['0M','0..M — zero or many']].forEach((r,i)=>{const x0=lx+40+(i%2)*600,y0=ly+100+(i>>1)*70;
   out+=`<rect x="${x0}" y="${y0-17}" width="56" height="34" rx="5" fill="var(--card)" stroke="var(--text)" stroke-width="2"/><text x="${x0+28}" y="${y0+6}" text-anchor="middle" font-size="16" font-weight="700">A</text><line class="ln" x1="${x0+56}" y1="${y0}" x2="${x0+200}" y2="${y0}"/>${sym(x0+56,y0,1,0,r[0])}<text x="${x0+215}" y="${y0+6}" font-size="17">${r[1]} <tspan class="mut" font-size="14">(at the A end)</tspan></text>`});
  out+=badge(lx+40,ly+232,'PK')+`<text x="${lx+85}" y="${ly+247}" font-size="17">Primary key</text>`+badge(lx+260,ly+232,'FK')+`<text x="${lx+305}" y="${ly+247}" font-size="17">Foreign key</text>`+badge(lx+470,ly+232,'PFK')+`<text x="${lx+520}" y="${ly+247}" font-size="17">Part of PK and also an FK</text>`;
  out+=`<text x="${lx+40}" y="${ly+295}" font-size="17"><tspan style="fill:#e11d48" font-weight="700">1 · 0..1 · 1..M · 0..M</tspan> beside a line = cardinality at that end of the relationship.</text><text class="mut" x="${lx+40}" y="${ly+322}" font-size="15">Symbol at an entity = how many of THAT entity relate to one record of the entity at the other end.</text><text class="mut" x="${lx+40}" y="${ly+349}" font-size="15">Dashed box = same table shown from another section or position (reference only, not a separate table).</text>`}
 /* admin note (section 4) */
 {const nx=1480,ny=Y0[3]+330;out+=`<rect x="${nx}" y="${ny}" width="560" height="270" rx="12" fill="var(--card)" stroke="#7c3aed" stroke-width="2"/><text x="${nx+22}" y="${ny+38}" font-size="19" font-weight="700">Admin dashboard manages</text>`;
- ['Users and staff accounts','Trains, coaches, seats, fares (Section 2)','Stations, platforms, routes, schedules','Food menu, fines, maintenance, incidents','Reports (notifications: MongoDB)','Audit log (MySQL, trigger-filled)'].forEach((t,i)=>out+=`<text x="${nx+22}" y="${ny+78+i*32}" font-size="17">• ${t}</text>`)}
+ ['Users and staff accounts','Trains, coaches, seats, fares (Section 2)','Stations, platforms, routes, schedules','Fines, maintenance, incidents','Reports (notifications: MongoDB)','Audit log (MySQL, trigger-filled)'].forEach((t,i)=>out+=`<text x="${nx+22}" y="${ny+78+i*32}" font-size="17">• ${t}</text>`)}
 out+=note(40,Y0[0]+130,420,'#2563eb','Booking → passenger → reservation',['BOOKING = the whole PNR','PASSENGER_BOOKING = one passenger in it,','  PK (pnr, passenger_no) = 1, 2, 3 …','RESERVATION = status, optional seat and','  queue_position; 0..1 per passenger','Composite FK (pnr, passenger_no) used by:','  · RESERVATION · TICKET_VERIFICATION','  · CANCELLATION · TDR_FILING (NULL=PNR)','Waitlisted: seat_id normally NULL','RAC: seat per the project\'s RAC rules','queue_position NULL unless RAC / WL','No reservation history is modelled','Rules the diagram cannot enforce: see below']);
 out+=note(40,Y0[0]+1140,400,'#2563eb','TDR_FILING notes',['PNR is the ticket reference (no ticket_no)','passenger_no NULL = claim on whole PNR','else FK (pnr, passenger_no)','status: SUBMITTED / UNDER_REVIEW /','  APPROVED / REJECTED / CLOSED','Separate from CANCELLATION','Refund amount lives in REFUND only','REFUND_RULE(rule_id): no FK, read by fn']);
 out+=note(40,Y0[1]+1090,400,'#059669','ROUTE_STOP',['distance_from_origin_km = km from','  the route origin (not previous stop)','Constraint: UNIQUE(route_id, stop_order)']);
@@ -166,7 +211,7 @@ out+=note(40,Y0[0]+1540,1960,'#2563eb','Rules the ER diagram cannot enforce — 
 '7. SCHEDULE_CLASS_INVENTORY (available, rac_count, wl_count) must stay consistent with RESERVATION status changes, via a trigger or application logic, which also blocks a booking when the waitlist is full.',
 '8. TDR_FILING is a claim, REFUND is the payout; REFUND_RULE has no FK and is only read by the refund function. AUDIT_LOG.table_name + record_id is a generic pointer, not an FK.']);
 out+=note(1760,Y0[2]+120,280,'#c2410c','Rules',['result = VERIFIED /','  FAILED / PENDING','MAINTENANCE CHECK: exactly','  one of coach_id or','  platform_id is filled']);
-out+=note(40,Y0[4]+420,1700,'#15803d','MongoDB + MySQL (hybrid)',['AUDIT_LOG stays in MySQL — a trigger fills it (Section 4).','live_train_status replaces TRAIN_STATUS (now with station_id) · notifications replaces NOTIFICATION · complaints replaces COMPLAINT_FEEDBACK (varying fields).','activity_logs is new: logins and API events.','user_id / schedule_id / station_id are plain references to MySQL ids, not enforced foreign keys. Solid PK/FK lines apply only to the MySQL sections.']);
+out+=note(40,Y0[4]+420,1700,'#15803d','MongoDB + MySQL (hybrid)',['AUDIT_LOG stays in MySQL — a trigger fills it (Section 4).','live_train_status replaces TRAIN_STATUS (now with station_id) · notifications replaces NOTIFICATION · complaints replaces COMPLAINT_FEEDBACK (varying fields).','activity_logs: logins and API events · raw_gateway_replies: Razorpay webhooks.','user_id / schedule_id / station_id are plain references to MySQL ids, not enforced foreign keys. Solid PK/FK lines apply only to the MySQL sections.']);
 document.getElementById('s').innerHTML=out;
 var sc=.75;const S=document.getElementById('s'),Wr=document.getElementById('wrap');
 function ap(){S.setAttribute('width',Math.round(2080*sc))}

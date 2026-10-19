@@ -1,0 +1,159 @@
+station_id,station_code,station_name,display_name,city,state,platform_count
+1,HBJ,HABIBGANJ,Habibganj,Bhopal,Madhya Pradesh,5
+2,BPL,BHOPAL,Bhopal,Bhopal,Madhya Pradesh,6
+3,LAR,LALITPUR,Lalitpur,Lalitpur,Uttar Pradesh,3
+4,JHS,JHANSI JN,Jhansi Jn,Jhansi,Uttar Pradesh,8
+5,GWL,GWALIOR JN,Gwalior Jn,Gwalior,Madhya Pradesh,4
+6,MRA,MORENA,Morena,Morena,Madhya Pradesh,3
+7,DHO,DHAULPUR,Dhaulpur,Dhaulpur,Rajasthan,3
+8,AGC,AGRA CANTT,Agra Cantt,Agra,Uttar Pradesh,6
+9,MTJ,MATHURA JN.,Mathura Jn,Mathura,Uttar Pradesh,10
+10,NDLS,NEW DELHI,New Delhi,New Delhi,Delhi,16
+11,LJN,LUCKNOW JN.,Lucknow Jn,Lucknow,Uttar Pradesh,6
+12,CNB,KANPUR CENTR,Kanpur Centr,Kanpur,Uttar Pradesh,9
+13,ETW,ETAWAH,Etawah,Etawah,Uttar Pradesh,5
+14,TDL,TUNDLA JN,Tundla Jn,Tundla,Uttar Pradesh,7
+15,ALJN,ALIGARH JN.,Aligarh Jn,Aligarh,Uttar Pradesh,7
+16,GZB,GHAZIABAD JN,Ghaziabad Jn,Ghaziabad,Uttar Pradesh,6
+17,MAS,CHENNAI CENT,Chennai Cent,Chennai,Tamil Nadu,17
+18,KPD,KATPADI JN,Katpadi Jn,Katpadi,Tamil Nadu,5
+19,SBC,KRANTIVIRA S,Krantivira S,Bengaluru,Karnataka,10
+20,MYS,MYSORE JN.,Mysore Jn,Mysore,Karnataka,6
+21,BCT,MUMBAI CENTR,Mumbai Centr,Mumbai,Maharashtra,9
+22,BVI,BORIVLI,Borivli,Mumbai,Maharashtra,9
+23,VAPI,VAPI,Vapi,Vapi,Gujarat,3
+24,ST,SURAT,Surat,Surat,Gujarat,4
+25,BH,BHARUCH JN.,Bharuch Jn,Bharuch,Gujarat,6
+26,BRC,VADODARA JN.,Vadodara Jn,Vadodara,Gujarat,7
+27,ANND,ANAND JN.,Anand Jn,Anand,Gujarat,6
+28,ND,NADIAD JN.,Nadiad Jn,Nadiad,Gujarat,3
+29,ADI,AHMEDABAD,Ahmedabad,Ahmedabad,Gujarat,12
+30,UMB,AMBALA CANTT,Ambala Cantt,Ambala,Haryana,7
+31,SIR,SIRHIND JN.,Sirhind Jn,Sirhind,Punjab,3
+32,LDH,LUDHIANA JN.,Ludhiana Jn,Ludhiana,Punjab,7
+33,PGW,PHAGWARA JN.,Phagwara Jn,Phagwara,Punjab,3
+34,JUC,JALANDHAR CI,Jalandhar Ci,Jalandhar,Punjab,5
+35,BEAS,BEAS JN,Beas Jn,Beas,Punjab,2
+36,ASR,AMRITSAR JN.,Amritsar Jn,Amritsar,Punjab,6
+37,MTC,MEERUT CITY,Meerut City,Meerut,Uttar Pradesh,6
+38,MOZ,MUZAFFARNAGA,Muzaffarnaga,Muzaffarnaga,Uttar Pradesh,2
+39,SRE,SAHARANPUR J,Saharanpur J,Saharanpur,Uttar Pradesh,6
+40,RK,ROORKEE,Roorkee,Roorkee,Uttarakhand,3
+41,HW,HARIDWAR JN,Haridwar Jn,Haridwar,Uttarakhand,9
+42,DDN,DEHRA DUN,Dehra Dun,Dehra Dun,Uttarakhand,5
+43,PUNE,PUNE JN.,Pune Jn,Pune,Maharashtra,6
+44,SUR,SOLAPUR,Solapur,Solapur,Maharashtra,5
+45,GR,GULBARGA,Gulbarga,Gulbarga,Karnataka,4
+46,WADI,WADI JN.,Wadi Jn,Wadi,Karnataka,4
+47,TDU,TANDUR,Tandur,Tandur,Telangana,3
+48,VKB,VIKRABAD JN.,Vikrabad Jn,Vikrabad,Telangana,3
+49,BMT,BEGAMPET,Begampet,Hyderabad,Telangana,3
+50,SC,SECUNDERABAD,Secunderabad,Hyderabad,Telangana,10
+51,BNC,BANGALORE CA,Bangalore Ca,Bengaluru,Karnataka,4
+52,GHY,GUWAHATI,Guwahati,Guwahati,Assam,7
+53,CPK,CHAPARMUKH J,Chaparmukh J,Chaparmukh,Assam,3
+54,LMG,LUMDING JN.,Lumding Jn,Lumding,Assam,5
+55,DPU,DIPHU,Diphu,Diphu,Assam,3
+56,DMV,DIMAPUR,Dimapur,Dimapur,Nagaland,3
+57,FKG,FURKATING JN,Furkating Jn,Furkating,Assam,3
+58,MXN,MARIANI JN.,Mariani Jn,Mariani,Assam,3
+59,SRTN,SIBSAGAR TOW,Sibsagar Tow,Sibsagar,Assam,3
+60,MRHT,MORANHAT,Moranhat,Moranhat,Assam,3
+61,DBRG,DIBRUGARH,Dibrugarh,Dibrugarh,Assam,4
+62,LTT,LOKMANYA TIL,Lokmanya Til,Mumbai,Maharashtra,5
+63,DD,DAUND JN.,Daund Jn,Daund,Maharashtra,6
+64,MMR,MANMAD JN.,Manmad Jn,Manmad,Maharashtra,6
+65,BSL,BHUSAVAL JN.,Bhusaval Jn,Bhusaval,Maharashtra,8
+66,NGP,NAGPUR JN.(C,Nagpur Jn.(c,Nagpur,Maharashtra,8
+67,BSP,BILASPUR JN.,Bilaspur Jn,Bilaspur,Chhattisgarh,8
+68,TATA,TATANAGAR JN,Tatanagar Jn,Tatanagar,Jharkhand,5
+69,HWH,HOWRAH JN.,Howrah Jn,Kolkata,West Bengal,23
+70,RN,RATNAGIRI,Ratnagiri,Ratnagiri,Maharashtra,3
+71,MAO,MADGOAN JN.,Madgoan Jn,Margao,Goa,4
+72,MAJN,MANGALORE JN,Mangalore Jn,Mangalore,Karnataka,3
+73,CLT,CALICUT,Calicut,Kozhikode,Kerala,4
+74,ERS,ERNAKULAM. J,Ernakulam. J,Kochi,Kerala,6
+75,BBS,BHUBANESWAR,Bhubaneswar,Bhubaneswar,Odisha,6
+76,VZM,VIZIANAGARAM,Vizianagaram,Vizianagaram,Andhra Pradesh,5
+77,BZA,VIJAYWADA JN,Vijaywada Jn,Vijaywada,Andhra Pradesh,10
+78,RU,RENIGUNTA JN,Renigunta Jn,Renigunta,Andhra Pradesh,5
+79,YPR,YESVANTPUR J,Yesvantpur J,Bengaluru,Karnataka,6
+80,CSMT,CST-MUMBAI,Cst-mumbai,Mumbai,Maharashtra,18
+81,IGP,IGATPURI,Igatpuri,Igatpuri,Maharashtra,4
+82,BPQ,BALHARSHAH,Balharshah,Balharshah,Maharashtra,5
+83,NZM,HAZRAT NIZAM,Hazrat Nizam,New Delhi,Delhi,7
+84,DHN,DHANBAD JN.,Dhanbad Jn,Dhanbad,Jharkhand,8
+85,PNME,PARASNATH,Parasnath,Parasnath,Jharkhand,4
+86,GAYA,GAYA JN.,Gaya Jn,Gaya,Bihar,9
+87,MGS,MUGHAL SARAI,Mughal Sarai,Pt. Deen Dayal Upadhyaya,Uttar Pradesh,8
+88,ALD,ALLAHABAD JN,Allahabad Jn,Prayagraj,Uttar Pradesh,10
+89,RJPB,RAJENDRANAGA,Rajendranaga,Patna,Bihar,4
+90,PNBE,PATNA JN.,Patna Jn,Patna,Bihar,10
+91,SDAH,SEALDAH,Sealdah,Kolkata,West Bengal,21
+92,DGR,DURGAPUR,Durgapur,Durgapur,West Bengal,5
+93,ASN,ASANSOL MAIN,Asansol Main,Asansol Main,West Bengal,7
+94,DBRT,DIBRUGARH TO,Dibrugarh To,Dibrugarh,Assam,3
+95,NTSK,NEW TINSUKIA,New Tinsukia,Tinsukia,Assam,4
+96,NBQ,NEW BONGAIGA,New Bongaiga,Bongaigaon,Assam,4
+97,KOJ,KOKRAJHAR,Kokrajhar,Kokrajhar,Assam,3
+98,NCB,NEW COOCH BE,New Cooch Be,Cooch Behar,West Bengal,6
+99,NJP,NEW JALPAIGU,New Jalpaigu,Siliguri,West Bengal,8
+100,KNE,KISHANGANJ,Kishanganj,Kishanganj,Bihar,3
+101,KIR,KATIHAR JN.,Katihar Jn,Katihar,Bihar,8
+102,NNA,NAUGACHIA,Naugachia,Naugachia,Bihar,3
+103,BJU,BARAUNI JN.,Barauni Jn,Barauni,Bihar,9
+104,PPTA,PATLIPUTRA,Patliputra,Patna,Bihar,3
+105,DNR,DANAPUR,Danapur,Patna,Bihar,5
+106,PTKC,PATHANKOT CA,Pathankot Ca,Pathankot,Punjab,3
+107,KTHU,KATHUA,Kathua,Kathua,Jammu & Kashmir,3
+108,JAT,JAMMU TAWI,Jammu Tawi,Jammu,Jammu & Kashmir,3
+109,TVC,TRIVANDRUM C,Trivandrum C,Thiruvananthapuram,Kerala,5
+110,QLN,QUILON,Quilon,Kollam,Kerala,6
+111,ALLP,ALLEPPEY,Alleppey,Alappuzha,Kerala,3
+112,TCR,TRICHUR,Trichur,Thrissur,Kerala,4
+113,SRR,SHORANUR JN.,Shoranur Jn,Shoranur,Kerala,7
+114,CAN,KANNUR,Kannur,Kannur,Kerala,3
+115,UD,UDUPI,Udupi,Udupi,Karnataka,3
+116,KAWR,KAWR,Kawr,Karwar,Karnataka,3
+117,SWV,SAWANTWADI R,Sawantwadi R,Sawantwadi,Maharashtra,2
+118,PNVL,PANVEL,Panvel,Navi Mumbai,Maharashtra,7
+119,BSR,VASAI ROAD,Vasai Road,Palghar,Maharashtra,7
+120,KOTA,KOTA,Kota,Kota,Rajasthan,6
+121,WL,WARANGAL,Warangal,Warangal,Telangana,3
+122,KZJ,KAZIPET JN.,Kazipet Jn,Kazipet,Telangana,3
+123,R,RAIPUR JN.,Raipur Jn,Raipur,Chhattisgarh,7
+124,DURG,DURG,Durg,Durg,Chhattisgarh,5
+125,RJN,RAJNANDGAON,Rajnandgaon,Rajnandgaon,Chhattisgarh,3
+126,G,GONDIA JN.,Gondia Jn,Gondia,Maharashtra,7
+127,RNC,RANCHI,Ranchi,Ranchi,Jharkhand,6
+128,BRKA,BARKAKANA,Barkakana,Barkakana,Jharkhand,4
+129,DTO,DALTONGANJ,Daltonganj,Daltonganj,Jharkhand,3
+130,GHD,GARWA ROAD J,Garwa Road J,Garhwa,Jharkhand,3
+131,RTM,RATLAM JN,Ratlam Jn,Ratlam,Madhya Pradesh,7
+132,NAD,NAGDA JN,Nagda Jn,Nagda,Madhya Pradesh,5
+133,ADH,ANDHERI,Andheri,Mumbai,Maharashtra,9
+134,BL,VALSAD,Valsad,Valsad,Gujarat,3
+135,SWM,SAWAI MADHOP,Sawai Madhop,Sawai Madhopur,Rajasthan,4
+136,SBI,SABARMATI JN,Sabarmati Jn,Ahmedabad,Gujarat,4
+137,MSH,MAHESANA JN,Mahesana Jn,Mehsana,Gujarat,5
+138,PNU,PALANPUR JN,Palanpur Jn,Palanpur,Gujarat,3
+139,ABR,ABU ROAD,Abu Road,Abu Road,Rajasthan,3
+140,AII,AJMER JN.,Ajmer Jn,Ajmer,Rajasthan,6
+141,JP,JAIPUR JN.,Jaipur Jn,Jaipur,Rajasthan,7
+142,GGN,GURGAON,Gurgaon,Gurgaon,Haryana,3
+143,DEC,DELHI CANTT,Delhi Cantt,New Delhi,Delhi,4
+144,SSPN,SRI SATYA SA,Sri Satya Sa,Puttaparthi,Andhra Pradesh,4
+145,DMM,DHARMAVARAM,Dharmavaram,Dharmavaram,Andhra Pradesh,5
+146,ATP,ANANTAPUR,Anantapur,Anantapur,Andhra Pradesh,3
+147,GTL,GUNTAKAL JN.,Guntakal Jn,Guntakal,Andhra Pradesh,6
+148,RC,RAICHUR,Raichur,Raichur,Karnataka,4
+149,SEM,SERAM,Seram,Seram,Telangana,3
+150,CTC,CUTTACK JN.,Cuttack Jn,Cuttack,Odisha,5
+151,JJKR,JAJPUR KEONJ,Jajpur Keonj,Jajpur,Odisha,4
+152,BHC,BHADRAKH,Bhadrakh,Bhadrakh,Odisha,4
+153,BLS,BALASORE,Balasore,Balasore,Odisha,4
+154,KGP,KHARAGPUR,Kharagpur,Kharagpur,West Bengal,12
+155,BQA,BANKURA,Bankura,Bankura,West Bengal,4
+156,ADRA,ADRA,Adra,Adra,West Bengal,4
+157,GMO,NSC BOSE J G,Nsc Bose J G,Gomoh,Jharkhand,6
+158,KQR,KODERMA,Koderma,Koderma,Jharkhand,4

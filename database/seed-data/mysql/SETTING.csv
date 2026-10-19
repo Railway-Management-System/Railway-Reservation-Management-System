@@ -1,0 +1,14 @@
+setting_key,setting_value,description,updated_at
+BOOKING_WINDOW_DAYS,7,Advance booking window in days,2026-10-18 00:00:00
+HOLD_MINUTES,10,Seat hold duration in minutes,2026-10-18 00:00:00
+MAX_PASSENGERS_PER_PNR,6,Maximum passengers per standard booking,2026-10-18 00:00:00
+MAX_PASSENGERS_PER_PNR_TATKAL,4,Maximum passengers per Tatkal booking,2026-10-18 00:00:00
+MAX_TICKETS_PER_MONTH,12,Monthly booking limit for unverified users,2026-10-18 00:00:00
+MAX_TICKETS_PER_MONTH_AADHAAR_VERIFIED,24,Monthly booking limit for Aadhaar verified users,2026-10-18 00:00:00
+CHART_HOURS_BEFORE_ORIGIN_DEPARTURE,8,Hours before origin departure when chart prepares,2026-10-18 00:00:00
+CLERKAGE_PER_PASSENGER,60.00,Cancellation clerkage fee for RAC/WL,2026-10-18 00:00:00
+CONCESSION_SENIOR_ENABLED,false,Senior citizen concession active flag,2026-10-18 00:00:00
+DYNAMIC_FARE_ENABLED,false,BR-F11 dynamic Tatkal surcharge flag,2026-10-18 00:00:00
+MIN_CHARGEABLE_DISTANCE_KM,100,Minimum billable distance slab,2026-10-18 00:00:00
+INSURANCE_PREMIUM_PER_PASSENGER,0.45,Optional travel insurance charge,2026-10-18 00:00:00
+GST_RATE_AC,0.05,GST rate on AC travel classes,2026-10-18 00:00:00

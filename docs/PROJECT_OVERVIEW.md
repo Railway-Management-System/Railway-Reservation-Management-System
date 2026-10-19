@@ -61,11 +61,13 @@ By decoupling the frontend from the database via strict **Data Contracts** and *
 
 ## 4. Key Architectural & Business Principles
 
-1. **Zero Schema Drift**: Every frontend team uses the exact property names (e.g., `trainNumber`, `journeyDate`, `pnr`) defined in [DATA_SCHEMA.md](file:///c:/Users/Rohan/Desktop/dbms%20pbl/docs/DATA_SCHEMA.md). No arbitrary property renaming is allowed.
+1. **Zero Schema Drift**: Every frontend team uses the exact property names (e.g., `trainNumber`, `journeyDate`, `pnr`) defined in [DATA_SCHEMA.md](DATA_SCHEMA.md). No arbitrary property renaming is allowed.
 2. **Segmented Seat Integrity**: In railway systems, a seat can be booked multiple times on the same date **only if the journey segments do not overlap**. Any overlapping allocation of the same physical seat must be strictly rejected.
-3. **Single Canonical Fare Formula**:
-   $$\text{Total Fare} = \text{Base Fare} + \text{Reservation Charge} + \text{Tatkal Charge} + \text{Insurance} + \text{GST} - \text{Concession}$$
-   where $\text{Base Fare} = \text{Segment Distance} \times \text{Class Base Rate}$.
+3. **Single Canonical Fare Formula (Section 6)**:
+   $$\text{Base Fare} = \text{Segment Distance (min 100 km)} \times \text{Class Slab Rate}$$
+   $$\text{Taxable Amount} = (\text{Base Fare} - \text{Concession}) + \text{Reservation Charge} + \text{Superfast Charge} + \text{Tatkal Charge} + \text{Dynamic Surcharge}$$
+   $$\text{Total Fare} = \text{Taxable Amount} + \text{GST (5% for AC)} + \text{Insurance (0.45 flat)}$$
+   Concession applies strictly to the base fare before GST (DIVYAANG active, SENIOR inactive, no STUDENT/MEDICAL). Superfast charge applies to RAJDHANI, SHATABDI, and DURONTO trains. Optional dynamic Tatkal surcharge (Base Fare $\times$ 0.5) applies when `DYNAMIC_FARE_ENABLED` (BR-F11) is true and class is $\ge 80\%$ booked. Total fare is rounded to 2 decimal places, half-up, per passenger line.
 4. **Stateless Payment Tracking**: Sensitive credit card or banking information is never handled or stored. The system records only payment mode, amount, gateway transaction ID, and strict payment states (`PENDING`, `SUCCESS`, `FAILED`).
 5. **Two-Phase Booking with Temporary Hold**: Seats are held temporarily upon entering passenger details with a timer (e.g., 10 minutes). A booking transitions to `PAYMENT_PENDING` and confirms only on gateway `SUCCESS`. Expired or failed sessions automatically release the seat hold.
 6. **Per-Passenger Notification Log**: Critical events (ticket confirmation, RAC/WL progression, train delays, platform shifts, emergency alerts) generate durable individual notification records for target passengers.

@@ -1,0 +1,7 @@
+rule_id,reason_code,description,deadline_hours,requires_verification,refund_pct
+1,TRAIN_DELAYED_OVER_3_HOURS,Train delayed over 3 hours at boarding station,0,0,100
+2,TRAIN_DIVERTED,Train diverted and passenger not willing to travel,0,0,100
+3,CLASS_DOWNGRADED,Class downgraded and passenger not willing to travel,72,1,100
+4,AC_FAILURE,AC failure in coach for significant duration,72,1,30
+5,COACH_NOT_ATTACHED,Reserved coach not attached to train,72,1,100
+6,TRAIN_TERMINATED_SHORT,Train terminated short of destination,72,1,100

@@ -1,0 +1,4 @@
+log_id,user_id,action,table_name,record_id,old_value,new_value,logged_at
+101,50007,SUSPEND_USER,USER_ACCOUNT,3,"{""accountStatus"":""ACTIVE""}","{""accountStatus"":""SUSPENDED"",""reason"":""Repeated booking bot activity detected""}",2026-10-04 11:20:00
+102,50007,APPROVE_TDR,TDR,701,"{""status"":""FILED"",""refundAmount"":null}","{""status"":""APPROVED"",""refundAmount"":1850}",2026-10-04 12:00:00
+103,50007,UPDATE_SCHEDULE_DELAY,TRAIN_SCHEDULE,502,"{""status"":""ON_TIME"",""delayMinutes"":0}","{""status"":""DELAYED"",""delayMinutes"":25}",2026-10-06 18:25:00

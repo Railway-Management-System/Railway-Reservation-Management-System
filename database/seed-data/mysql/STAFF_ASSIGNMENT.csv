@@ -1,0 +1,4 @@
+assign_id,staff_id,schedule_id,station_id,duty_type
+1,1,1001,21,TRAIN_DUTY
+2,2,,10,STATION_DUTY
+3,3,,10,COUNTER_DUTY

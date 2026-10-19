@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "lts_1001",
+    "schedule_id": 1001,
+    "station_id": 10,
+    "delay_min": 0,
+    "status": "ON_TIME",
+    "current_platform": 3,
+    "updated_at": "2026-10-18T10:00:00Z"
+  },
+  {
+    "_id": "lts_1002",
+    "schedule_id": 1002,
+    "station_id": 21,
+    "delay_min": 15,
+    "status": "DELAYED",
+    "current_platform": 1,
+    "updated_at": "2026-10-18T10:30:00Z"
+  }
+]
