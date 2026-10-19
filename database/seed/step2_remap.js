@@ -88,27 +88,33 @@ function remapStep2() {
       staff_id: 1,
       schedule_id: 1001,
       station_id: 21,
-      duty_type: 'TRAIN_DUTY'
+      duty_type: 'TRAIN_DUTY',
+      shift_start: '2026-10-18 06:00:00',
+      shift_end: '2026-10-18 14:00:00'
     },
     {
       assign_id: 2,
       staff_id: 2,
       schedule_id: null,
       station_id: 10,
-      duty_type: 'STATION_DUTY'
+      duty_type: 'STATION_DUTY',
+      shift_start: '2026-10-18 08:00:00',
+      shift_end: '2026-10-18 16:00:00'
     },
     {
       assign_id: 3,
       staff_id: 3,
       schedule_id: null,
       station_id: 10,
-      duty_type: 'COUNTER_DUTY'
+      duty_type: 'COUNTER_DUTY',
+      shift_start: '2026-10-18 09:00:00',
+      shift_end: '2026-10-18 17:00:00'
     }
   ];
 
   writeCsv(
     path.join(SEED_MYSQL_DIR, 'STAFF_ASSIGNMENT.csv'),
-    ['assign_id', 'staff_id', 'schedule_id', 'station_id', 'duty_type'],
+    ['assign_id', 'staff_id', 'schedule_id', 'station_id', 'duty_type', 'shift_start', 'shift_end'],
     staffAssignmentRows
   );
 
