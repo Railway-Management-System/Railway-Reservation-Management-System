@@ -19,13 +19,11 @@ function escapeCsv(val) {
 }
 
 function writeCsv(filePath, headers, rows) {
-  const ws = fs.createWriteStream(filePath, { encoding: 'utf8' });
-  ws.write(headers.join(',') + '\n');
+  const lines = [headers.join(',')];
   for (const row of rows) {
-    const line = headers.map(h => escapeCsv(row[h])).join(',');
-    ws.write(line + '\n');
+    lines.push(headers.map(h => escapeCsv(row[h])).join(','));
   }
-  ws.end();
+  fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
 
 function writeJson(filePath, data) {

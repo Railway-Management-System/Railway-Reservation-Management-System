@@ -49,7 +49,7 @@ The system utilizes a hybrid persistence architecture:
 
 ### Section 2: Railway Infrastructure & Timetable
 13. `STATION` (`station_id` [PK, 1..158], `station_code` [UQ], `station_name`, `display_name` **`(new)`**, `city`, `state`, `platform_count` **`(new)`**)
-14. `PLATFORM` (`platform_id` [PK], `station_id` [FK], `platform_no`, `status`)
+14. `PLATFORM` (`platform_id` [PK], `station_id` [FK], `platform_no`)
 15. `TRAIN` (`train_id` [PK, 101..160], `train_number` [UQ], `short_name`, `display_name` **`(new)`**, `train_type` [`RAJDHANI`, `SHATABDI`, `DURONTO`, `EXPRESS`, `VANDE_BHARAT`], `source_station_id` [FK], `destination_station_id` [FK], `running_days` [JSON: `"MON"`..`"SUN"`], `status`)
 16. `ROUTE_STOP` (`stop_id` [PK, 1001..1536], `train_id` [FK], `station_id` [FK], `stop_sequence`, `arrival_time`, `departure_time`, `day_offset` [0, 1, 2] **`(new)`**, `distance_from_origin_km`, `platform_no`)
 17. `TRAIN_SCHEDULE` (`schedule_id` [PK], `train_id` [FK], `journey_date` [origin departure date], `departure_time`, `delay_minutes` **`(new)`**, `chart_prepared_at` **`(new)`**, `status` [`ON_TIME`, `DELAYED`, `CANCELLED`, `RESCHEDULED`])
@@ -57,7 +57,7 @@ The system utilizes a hybrid persistence architecture:
 19. `SEAT_CLASS` (`class_id` [PK], `code` [`1A`, `2A`, `3A`, `SL`, `CC`, `EC`, `2S`], `name`)
 20. `COACH` (`coach_id` [PK], `train_id` [FK], `class_id` [FK], `coach_no`, `total_seats`)
 21. `SEAT` (`seat_id` [PK], `coach_id` [FK], `seat_no`, `berth_type` [`LOWER`, `MIDDLE`, `UPPER`, `SIDE_LOWER`, `SIDE_UPPER`, `WINDOW`, `AISLE`, `NO_BERTH`])
-22. `SCHEDULE_CLASS_INVENTORY` (`schedule_id` [PFK], `class_id` [PFK], `quota` [PFK, Quota Enum] **`(new)`**, `total_seats`, `available_seats`, `rac_count`, `wl_count`)
+22. `SCHEDULE_CLASS_INVENTORY` (`inventory_id` [PK], `schedule_id` [FK], `class_id` [FK], `total_seats`, `available_seats`, `rac_capacity`, `rac_count`, `wl_capacity`, `wl_count`)
 23. `FARE` (`fare_id` [PK], `class_id` [FK], `from_km` **`(new)`**, `to_km` **`(new)`**, `per_km_rate`, `reservation_charge` **`(new)`**, `superfast_charge` **`(new)`**, `tatkal_percent` **`(new)`**)
 24. `CONCESSION_RULE` (`concession_rule_id` [PK] **`(new)`**, `concession_type`, `class_id` [FK, NULLABLE] **`(new)`**, `train_type_group` **`(new)`**, `discount_pct`, `proof_types` [JSON] **`(new)`**, `is_active` **`(new)`**)  
     *(DIVYAANG active; SENIOR_CITIZEN inactive; no STUDENT or MEDICAL).*
@@ -65,8 +65,8 @@ The system utilizes a hybrid persistence architecture:
 
 ### Section 3: Staff Operations & Maintenance
 26. `STAFF` (`staff_id` [PK], `user_id` [FK], `employee_no` [UQ], `designation`, `status`)
-27. `STAFF_ASSIGNMENT` (`assign_id` [PK], `staff_id` [FK], `schedule_id` [FK, NULLABLE], `station_id` [FK, NULLABLE], `duty_type` [`TRAIN_DUTY`, `STATION_DUTY`, `COUNTER_DUTY`, `MAINTENANCE_DUTY`] **`(new)`**, `shift_start`, `shift_end` **`(new)`**)
-28. `TICKET_VERIFICATION` (`verify_id` [PK], `pnr` [FK], `passenger_no` [FK], `staff_id` [FK], `id_checked`, `concession_proof_checked` **`(new)`**, `result` [`VALID`, `INVALID`, `MISMATCH`], `verified_at`)
+27. `STAFF_ASSIGNMENT` (`assign_id` [PK], `staff_id` [FK], `schedule_id` [FK, NULLABLE], `station_id` [FK, NULLABLE], `duty_type` [`TRAIN_DUTY`, `STATION_DUTY`, `COUNTER_DUTY`, `MAINTENANCE_DUTY`], `shift_start`, `shift_end`)
+28. `TICKET_VERIFICATION` (`verify_id` [PK], `staff_id` [FK], `pnr` [FK], `passenger_no` [FK], `id_proof_match`, `concession_match`, `result` [`VALID`, `INVALID`, `MISMATCH`], `remarks`, `verified_at`)
 29. `FINE` (`fine_id` [PK], `verify_id` [FK, NULLABLE], `staff_id` [FK], `passenger_name`, `id_proof_reference`, `train_id` [FK, NULLABLE], `amount`, `reason` [`TICKETLESS_TRAVEL`, `UNAUTHORIZED_CLASS`, `SMOKING_NUISANCE`, `UNBOOKED_LUGGAGE`], `payment_status` [`PAID`, `UNPAID`], `issued_at`)
 30. `INCIDENT` (`incident_id` [PK], `staff_id` [FK], `station_id` [FK, NULLABLE], `schedule_id` [FK, NULLABLE], `type`, `severity` [`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`], `status`, `reported_at`)
 31. `MAINTENANCE` (`maint_id` [PK], `staff_id` [FK], `coach_id` [FK, NULLABLE], `platform_id` [FK, NULLABLE], `type` [`CLEANING`, `REPAIR`, `AC_SERVICE`, `INSPECTION`, `SAFETY_CHECK`], `status` [`OPEN`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`], `created_at`, `completed_at` **`(new)`**)  
@@ -95,39 +95,46 @@ Located in Section 5 of the ER diagram:
 
 ## 4. Advanced DBMS Features (Procedures, Triggers & Views) (proposed design)
 
-### 4.1 Stored Procedures & Functions (proposed design)
-- **`fn_calculate_cancellation_charge(p_pnr VARCHAR(10), p_passenger_no INT)`**:
+### 4.1 Stored Procedures & Functions
+- **`fn_calculate_cancellation_refund(p_pnr VARCHAR(10), p_passenger_no INT, p_cancellation_time DATETIME)`**:
   Evaluates time remaining before scheduled **origin departure** of the run (BR-R1). Applies deduction slabs:
   - $> 72$ hours: Flat minimum only (1A/EC: 240, 2A: 200, 3A/CC: 180, SL: 120, 2S: 60).
   - $72$ to $24$ hours: 25% of taxable fare (not less than flat minimum).
   - $24$ to $8$ hours: 50% of taxable fare (not less than flat minimum).
   - $< 8$ hours: Online cancellation locked (chart prepared, 100% deduction / no refund).
   - RAC / WL tickets: Full refund minus flat clerkage (60 per passenger, BR-R5).
-- **`sp_check_seat_segment_overlap(p_schedule_id INT, p_seat_id INT, p_from_seq INT, p_to_seq INT)`**:
-  Tests whether candidate seat overlaps with existing active reservations using:
-  $$\max(\text{Start}_A, \text{Start}_B) < \min(\text{End}_A, \text{End}_B)$$
-  Includes BR-S5 exception: permits up to 2 RAC passengers to share a single `SIDE_LOWER` berth.
-- **`sp_promote_rac_waitlist(p_schedule_id INT, p_class_id INT, p_quota ENUM)`**:
+- **`sp_promote_passenger(p_schedule_id INT, p_class_id INT, p_freed_seat_id INT)`**:
   Executes atomic status promotion upon voluntary cancellation, staff no-show recording, or chart preparation:
   1. Lowest-numbered RAC passenger fitting the segment is promoted to `CONFIRMED`.
   2. Lowest-numbered Waiting List passenger is promoted to `RAC`.
   3. Subsequent queue tokens decrement by 1 without gaps (BR-W3).
   4. Triggers `STATUS_UPDATE` notification.
-- **`sp_execute_chart_preparation(p_schedule_id INT)`**:
+- **`sp_prepare_chart(p_schedule_id INT)`**:
   Executes at chart time (8 hours before origin departure per BR-B12 / settings table) as one all-or-nothing step (BR-B12a, BR-B16):
   1. Sets chart lockout: cancels running holds, blocks subsequent booking attempts (`CHART_PREPARED`).
   2. Reallocates unsold seats in LADIES, TATKAL, SENIOR_CITIZEN, and DIVYAANG to GENERAL quota and runs promotions (BR-Q11).
   3. Executes auto-upgrades in booking order; each vacated seat triggers immediate promotion in its old class (BR-S6, BR-W4).
   4. Cancels remaining waitlisted passengers with 100% full refund (excluding insurance) to original payment (BR-W8).
   5. Freezes final manifest into `CHART_SNAPSHOT`.
+- **`sp_create_booking` / `sp_create_counter_booking`**:
+  Handles complete transactional reservations, quota validation, berth conditions, and counter issuance.
+- **`sp_process_late_payment_refund` / `sp_cancel_passenger_ticket` / `sp_mark_passenger_noshow`**:
+  Handles payment timeouts (BR-B14), per-passenger cancellations (BR-R3), and ticket collector boarding audits (BR-ST5).
 
-### 4.2 Database Triggers (proposed design)
-- **`trg_audit_master_changes`**:
-  `AFTER UPDATE` trigger on master tables (`TRAIN`, `ROUTE_STOP`, `FARE`, `CONCESSION_RULE`, `SETTING`) capturing previous and updated JSON representations directly into `AUDIT_LOG` (BR-A8).
-- **`trg_enforce_payment_idempotency`**:
-  `BEFORE INSERT` trigger on `PAYMENT` ensuring `gateway_payment_id` is unique and processed exactly once. If a payment callback succeeds for an expired hold or failed booking, triggers automatic full refund with reason `PAYMENT_AFTER_EXPIRY` (BR-B14).
-- **`trg_release_berth_on_no_show`**:
-  `AFTER UPDATE` on `RESERVATION` detecting `status = 'NO_SHOW'`, releasing berth occupancy for downstream stops and calling `sp_promote_rac_waitlist` (BR-ST5).
+### 4.2 Database Triggers
+The MySQL database enforces data integrity and compliance using exactly 6 triggers:
+- **`trg_check_seat_overlap`**:
+  `BEFORE INSERT` on `RESERVATION` verifying segment non-overlap ($\max(\text{Start}_A, \text{Start}_B) < \min(\text{End}_A, \text{End}_B)$) with BR-S5 RAC exception.
+- **`trg_after_cancellation_promote`**:
+  `AFTER INSERT` on `CANCELLATION` automatically triggering `sp_promote_passenger` when a confirmed seat is vacated (BR-R9, BR-W4). *(Note: Passenger NO_SHOW does not use an AFTER UPDATE trigger on RESERVATION; it is processed explicitly through stored procedure `sp_mark_passenger_noshow` per BR-ST5).*
+- **`trg_audit_fare_change`**:
+  `AFTER UPDATE` on `FARE` capturing previous and updated values directly into `AUDIT_LOG` (BR-A8).
+- **`trg_audit_concession_change`**:
+  `AFTER UPDATE` on `CONCESSION_RULE` capturing previous and updated values directly into `AUDIT_LOG` (BR-A8).
+- **`trg_audit_refund_rule_change`**:
+  `AFTER UPDATE` on `REFUND_RULE` capturing previous and updated values directly into `AUDIT_LOG` (BR-A8).
+- **`trg_audit_setting_change`**:
+  `AFTER UPDATE` on `SETTING` capturing previous and updated values directly into `AUDIT_LOG` (BR-A8).
 
 ---
 

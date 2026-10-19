@@ -59,7 +59,7 @@ g('g1i','PASSENGER_BOOKING',1,1030,1110,'pnr,passenger_no','this section');
 g('g1g','PASSENGER_BOOKING',1,460,1110,'pnr,passenger_no','this section');
 e('TDR_FILING',1,40,750,'#tdr_ref_no,@pnr,@passenger_no,reason,filed_at,status,evidence_ref,refund_amount,@reviewed_by,reviewed_at,remarks');
 /* ---- Section 2 ---- */
-e('PLATFORM',2,40,130,'#platform_id,@station_id,platform_no,status');
+e('PLATFORM',2,40,130,'#platform_id,@station_id,platform_no');
 e('STATION',2,470,130,'#station_id,code,name,display_name,city,state,platform_count');
 e('ROUTE_STOP',2,900,130,'#stop_id,@route_id,@station_id,stop_order,arrival_time,departure_time,day_offset,distance_from_origin_km,platform_no');
 e('ROUTE',2,1330,130,'#route_id,route_name,direction,total_km');
@@ -69,16 +69,16 @@ e('FARE',2,470,780,'#fare_id,@class_id,from_km,to_km,per_km_rate,resv_charge,sup
 e('SEAT_CLASS',2,900,830,'#class_id,code,name');
 e('COACH',2,1330,830,'#coach_id,@train_id,@class_id,coach_no,total_seats');
 e('SEAT',2,1760,830,'#seat_id,@coach_id,seat_no,berth_type');
-e('SCHEDULE_CLASS_INVENTORY',2,900,1090,'$schedule_id,$class_id,quota,total,available,rac_count,wl_count');
+e('SCHEDULE_CLASS_INVENTORY',2,900,1090,'#inventory_id,@schedule_id,@class_id,total_seats,available_seats,rac_capacity,rac_count,wl_capacity,wl_count');
 g('g2a','TRAIN_SCHEDULE',2,470,1140,'schedule_id','above');
 e('RUN_COACH_STATUS',2,1760,1090,'#run_coach_id,@schedule_id,@coach_id,status');
 /* ---- Section 3 ---- */
 g('g3u','USER_ACCOUNT',3,900,120,'user_id','Section 1');
 e('STAFF',3,900,400,'#staff_id,@user_id,employee_no,designation,status');
-e('STAFF_ASSIGNMENT',3,470,390,'#assign_id,@staff_id,@schedule_id,@station_id,duty_type,shift_start,shift_end');
+e('STAFF_ASSIGNMENT',3,470,390,'#assign_id,@staff_id,@schedule_id,@station_id,duty_type');
 g('g3a','TRAIN_SCHEDULE',3,40,400,'schedule_id','Section 2');
 g('g3b','STATION',3,470,120,'station_id','Section 2');
-e('TICKET_VERIFICATION',3,1330,420,'#verify_id,@pnr,@passenger_no,@staff_id,id_checked,concession_checked,result,verified_at');
+e('TICKET_VERIFICATION',3,1330,420,'#verify_id,@staff_id,@pnr,@passenger_no,id_proof_match,concession_match,remarks,verified_at');
 e('FINE',3,1330,120,'#fine_id,@verify_id,amount,reason,status');
 g('g3r','PASSENGER_BOOKING',3,1760,420,'pnr,passenger_no','Section 1');
 e('INCIDENT',3,700,740,'#incident_id,@staff_id,@station_id,@schedule_id,type,severity,status');

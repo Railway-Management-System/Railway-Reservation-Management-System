@@ -6,10 +6,22 @@ const {
   SEED_MYSQL_DIR,
   SEED_MONGODB_DIR,
   DATASETS_DIR,
-  writeCsv,
-  writeJson,
+  writeCsv: rawWriteCsv,
+  writeJson: rawWriteJson,
   createRng
 } = require('./helpers');
+
+function writeCsv(filePath, headers, rows) {
+  const onlyInventory = process.argv.includes('--only-inventory') || process.env.ONLY_INVENTORY === '1';
+  if (onlyInventory && !filePath.endsWith('SCHEDULE_CLASS_INVENTORY.csv')) return;
+  rawWriteCsv(filePath, headers, rows);
+}
+
+function writeJson(filePath, data) {
+  const onlyInventory = process.argv.includes('--only-inventory') || process.env.ONLY_INVENTORY === '1';
+  if (onlyInventory) return;
+  rawWriteJson(filePath, data);
+}
 
 function runStep3() {
   console.log('=== Step 3: Generating Operational Infrastructure & Bookings ===');
@@ -358,12 +370,7 @@ function runStep3() {
     runCoachRows
   );
 
-  writeCsv(
-    path.join(SEED_MYSQL_DIR, 'SCHEDULE_CLASS_INVENTORY.csv'),
-    ['inventory_id', 'schedule_id', 'class_id', 'total_seats', 'available_seats', 'rac_capacity', 'rac_count', 'wl_capacity', 'wl_count'],
-    inventoryRows
-  );
-  console.log(`TRAIN_SCHEDULE.csv written (${scheduleRows.length} runs), RUN_COACH_STATUS.csv (${runCoachRows.length} rows), SCHEDULE_CLASS_INVENTORY.csv (${inventoryRows.length} rows)`);
+  console.log(`TRAIN_SCHEDULE.csv written (${scheduleRows.length} runs), RUN_COACH_STATUS.csv (${runCoachRows.length} rows), SCHEDULE_CLASS_INVENTORY will be written after reservation sync`);
 
   // 4. BOOKINGS, PASSENGERS, PAYMENTS, RESERVATIONS, REFUNDS, TDR
   console.log('Generating realistic bookings adhering strictly to demo_fill_plan.csv...');
@@ -1053,6 +1060,48 @@ function runStep3() {
     reservationRows
   );
 
+  // Sync SCHEDULE_CLASS_INVENTORY counters with generated reservations:
+  // available_seats = total_seats - confirmed/boarded
+  // rac_count = RAC passengers
+  // wl_count = waiting-list passengers
+  const pnrClassMap = new Map();
+  for (const b of bookingRows) {
+    pnrClassMap.set(b.pnr, b.class_id);
+  }
+
+  const resCounts = new Map();
+  for (const r of reservationRows) {
+    const classId = pnrClassMap.get(r.pnr);
+    const key = `${r.schedule_id}_${classId}`;
+    let c = resCounts.get(key);
+    if (!c) {
+      c = { confirmed_boarded: 0, rac: 0, wl: 0 };
+      resCounts.set(key, c);
+    }
+    if (r.status === 'CONFIRMED' || r.status === 'BOARDED') {
+      c.confirmed_boarded++;
+    } else if (r.status === 'RAC') {
+      c.rac++;
+    } else if (r.status === 'WAITING_LIST') {
+      c.wl++;
+    }
+  }
+
+  for (const inv of inventoryRows) {
+    const key = `${inv.schedule_id}_${inv.class_id}`;
+    const c = resCounts.get(key) || { confirmed_boarded: 0, rac: 0, wl: 0 };
+    inv.available_seats = Math.max(0, inv.total_seats - c.confirmed_boarded);
+    inv.rac_count = c.rac;
+    inv.wl_count = c.wl;
+  }
+
+  writeCsv(
+    path.join(SEED_MYSQL_DIR, 'SCHEDULE_CLASS_INVENTORY.csv'),
+    ['inventory_id', 'schedule_id', 'class_id', 'total_seats', 'available_seats', 'rac_capacity', 'rac_count', 'wl_capacity', 'wl_count'],
+    inventoryRows
+  );
+  console.log(`SCHEDULE_CLASS_INVENTORY.csv written (${inventoryRows.length} rows) with synced counters.`);
+
   writeCsv(
     path.join(SEED_MYSQL_DIR, 'PAYMENT.csv'),
     ['payment_id', 'pnr', 'amount', 'method', 'status', 'gateway_payment_id', 'paid_at'],
@@ -1104,11 +1153,11 @@ function runStep3() {
 
   // TICKET_VERIFICATION
   const ticketVerifications = [
-    { verify_id: 1, staff_id: 1, pnr: bookingRows[0].pnr, passenger_no: 1, id_proof_match: 'VALID', concession_match: 'NOT_APPLICABLE', remarks: 'Passenger verified', verified_at: '2026-10-18 10:00:00' }
+    { verify_id: 1, staff_id: 1, pnr: bookingRows[0].pnr, passenger_no: 1, id_proof_match: 'VALID', concession_match: 'NOT_APPLICABLE', result: 'VALID', remarks: 'Passenger verified', verified_at: '2026-10-18 10:00:00' }
   ];
   writeCsv(
     path.join(SEED_MYSQL_DIR, 'TICKET_VERIFICATION.csv'),
-    ['verify_id', 'staff_id', 'pnr', 'passenger_no', 'id_proof_match', 'concession_match', 'remarks', 'verified_at'],
+    ['verify_id', 'staff_id', 'pnr', 'passenger_no', 'id_proof_match', 'concession_match', 'result', 'remarks', 'verified_at'],
     ticketVerifications
   );
 
