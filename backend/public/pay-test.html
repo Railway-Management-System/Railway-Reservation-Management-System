@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Railway Reservation - Payment & Booking Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      max-width: 760px;
+      margin: 32px auto;
+      padding: 20px;
+      line-height: 1.5;
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+    .header {
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      font-size: 1.65rem;
+    }
+    .header p {
+      margin: 0;
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+    .section-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 600px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #334155;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    textarea {
+      font-family: monospace;
+      font-size: 0.8rem;
+      resize: vertical;
+      min-height: 58px;
+    }
+    button {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 11px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background-color 0.15s ease;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .btn-green {
+      background: #059669;
+    }
+    .btn-green:hover {
+      background: #047857;
+    }
+    .btn-indigo {
+      background: #4f46e5;
+    }
+    .btn-indigo:hover {
+      background: #4338ca;
+    }
+    .timer-container {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 14px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .timer-label {
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.9rem;
+    }
+    .timer-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #2563eb;
+    }
+    .timer-value.expired {
+      color: #dc2626;
+    }
+    .status {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .status.info {
+      display: block;
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+    .status.error {
+      display: block;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+    .status.success {
+      display: block;
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin-top: 14px;
+      max-height: 380px;
+      border: 1px solid #334155;
+    }
+    .info-box {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 6px;
+    }
+    .pnr-display {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #0f172a;
+      background: #e2e8f0;
+      padding: 4px 10px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+  </style>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <div class="header">
+    <h1>Railway Reservation Test Console</h1>
+    <p>Interactive End-to-End Test: Login &rarr; Book with Hold &rarr; Razorpay Checkout &rarr; Verification</p>
+  </div>
+
+  <!-- STEP 1: LOGIN BOX -->
+  <div class="section-card">
+    <div class="section-title">
+      <span>1. Passenger Login</span>
+    </div>
+    <div class="grid-2">
+      <div>
+        <label for="emailInput">Email:</label>
+        <input type="email" id="emailInput" value="rahul.sharma@example.com" />
+      </div>
+      <div>
+        <label for="passwordInput">Password:</label>
+        <input type="password" id="passwordInput" value="Password123!" />
+      </div>
+    </div>
+    <div style="margin-top: 14px; display: flex; gap: 10px; align-items: center;">
+      <button id="loginBtn" onclick="handleLogin()">Login as Demo Passenger</button>
+      <span id="loginStatusText" style="font-size: 0.85rem; color: #64748b;">(Prefilled with seeded passenger Rahul Sharma)</span>
+    </div>
+
+    <div style="margin-top: 14px;">
+      <label for="tokenInput">Bearer Token (JWT):</label>
+      <textarea id="tokenInput" placeholder="Login above to populate token automatically, or paste token here"></textarea>
+    </div>
+  </div>
+
+  <!-- STEP 2: CREATE TEST BOOKING -->
+  <div class="section-card">
+    <div class="section-title">
+      <span>2. Create Test Booking</span>
+    </div>
+    <div class="info-box" style="margin-bottom: 12px;">
+      Target: <strong>Train 12951 (Tejas Rajdhani)</strong> | <strong>BCT &rarr; NDLS</strong> | Journey Date: <strong>2026-10-24</strong> | Class: <strong>3A</strong> | Quota: <strong>GENERAL</strong> | Schedule: <strong>1167</strong>
+    </div>
+
+    <div style="margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
+      <label for="passengerCountSelect" style="margin-bottom: 0; font-weight: 600;">Number of Passengers:</label>
+      <select id="passengerCountSelect" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; background: #ffffff;">
+        <option value="1">1 Passenger</option>
+        <option value="2" selected>2 Passengers</option>
+      </select>
+    </div>
+
+    <button id="bookBtn" class="btn-green" onclick="handleCreateBooking()">Create Test Booking (p_hold_for_payment = 1)</button>
+
+    <div id="bookingResultArea" style="margin-top: 14px; display: none;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span>Assigned PNR: <span id="pnrBadge" class="pnr-display">-</span></span>
+        <span>Status: <strong id="bookingStatusText">PAYMENT_PENDING</strong></span>
+        <span>Total Fare: <strong id="fareText">-</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 & 4: PAYMENT & HOLD TIME LEFT -->
+  <div class="section-card">
+    <div class="section-title">
+      <span>3. Gateway Payment & Hold Timer</span>
+    </div>
+
+    <div>
+      <label for="pnrInput">Active PNR Number:</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="pnrInput" placeholder="e.g. 2849102841" />
+        <button id="checkHoldBtn" type="button" style="white-space: nowrap; background: #475569;" onclick="handleCheckHold()">Check Hold</button>
+      </div>
+    </div>
+
+    <!-- HOLD TIME LEFT DISPLAY -->
+    <div class="timer-container" id="timerBox">
+      <span class="timer-label">Seat Hold Time Left (HOLD_MINUTES):</span>
+      <span class="timer-value" id="timerText">--:--</span>
+    </div>
+
+    <div>
+      <button id="payBtn" class="btn-indigo" onclick="handlePayment()" style="width: 100%; padding: 13px; font-size: 1.05rem;">
+        Pay with Razorpay (Create Order &amp; Open Checkout)
+      </button>
+    </div>
+    <div class="info-box" style="text-align: center; margin-top: 8px;">
+      Uses <strong>RAZORPAY_KEY_ID</strong> in test mode. Never uses or exposes the key secret.
+    </div>
+
+    <!-- CANCELLATION CONTROLS -->
+    <div style="margin-top: 18px; padding: 14px 16px; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;">
+      <label for="cancelPassengerNo" style="color: #991b1b; font-weight: 600; margin-bottom: 6px;">
+        Cancel selected passenger (leave empty for whole PNR):
+      </label>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="number" id="cancelPassengerNo" min="1" max="6" placeholder="Passenger # (e.g. 1 or 2, empty for whole PNR)" style="flex: 1;" />
+        <button id="cancelBtn" type="button" onclick="handleCancelBooking()" style="white-space: nowrap; padding: 10px 18px; background: #dc2626;">
+          Cancel Booking
+        </button>
+      </div>
+    </div>
+
+    <div id="statusBox" class="status"></div>
+
+    <!-- CANCEL RESULT PLAIN-TEXT SUMMARY BOX -->
+    <div id="cancelSummaryBox" style="display: none; margin-top: 14px; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; color: #1e3a8a;">
+      <div style="font-weight: 700; margin-bottom: 6px; font-size: 1rem; color: #1e40af;">Cancellation &amp; Refund Summary:</div>
+      <div><strong>gatewayRefund:</strong> <span id="summaryGatewayRefund">-</span></div>
+      <div><strong>refundAmount:</strong> ₹<span id="summaryRefundAmount">-</span></div>
+      <div><strong>cancellationCharge:</strong> ₹<span id="summaryCancellationCharge">-</span></div>
+    </div>
+
+    <pre id="resultBox" style="display: none;"></pre>
+  </div>
+
+  <script>
+    let holdTimerInterval = null;
+    let currentSecondsRemaining = 0;
+
+    function setStatus(msg, type) {
+      const box = document.getElementById('statusBox');
+      box.textContent = msg;
+      box.className = 'status ' + type;
+    }
+
+    function showResult(data, isCancel = false) {
+      const summaryBox = document.getElementById('cancelSummaryBox');
+      const box = document.getElementById('resultBox');
+
+      if (isCancel && data && data.data) {
+        const gwRefund = data.data.gatewayRefund !== undefined ? data.data.gatewayRefund : '-';
+        const refAmt = data.data.refundAmount !== undefined ? data.data.refundAmount : 0;
+        const cancCharge = data.data.cancellationCharge !== undefined ? data.data.cancellationCharge : 0;
+
+        document.getElementById('summaryGatewayRefund').textContent = gwRefund;
+        document.getElementById('summaryRefundAmount').textContent = refAmt;
+        document.getElementById('summaryCancellationCharge').textContent = cancCharge;
+        if (summaryBox) summaryBox.style.display = 'block';
+
+        const plainTextHeader = `gatewayRefund: ${gwRefund}\nrefundAmount: ${refAmt}\ncancellationCharge: ${cancCharge}\n\n`;
+        box.textContent = plainTextHeader + JSON.stringify(data, null, 2);
+      } else {
+        if (summaryBox) summaryBox.style.display = 'none';
+        box.textContent = JSON.stringify(data, null, 2);
+      }
+      box.style.display = 'block';
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. LOGIN HANDLER
+    // -------------------------------------------------------------------------
+    async function handleLogin() {
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      const loginBtn = document.getElementById('loginBtn');
+      const statusText = document.getElementById('loginStatusText');
+
+      if (!email || !password) {
+        setStatus('Please enter both email and password.', 'error');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      statusText.textContent = 'Logging in...';
+
+      try {
+        const res = await fetch('/api/auth/passenger/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const token = data.data.token;
+          document.getElementById('tokenInput').value = token;
+          statusText.innerHTML = `✓ Logged in as <strong>${data.data.name}</strong> (User ID: ${data.data.userId})`;
+          statusText.style.color = '#166534';
+          setStatus('Authentication successful! Token saved.', 'success');
+        } else {
+          statusText.textContent = 'Login failed.';
+          statusText.style.color = '#dc2626';
+          setStatus('Login failed: ' + ((data.error && data.error.message) || 'Invalid credentials'), 'error');
+          showResult(data);
+        }
+      } catch (err) {
+        statusText.textContent = 'Network error.';
+        statusText.style.color = '#dc2626';
+        setStatus('Login request failed: ' + err.message, 'error');
+      } finally {
+        loginBtn.disabled = false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. CREATE TEST BOOKING
+    // -------------------------------------------------------------------------
+    async function handleCreateBooking() {
+      const token = document.getElementById('tokenInput').value.trim();
+      const bookBtn = document.getElementById('bookBtn');
+
+      if (!token) {
+        setStatus('Please login first in Step 1 to obtain a Bearer token.', 'error');
+        return;
+      }
+
+      const passengerCount = parseInt(document.getElementById('passengerCountSelect').value, 10) || 1;
+
+      bookBtn.disabled = true;
+      setStatus(`Creating booking for ${passengerCount} passenger(s) on Train 12951 (BCT -> NDLS, 2026-10-24, Class 3A)...`, 'info');
+
+      const passengers = [
+        {
+          name: 'Sunita Sharma',
+          age: 48,
+          gender: 'FEMALE',
+          idProofType: 'AADHAAR',
+          idProofReference: 'XXXX-XXXX-3829',
+          berthPreference: 'LOWER'
+        }
+      ];
+
+      if (passengerCount === 2) {
+        passengers.push({
+          name: 'Rahul Sharma',
+          age: 32,
+          gender: 'MALE',
+          idProofType: 'AADHAAR',
+          idProofReference: 'XXXX-XXXX-1234',
+          berthPreference: 'MIDDLE'
+        });
+      }
+
+      const payload = {
+        trainId: 129,
+        journeyDate: '2026-10-24',
+        boardingStationId: 21,
+        destinationStationId: 10,
+        classType: '3A',
+        quota: 'GENERAL',
+        passengers,
+        preferences: {
+          autoUpgrade: true,
+          berthCondition: false
+        }
+      };
+
+      try {
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const pnr = data.data.pnr;
+          document.getElementById('pnrInput').value = pnr;
+          document.getElementById('pnrBadge').textContent = pnr;
+          document.getElementById('bookingStatusText').textContent = data.data.bookingStatus + ` (Projected: ${data.data.projectedStatus})`;
+          document.getElementById('fareText').textContent = '₹' + data.data.totalFare.toFixed(2);
+          document.getElementById('bookingResultArea').style.display = 'block';
+
+          setStatus(`✓ Booking created successfully! PNR: ${pnr}. Seat held for payment.`, 'success');
+          showResult(data);
+
+          // Start hold timer purely from secondsRemaining (never comparing against browser clock)
+          if (data.data.secondsRemaining !== undefined) {
+            startHoldTimer(data.data.secondsRemaining);
+          }
+        } else {
+          setStatus('Booking creation failed: ' + ((data.error && data.error.message) || 'Unknown error'), 'error');
+          showResult(data);
+        }
+      } catch (err) {
+        setStatus('Booking network error: ' + err.message, 'error');
+      } finally {
+        bookBtn.disabled = false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. CHECK HOLD STATUS VIA GET /api/bookings/:pnr/hold
+    // -------------------------------------------------------------------------
+    async function handleCheckHold() {
+      const token = document.getElementById('tokenInput').value.trim();
+      const pnr = document.getElementById('pnrInput').value.trim();
+
+      if (!token) {
+        setStatus('Please login or provide a Bearer token.', 'error');
+        return;
+      }
+      if (!pnr) {
+        setStatus('Please enter a PNR number to check.', 'error');
+        return;
+      }
+
+      setStatus(`Checking hold time for PNR ${pnr}...`, 'info');
+      try {
+        const res = await fetch(`/api/bookings/${pnr}/hold`, {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setStatus(`✓ Hold status active. Expiry: ${data.data.expiresAt}`, 'success');
+          startHoldTimer(data.data.secondsRemaining);
+          showResult(data);
+        } else {
+          setStatus('Hold check returned: ' + ((data.error && data.error.message) || 'Failed to get hold info'), 'error');
+          showResult(data);
+        }
+      } catch (err) {
+        setStatus('Network error checking hold: ' + err.message, 'error');
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. HOLD TIME LEFT COUNTDOWN TIMER (COUNTS DOWN FROM secondsRemaining)
+    // -------------------------------------------------------------------------
+    function startHoldTimer(initialSeconds) {
+      if (holdTimerInterval) {
+        clearInterval(holdTimerInterval);
+        holdTimerInterval = null;
+      }
+
+      currentSecondsRemaining = Math.max(0, parseInt(initialSeconds, 10) || 0);
+      const timerText = document.getElementById('timerText');
+
+      function updateDisplay() {
+        if (currentSecondsRemaining <= 0) {
+          timerText.textContent = '00:00 (Hold Expired)';
+          timerText.className = 'timer-value expired';
+          if (holdTimerInterval) {
+            clearInterval(holdTimerInterval);
+            holdTimerInterval = null;
+          }
+          return;
+        }
+
+        const mins = Math.floor(currentSecondsRemaining / 60);
+        const secs = currentSecondsRemaining % 60;
+        timerText.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} remaining`;
+        timerText.className = 'timer-value';
+      }
+
+      updateDisplay();
+
+      holdTimerInterval = setInterval(() => {
+        currentSecondsRemaining--;
+        updateDisplay();
+      }, 1000);
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. CREATE ORDER & PAY WITH RAZORPAY CHECKOUT
+    // -------------------------------------------------------------------------
+    async function handlePayment() {
+      const token = document.getElementById('tokenInput').value.trim();
+      const pnr = document.getElementById('pnrInput').value.trim();
+      const payBtn = document.getElementById('payBtn');
+
+      if (!token) {
+        setStatus('Please login or provide a Bearer token.', 'error');
+        return;
+      }
+      if (!pnr) {
+        setStatus('Please enter or create a PNR first.', 'error');
+        return;
+      }
+
+      payBtn.disabled = true;
+      setStatus('Step 1/2: Creating Razorpay order for PNR ' + pnr + '...', 'info');
+
+      try {
+        // 1. POST /api/payments/razorpay/order
+        const orderRes = await fetch('/api/payments/razorpay/order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ pnr })
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderRes.ok || !orderData.success) {
+          setStatus('Order creation failed: ' + ((orderData.error && orderData.error.message) || 'Unknown error'), 'error');
+          showResult(orderData);
+          payBtn.disabled = false;
+          return;
+        }
+
+        const { orderId, amount, currency, keyId } = orderData.data;
+        setStatus('Order created (' + orderId + '). Opening Razorpay Checkout in TEST mode...', 'info');
+
+        // 2. Razorpay Checkout modal (using keyId only, NEVER the secret)
+        const options = {
+          key: keyId,
+          amount: amount,
+          currency: currency,
+          name: 'Indian Railways Reservation',
+          description: 'Payment for PNR ' + pnr,
+          order_id: orderId,
+          handler: async function (response) {
+            setStatus('Payment completed on gateway. Step 2/2: Verifying HMAC signature with server...', 'info');
+            try {
+              // 3. POST /api/payments/razorpay/verify
+              const verifyRes = await fetch('/api/payments/razorpay/verify', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                  pnr: pnr,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature
+                })
+              });
+
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                setStatus('✓ Payment verified and booking CONFIRMED! PNR: ' + pnr, 'success');
+                if (holdTimerInterval) {
+                  clearInterval(holdTimerInterval);
+                  document.getElementById('timerText').textContent = 'Confirmed (Seat Issued)';
+                  document.getElementById('timerText').className = 'timer-value';
+                }
+              } else {
+                setStatus('Verification reply: ' + ((verifyData.error && verifyData.error.message) || 'Payment completed with status update'), 'error');
+              }
+              showResult(verifyData);
+            } catch (err) {
+              setStatus('Verification network error: ' + err.message, 'error');
+            } finally {
+              payBtn.disabled = false;
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setStatus('Payment modal closed or cancelled by user.', 'error');
+              payBtn.disabled = false;
+            }
+          },
+          prefill: {
+            name: 'Rahul Sharma',
+            email: 'rahul.sharma@example.com'
+          },
+          theme: {
+            color: '#2563eb'
+          }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+          setStatus('Payment failed: ' + (response.error.description || response.error.reason), 'error');
+          showResult(response.error);
+          payBtn.disabled = false;
+        });
+
+        rzp.open();
+
+      } catch (err) {
+        setStatus('Network error during order creation: ' + err.message, 'error');
+        payBtn.disabled = false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. CANCEL BOOKING & REFUND
+    // -------------------------------------------------------------------------
+    async function handleCancelBooking() {
+      const token = document.getElementById('tokenInput').value.trim();
+      const pnr = document.getElementById('pnrInput').value.trim();
+      const cancelBtn = document.getElementById('cancelBtn');
+      const passVal = document.getElementById('cancelPassengerNo').value.trim();
+
+      if (!token) {
+        setStatus('Please login or provide a Bearer token.', 'error');
+        return;
+      }
+      if (!pnr) {
+        setStatus('Please enter or create a PNR first.', 'error');
+        return;
+      }
+
+      const cancelBody = {};
+      let cancelTargetDesc = `whole PNR ${pnr}`;
+      if (passVal !== '') {
+        const pNo = parseInt(passVal, 10);
+        cancelBody.passengerNos = [pNo];
+        cancelTargetDesc = `passenger ${pNo} on PNR ${pnr}`;
+      }
+
+      cancelBtn.disabled = true;
+      setStatus(`Cancelling ${cancelTargetDesc}...`, 'info');
+
+      try {
+        const res = await fetch(`/api/bookings/${pnr}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(cancelBody)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const gwRefund = data.data.gatewayRefund !== undefined ? data.data.gatewayRefund : '-';
+          const refAmt = data.data.refundAmount !== undefined ? data.data.refundAmount : 0;
+          const cancCharge = data.data.cancellationCharge !== undefined ? data.data.cancellationCharge : 0;
+
+          setStatus(`✓ Cancelled ${cancelTargetDesc}! Refund: ₹${refAmt} (Gateway: ${gwRefund}, Charge: ₹${cancCharge})`, 'success');
+
+          if (!passVal) {
+            document.getElementById('bookingStatusText').textContent = 'CANCELLED';
+            if (holdTimerInterval) {
+              clearInterval(holdTimerInterval);
+              holdTimerInterval = null;
+            }
+            document.getElementById('timerText').textContent = 'Cancelled';
+          } else {
+            document.getElementById('bookingStatusText').textContent = `CONFIRMED (Passenger ${passVal} cancelled)`;
+          }
+
+          showResult(data, true);
+        } else {
+          setStatus('Cancellation failed: ' + ((data.error && data.error.message) || 'Error cancelling booking'), 'error');
+          showResult(data);
+        }
+      } catch (err) {
+        setStatus('Cancellation network error: ' + err.message, 'error');
+      } finally {
+        cancelBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -7,11 +7,13 @@
 --      * Handles VARCHAR queue_position ('RAC/1', 'WL/1', etc.)
 --   2. sp_mark_passenger_noshow (Staff NO_SHOW action calling sp_promote_passenger)
 --   3. sp_create_booking (Booking procedure with quota fallback, RAC/WL, berth
---      preference check, monthly limit check, chart lockout, savepoints)
+--      preference check, monthly limit check, chart lockout, savepoints, payment hold)
 --   4. sp_cancel_passenger_ticket (Cancellation with refund slabs, clerkage)
 --   5. sp_prepare_chart (Chart prep: lockout, quota sweep, auto-upgrade, WL purge, snapshot)
 --   6. sp_process_late_payment_refund (BR-B14 auto-refund for expired/failed holds)
 --   7. sp_create_counter_booking (Counter booking for walk-in passengers)
+--   8. sp_confirm_payment (BR-B9, BR-B14 confirms payment inside window, refunds if late)
+--   9. sp_release_expired_holds (BR-B9 releases expired PAYMENT_PENDING bookings and promotes)
 -- =============================================================================
 
 USE railway_db;
@@ -288,6 +290,7 @@ CREATE PROCEDURE sp_create_booking(
     IN p_quota VARCHAR(20),
     IN p_fallback_consent TINYINT(1),
     IN p_berth_condition TINYINT(1),
+    IN p_hold_for_payment TINYINT(1),
     IN p_passengers JSON,
     IN p_channel VARCHAR(10),
     IN p_staff_id INT,
@@ -494,7 +497,7 @@ proc_label: BEGIN
     ) VALUES (
         v_new_pnr, p_user_id, p_schedule_id, p_class_id, p_from_stop_id, p_to_stop_id,
         p_channel, p_staff_id, v_active_quota, v_requested_quota,
-        p_berth_condition, 0.00, 'PAYMENT_PENDING', NOW()
+        p_berth_condition, 0.00, 'PAYMENT_PENDING', COALESCE(@as_of_time, NOW())
     );
 
     SET v_idx = 0;
@@ -636,7 +639,7 @@ proc_label: BEGIN
 
     UPDATE BOOKING
     SET total_fare = v_total_booking_fare,
-        status = v_overall_status
+        status = IF(p_hold_for_payment = 1, 'PAYMENT_PENDING', v_overall_status)
     WHERE pnr = v_new_pnr;
 
     IF p_manage_tx = 1 THEN
@@ -817,6 +820,14 @@ proc_label: BEGIN
     DECLARE v_new_refund_id INT DEFAULT 0;
     DECLARE done INT DEFAULT 0;
 
+    DECLARE cur_hold_pnr VARCHAR(10);
+    DECLARE cur_hold_class_id INT;
+    DECLARE cur_hold_res_id INT;
+    DECLARE cur_hold_seat_id INT;
+    DECLARE cur_hold_res_status VARCHAR(20);
+    DECLARE cur_hold_queue VARCHAR(16);
+    DECLARE cur_hold_wl_num INT;
+
     DECLARE cur_wl_pnr VARCHAR(10);
     DECLARE cur_wl_pass_no INT;
     DECLARE cur_wl_fare DECIMAL(10,2);
@@ -847,6 +858,71 @@ proc_label: BEGIN
     WHERE schedule_id = p_schedule_id;
 
     DELETE FROM SEAT_HOLD WHERE schedule_id = p_schedule_id;
+
+    -- BR-B12a: Cancel running holds for this run and release seats before chart snapshot
+    WHILE EXISTS (
+        SELECT 1 FROM BOOKING
+        WHERE schedule_id = p_schedule_id AND status = 'PAYMENT_PENDING'
+    ) DO
+        SELECT pnr, class_id
+        INTO cur_hold_pnr, cur_hold_class_id
+        FROM BOOKING
+        WHERE schedule_id = p_schedule_id AND status = 'PAYMENT_PENDING'
+        LIMIT 1;
+
+        WHILE EXISTS (SELECT 1 FROM RESERVATION WHERE pnr = cur_hold_pnr AND status != 'CANCELLED') DO
+            SELECT res_id, seat_id, status, queue_position
+            INTO cur_hold_res_id, cur_hold_seat_id, cur_hold_res_status, cur_hold_queue
+            FROM RESERVATION
+            WHERE pnr = cur_hold_pnr AND status != 'CANCELLED'
+            LIMIT 1;
+
+            UPDATE RESERVATION
+            SET status = 'CANCELLED', seat_id = NULL, queue_position = NULL
+            WHERE res_id = cur_hold_res_id;
+
+            IF cur_hold_res_status = 'CONFIRMED' AND cur_hold_seat_id IS NOT NULL THEN
+                CALL sp_promote_passenger(p_schedule_id, cur_hold_class_id, cur_hold_seat_id);
+            ELSEIF cur_hold_res_status = 'RAC' THEN
+                CALL sp_promote_passenger(p_schedule_id, cur_hold_class_id, NULL);
+            ELSEIF cur_hold_res_status = 'WAITING_LIST' THEN
+                IF cur_hold_queue IS NOT NULL THEN
+                    SET cur_hold_wl_num = CAST(SUBSTRING_INDEX(cur_hold_queue, '/', -1) AS UNSIGNED);
+                    UPDATE SCHEDULE_CLASS_INVENTORY
+                    SET wl_count = GREATEST(0, wl_count - 1)
+                    WHERE schedule_id = p_schedule_id AND class_id = cur_hold_class_id;
+
+                    UPDATE RESERVATION r
+                    JOIN BOOKING b ON r.pnr = b.pnr
+                    SET r.queue_position = CONCAT('WL/', CAST(SUBSTRING_INDEX(r.queue_position, '/', -1) AS UNSIGNED) - 1)
+                    WHERE r.schedule_id = p_schedule_id
+                      AND b.class_id = cur_hold_class_id
+                      AND r.status = 'WAITING_LIST'
+                      AND CAST(SUBSTRING_INDEX(COALESCE(r.queue_position, '0'), '/', -1) AS UNSIGNED) > cur_hold_wl_num;
+                END IF;
+            END IF;
+        END WHILE;
+
+        UPDATE BOOKING SET status = 'FAILED' WHERE pnr = cur_hold_pnr;
+
+        UPDATE SCHEDULE_CLASS_INVENTORY sci
+        LEFT JOIN (
+            SELECT 
+                r.schedule_id,
+                b.class_id,
+                SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+                SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+                SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+            FROM RESERVATION r
+            JOIN BOOKING b ON r.pnr = b.pnr
+            WHERE r.schedule_id = p_schedule_id AND b.class_id = cur_hold_class_id
+            GROUP BY r.schedule_id, b.class_id
+        ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+        SET sci.available_seats = sci.total_seats - COALESCE(res.conf_count, 0),
+            sci.rac_count = COALESCE(res.rac_count, 0),
+            sci.wl_count = COALESCE(res.wl_count, 0)
+        WHERE sci.schedule_id = p_schedule_id AND sci.class_id = cur_hold_class_id;
+    END WHILE;
 
     SELECT COALESCE(MAX(refund_id), 0) INTO v_new_refund_id FROM REFUND;
 
@@ -948,14 +1024,16 @@ proc_label: BEGIN
     SELECT COALESCE(MAX(payment_id), 0) + 1 INTO v_new_payment_id FROM PAYMENT;
 
     INSERT INTO PAYMENT (payment_id, pnr, amount, method, status, gateway_payment_id, paid_at)
-    VALUES (v_new_payment_id, p_pnr, p_amount, p_payment_method, 'SUCCESS', p_gateway_id, NOW());
+    VALUES (v_new_payment_id, p_pnr, p_amount, p_payment_method, 'SUCCESS', p_gateway_id, COALESCE(@as_of_time, NOW()));
 
     SELECT COALESCE(MAX(refund_id), 0) + 1 INTO v_new_refund_id FROM REFUND;
 
     INSERT INTO REFUND (refund_id, cancel_id, tdr_ref_no, payment_id, amount, reason, status)
     VALUES (v_new_refund_id, NULL, NULL, v_new_payment_id, p_amount, 'PAYMENT_AFTER_EXPIRY', 'PROCESSED');
 
-    UPDATE BOOKING SET status = 'FAILED' WHERE pnr = p_pnr;
+    UPDATE BOOKING
+    SET status = 'FAILED'
+    WHERE pnr = p_pnr AND status IN ('PAYMENT_PENDING', 'FAILED');
 
     IF p_manage_tx = 1 THEN
         COMMIT;
@@ -1016,7 +1094,7 @@ proc_label: BEGIN
 
     CALL sp_create_booking(
         v_user_id, p_schedule_id, p_class_id, p_from_stop_id, p_to_stop_id,
-        p_quota, 1, 0, p_passengers, 'COUNTER', p_staff_id, 0,
+        p_quota, 1, 0, 0, p_passengers, 'COUNTER', p_staff_id, 0,
         v_pnr, v_status, v_fare, v_err
     );
 
@@ -1039,10 +1117,344 @@ proc_label: BEGIN
         COMMIT;
     END IF;
 
-    SET p_out_pnr = v_new_pnr;
+    SET p_out_pnr = v_pnr;
     SET p_out_total_fare = v_fare;
     SET p_out_status = v_status;
     SET p_out_error_code = NULL;
+END proc_label$$
+
+-- -----------------------------------------------------------------------------
+-- 8. sp_confirm_payment
+-- Confirms payment for an online booking within the hold window.
+-- If inside window and status is PAYMENT_PENDING:
+--   Inserts PAYMENT (SUCCESS) and updates BOOKING.status based on passenger reservations.
+-- If window passed or status not PAYMENT_PENDING:
+--   Releases any held reservations (if still pending), calls sp_process_late_payment_refund, returns 'LATE'.
+-- If gateway_payment_id already exists:
+--   Returns earlier result idempotently without second insert.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_confirm_payment$$
+CREATE PROCEDURE sp_confirm_payment(
+    IN p_pnr VARCHAR(10),
+    IN p_amount DECIMAL(10,2),
+    IN p_payment_method VARCHAR(20),
+    IN p_gateway_id VARCHAR(64),
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_status VARCHAR(20),
+    OUT p_out_payment_id INT
+)
+proc_label: BEGIN
+    DECLARE v_booking_status VARCHAR(20);
+    DECLARE v_sched_id INT;
+    DECLARE v_class_id INT;
+    DECLARE v_created_at DATETIME;
+    DECLARE v_hold_minutes INT DEFAULT 10;
+    DECLARE v_as_of DATETIME;
+    DECLARE v_final_status VARCHAR(20);
+    DECLARE v_existing_payment_id INT DEFAULT NULL;
+    DECLARE v_existing_refund_id INT DEFAULT NULL;
+    DECLARE v_new_payment_id INT;
+    DECLARE v_refund_id INT;
+    DECLARE v_ref_status VARCHAR(20);
+    DECLARE v_cur_res_id INT;
+    DECLARE v_cur_seat_id INT;
+    DECLARE v_cur_status VARCHAR(20);
+    DECLARE v_cur_queue VARCHAR(16);
+    DECLARE v_old_wl_num INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_status = 'FAILED';
+        SET p_out_payment_id = NULL;
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    -- 1. Idempotency check: if gateway_payment_id already exists, return earlier result
+    SELECT payment_id INTO v_existing_payment_id
+    FROM PAYMENT
+    WHERE gateway_payment_id = p_gateway_id
+    LIMIT 1;
+
+    IF v_existing_payment_id IS NOT NULL THEN
+        SELECT refund_id INTO v_existing_refund_id
+        FROM REFUND
+        WHERE payment_id = v_existing_payment_id AND reason = 'PAYMENT_AFTER_EXPIRY'
+        LIMIT 1;
+
+        IF v_existing_refund_id IS NOT NULL THEN
+            SET p_out_status = 'LATE';
+            SET p_out_payment_id = v_existing_payment_id;
+        ELSE
+            SELECT status INTO p_out_status FROM BOOKING WHERE pnr = p_pnr;
+            SET p_out_payment_id = v_existing_payment_id;
+        END IF;
+
+        IF p_manage_tx = 1 THEN
+            COMMIT;
+        END IF;
+        LEAVE proc_label;
+    END IF;
+
+    -- 2. Fetch booking details
+    SELECT status, created_at, schedule_id, class_id
+    INTO v_booking_status, v_created_at, v_sched_id, v_class_id
+    FROM BOOKING
+    WHERE pnr = p_pnr
+    FOR UPDATE;
+
+    IF v_booking_status IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'FAILED';
+        SET p_out_payment_id = NULL;
+        LEAVE proc_label;
+    END IF;
+
+    -- 3. Read HOLD_MINUTES from SETTING
+    SELECT CAST(setting_value AS SIGNED) INTO v_hold_minutes
+    FROM SETTING
+    WHERE setting_key = 'HOLD_MINUTES';
+    IF v_hold_minutes IS NULL THEN
+        SET v_hold_minutes = 10;
+    END IF;
+
+    SET v_as_of = COALESCE(@as_of_time, NOW());
+
+    -- 4. Check if inside window and booking is PAYMENT_PENDING
+    IF v_booking_status = 'PAYMENT_PENDING' AND v_as_of <= (v_created_at + INTERVAL v_hold_minutes MINUTE) THEN
+        -- Derive final booking status from passenger reservation statuses:
+        -- Weakest status: WAITING_LIST > RAC > CONFIRMED
+        IF EXISTS (SELECT 1 FROM RESERVATION WHERE pnr = p_pnr AND status = 'WAITING_LIST') THEN
+            SET v_final_status = 'WAITING_LIST';
+        ELSEIF EXISTS (SELECT 1 FROM RESERVATION WHERE pnr = p_pnr AND status = 'RAC') THEN
+            SET v_final_status = 'RAC';
+        ELSE
+            SET v_final_status = 'CONFIRMED';
+        END IF;
+
+        SELECT COALESCE(MAX(payment_id), 0) + 1 INTO v_new_payment_id FROM PAYMENT;
+
+        INSERT INTO PAYMENT (
+            payment_id, pnr, amount, method, status, gateway_payment_id, paid_at
+        ) VALUES (
+            v_new_payment_id, p_pnr, p_amount, p_payment_method, 'SUCCESS', p_gateway_id, v_as_of
+        );
+
+        UPDATE BOOKING
+        SET status = v_final_status
+        WHERE pnr = p_pnr;
+
+        IF p_manage_tx = 1 THEN
+            COMMIT;
+        END IF;
+
+        SET p_out_status = v_final_status;
+        SET p_out_payment_id = v_new_payment_id;
+
+    ELSE
+        -- Window passed or booking not PAYMENT_PENDING: late payment
+        -- If booking is still PAYMENT_PENDING, release its reservations and sync inventory
+        IF v_booking_status = 'PAYMENT_PENDING' THEN
+            WHILE EXISTS (SELECT 1 FROM RESERVATION WHERE pnr = p_pnr AND status != 'CANCELLED') DO
+                SELECT res_id, seat_id, status, queue_position
+                INTO v_cur_res_id, v_cur_seat_id, v_cur_status, v_cur_queue
+                FROM RESERVATION
+                WHERE pnr = p_pnr AND status != 'CANCELLED'
+                LIMIT 1;
+
+                UPDATE RESERVATION
+                SET status = 'CANCELLED', seat_id = NULL, queue_position = NULL
+                WHERE res_id = v_cur_res_id;
+
+                IF v_cur_status = 'CONFIRMED' AND v_cur_seat_id IS NOT NULL THEN
+                    CALL sp_promote_passenger(v_sched_id, v_class_id, v_cur_seat_id);
+                ELSEIF v_cur_status = 'RAC' THEN
+                    CALL sp_promote_passenger(v_sched_id, v_class_id, NULL);
+                ELSEIF v_cur_status = 'WAITING_LIST' THEN
+                    IF v_cur_queue IS NOT NULL THEN
+                        SET v_old_wl_num = CAST(SUBSTRING_INDEX(v_cur_queue, '/', -1) AS UNSIGNED);
+                        UPDATE SCHEDULE_CLASS_INVENTORY
+                        SET wl_count = GREATEST(0, wl_count - 1)
+                        WHERE schedule_id = v_sched_id AND class_id = v_class_id;
+
+                        UPDATE RESERVATION r
+                        JOIN BOOKING b ON r.pnr = b.pnr
+                        SET r.queue_position = CONCAT('WL/', CAST(SUBSTRING_INDEX(r.queue_position, '/', -1) AS UNSIGNED) - 1)
+                        WHERE r.schedule_id = v_sched_id
+                          AND b.class_id = v_class_id
+                          AND r.status = 'WAITING_LIST'
+                          AND CAST(SUBSTRING_INDEX(COALESCE(r.queue_position, '0'), '/', -1) AS UNSIGNED) > v_old_wl_num;
+                    END IF;
+                END IF;
+            END WHILE;
+
+            UPDATE SCHEDULE_CLASS_INVENTORY sci
+            LEFT JOIN (
+                SELECT 
+                    r.schedule_id,
+                    b.class_id,
+                    SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+                    SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+                    SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+                FROM RESERVATION r
+                JOIN BOOKING b ON r.pnr = b.pnr
+                WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+                GROUP BY r.schedule_id, b.class_id
+            ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+            SET sci.available_seats = sci.total_seats - COALESCE(res.conf_count, 0),
+                sci.rac_count = COALESCE(res.rac_count, 0),
+                sci.wl_count = COALESCE(res.wl_count, 0)
+            WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id;
+        END IF;
+
+        -- Process late payment refund (sets BOOKING.status = 'FAILED', creates PAYMENT and REFUND)
+        CALL sp_process_late_payment_refund(
+            p_pnr, p_amount, p_payment_method, p_gateway_id, 0, v_refund_id, v_ref_status
+        );
+
+        IF p_manage_tx = 1 THEN
+            COMMIT;
+        END IF;
+
+        SET p_out_status = 'LATE';
+        SELECT payment_id INTO p_out_payment_id
+        FROM PAYMENT
+        WHERE gateway_payment_id = p_gateway_id
+        LIMIT 1;
+
+    END IF;
+
+END proc_label$$
+
+-- -----------------------------------------------------------------------------
+-- 9. sp_release_expired_holds
+-- Scans for all PAYMENT_PENDING bookings older than HOLD_MINUTES.
+-- Sets BOOKING.status = 'FAILED', cancels reservations, promotes waiting passengers
+-- using sp_promote_passenger, and synchronizes inventory counters to real counts.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_release_expired_holds$$
+CREATE PROCEDURE sp_release_expired_holds(
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_released_count INT
+)
+proc_label: BEGIN
+    DECLARE v_hold_minutes INT DEFAULT 10;
+    DECLARE v_as_of DATETIME;
+    DECLARE cur_pnr VARCHAR(10);
+    DECLARE cur_sched_id INT;
+    DECLARE cur_class_id INT;
+    DECLARE v_cur_res_id INT;
+    DECLARE v_cur_seat_id INT;
+    DECLARE v_cur_status VARCHAR(20);
+    DECLARE v_cur_queue VARCHAR(16);
+    DECLARE v_old_wl_num INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_released_count = 0;
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    SET p_out_released_count = 0;
+
+    -- Read HOLD_MINUTES from SETTING
+    SELECT CAST(setting_value AS SIGNED) INTO v_hold_minutes
+    FROM SETTING
+    WHERE setting_key = 'HOLD_MINUTES';
+    IF v_hold_minutes IS NULL THEN
+        SET v_hold_minutes = 10;
+    END IF;
+
+    SET v_as_of = COALESCE(@as_of_time, NOW());
+
+    WHILE EXISTS (
+        SELECT 1 FROM BOOKING 
+        WHERE status = 'PAYMENT_PENDING' 
+          AND v_as_of > (created_at + INTERVAL v_hold_minutes MINUTE)
+    ) DO
+        SELECT pnr, schedule_id, class_id
+        INTO cur_pnr, cur_sched_id, cur_class_id
+        FROM BOOKING
+        WHERE status = 'PAYMENT_PENDING' 
+          AND v_as_of > (created_at + INTERVAL v_hold_minutes MINUTE)
+        LIMIT 1;
+
+        -- Process all uncancelled reservations for this booking
+        WHILE EXISTS (SELECT 1 FROM RESERVATION WHERE pnr = cur_pnr AND status != 'CANCELLED') DO
+            SELECT res_id, seat_id, status, queue_position
+            INTO v_cur_res_id, v_cur_seat_id, v_cur_status, v_cur_queue
+            FROM RESERVATION
+            WHERE pnr = cur_pnr AND status != 'CANCELLED'
+            LIMIT 1;
+
+            UPDATE RESERVATION
+            SET status = 'CANCELLED', seat_id = NULL, queue_position = NULL
+            WHERE res_id = v_cur_res_id;
+
+            IF v_cur_status = 'CONFIRMED' AND v_cur_seat_id IS NOT NULL THEN
+                CALL sp_promote_passenger(cur_sched_id, cur_class_id, v_cur_seat_id);
+            ELSEIF v_cur_status = 'RAC' THEN
+                CALL sp_promote_passenger(cur_sched_id, cur_class_id, NULL);
+            ELSEIF v_cur_status = 'WAITING_LIST' THEN
+                IF v_cur_queue IS NOT NULL THEN
+                    SET v_old_wl_num = CAST(SUBSTRING_INDEX(v_cur_queue, '/', -1) AS UNSIGNED);
+                    UPDATE SCHEDULE_CLASS_INVENTORY
+                    SET wl_count = GREATEST(0, wl_count - 1)
+                    WHERE schedule_id = cur_sched_id AND class_id = cur_class_id;
+
+                    UPDATE RESERVATION r
+                    JOIN BOOKING b ON r.pnr = b.pnr
+                    SET r.queue_position = CONCAT('WL/', CAST(SUBSTRING_INDEX(r.queue_position, '/', -1) AS UNSIGNED) - 1)
+                    WHERE r.schedule_id = cur_sched_id
+                      AND b.class_id = cur_class_id
+                      AND r.status = 'WAITING_LIST'
+                      AND CAST(SUBSTRING_INDEX(COALESCE(r.queue_position, '0'), '/', -1) AS UNSIGNED) > v_old_wl_num;
+                END IF;
+            END IF;
+        END WHILE;
+
+        -- Mark booking as FAILED
+        UPDATE BOOKING
+        SET status = 'FAILED'
+        WHERE pnr = cur_pnr;
+
+        -- Synchronize inventory counters to real counts for this schedule and class
+        UPDATE SCHEDULE_CLASS_INVENTORY sci
+        LEFT JOIN (
+            SELECT 
+                r.schedule_id,
+                b.class_id,
+                SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+                SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+                SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+            FROM RESERVATION r
+            JOIN BOOKING b ON r.pnr = b.pnr
+            WHERE r.schedule_id = cur_sched_id AND b.class_id = cur_class_id
+            GROUP BY r.schedule_id, b.class_id
+        ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+        SET sci.available_seats = sci.total_seats - COALESCE(res.conf_count, 0),
+            sci.rac_count = COALESCE(res.rac_count, 0),
+            sci.wl_count = COALESCE(res.wl_count, 0)
+        WHERE sci.schedule_id = cur_sched_id AND sci.class_id = cur_class_id;
+
+        SET p_out_released_count = p_out_released_count + 1;
+    END WHILE;
+
+    IF p_manage_tx = 1 THEN
+        COMMIT;
+    END IF;
+
 END proc_label$$
 
 DELIMITER ;

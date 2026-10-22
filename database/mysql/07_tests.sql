@@ -219,14 +219,14 @@ BEGIN
     -- GENERAL quota has 620 capacity, 434 booked, and 186 free confirmed seats.
     -- First: booking without consent (p_fallback_consent = 0) must return SEAT_NOT_AVAILABLE.
     CALL sp_create_booking(
-        50001, v_sched_id, v_class_id, 1069, 1076, 'LADIES', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, v_class_id, 1069, 1076, 'LADIES', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
     IF v_out_err = 'SEAT_NOT_AVAILABLE' THEN
         -- Second: booking with consent (p_fallback_consent = 1) falls back to GENERAL and receives CONFIRMED seat
         CALL sp_create_booking(
-            50001, v_sched_id, v_class_id, 1069, 1076, 'LADIES', 1, 0, v_passengers, 'ONLINE', NULL, 0,
+            50001, v_sched_id, v_class_id, 1069, 1076, 'LADIES', 1, 0, 0, v_passengers, 'ONLINE', NULL, 0,
             v_out_pnr, v_out_stat, v_out_fare, v_out_err
         );
 
@@ -285,7 +285,7 @@ BEGIN
     WHERE schedule_id = v_sched_id AND class_id = 3;
 
     CALL sp_create_booking(
-        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -324,7 +324,7 @@ BEGIN
     WHERE schedule_id = v_sched_id AND class_id = 3;
 
     CALL sp_create_booking(
-        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -363,7 +363,7 @@ BEGIN
     WHERE schedule_id = v_sched_id AND class_id = 3;
 
     CALL sp_create_booking(
-        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 1, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -409,7 +409,7 @@ BEGIN
     END WHILE;
 
     CALL sp_create_booking(
-        50002, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50002, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -447,7 +447,7 @@ BEGIN
     UPDATE TRAIN_SCHEDULE SET chart_prepared_at = NOW() - INTERVAL 1 HOUR WHERE schedule_id = v_sched_id;
 
     CALL sp_create_booking(
-        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, 3, 1001, 1005, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -846,7 +846,7 @@ BEGIN
     START TRANSACTION;
 
     CALL sp_create_booking(
-        50001, v_sched_id, v_class_id, 1109, 1118, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, v_class_id, 1109, 1118, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -894,7 +894,7 @@ BEGIN
     START TRANSACTION;
 
     CALL sp_create_booking(
-        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, v_passengers, 'ONLINE', NULL, 0,
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 0, v_passengers, 'ONLINE', NULL, 0,
         v_out_pnr, v_out_stat, v_out_fare, v_out_err
     );
 
@@ -1041,6 +1041,682 @@ BEGIN
 END$$
 
 -- -----------------------------------------------------------------------------
+-- TEST 20: Online Payment Hold - Pay In Time
+-- Verifies that online booking with hold creates booking in PAYMENT_PENDING,
+-- and paying within the hold window confirms the booking and inserts PAYMENT (SUCCESS).
+-- Also verifies inventory counters equal real reservation counts.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_payment_hold_pay_in_time$$
+CREATE PROCEDURE test_payment_hold_pay_in_time()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_conf_status VARCHAR(20);
+    DECLARE v_pay_id INT;
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_pay_row_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Pay In Time User', 'age', 28, 'gender', 'FEMALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-18 10:00:00';
+
+    -- Create booking with p_hold_for_payment = 1
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    -- Check that projected status was CONFIRMED but DB status is PAYMENT_PENDING
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+
+    -- Advance time 5 minutes (inside 10-minute window)
+    SET @as_of_time = '2026-10-18 10:05:00';
+
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_pay_in_time_01', 0, v_conf_status, v_pay_id);
+
+    -- Verify payment row
+    SELECT COUNT(*) INTO v_pay_row_count FROM PAYMENT WHERE gateway_payment_id = 'gateway_pay_in_time_01' AND status = 'SUCCESS';
+
+    -- Check final booking status
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+
+    -- Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_out_stat = 'CONFIRMED' AND v_conf_status = 'CONFIRMED' AND v_db_booking_status = 'CONFIRMED'
+       AND v_pay_row_count = 1 AND v_pay_id IS NOT NULL AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay In Time',
+                'Status CONFIRMED, PAYMENT SUCCESS, 0 inventory mismatches',
+                CONCAT('Status: ', v_conf_status, ', PayID: ', v_pay_id, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Booking confirmed inside hold window and inventory in sync.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay In Time',
+                'Status CONFIRMED, PAYMENT SUCCESS, 0 inventory mismatches',
+                CONCAT('Status: ', COALESCE(v_conf_status, 'NULL'), ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Mismatches: ', v_mismatch),
+                'FAIL',
+                'Payment confirmation within hold window failed.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 21: Online Payment Hold - Pay Late (Refund & FAILED)
+-- Verifies that payment arriving after hold expiration calls sp_process_late_payment_refund,
+-- marks booking as FAILED, processes full refund, returns 'LATE',
+-- and inventory counters equal real counts.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_payment_hold_pay_late$$
+CREATE PROCEDURE test_payment_hold_pay_late()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_conf_status VARCHAR(20);
+    DECLARE v_pay_id INT;
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_refund_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Late Payer User', 'age', 35, 'gender', 'MALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-18 10:00:00';
+
+    -- Create booking with p_hold_for_payment = 1
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    -- Advance time 15 minutes (past 10-minute hold window)
+    SET @as_of_time = '2026-10-18 10:15:00';
+
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_pay_late_01', 0, v_conf_status, v_pay_id);
+
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+    SELECT COUNT(*) INTO v_refund_count FROM REFUND r JOIN PAYMENT p ON r.payment_id = p.payment_id WHERE p.gateway_payment_id = 'gateway_pay_late_01' AND r.reason = 'PAYMENT_AFTER_EXPIRY';
+
+    -- Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_conf_status = 'LATE' AND v_db_booking_status = 'FAILED' AND v_refund_count = 1 AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay Late (Refund & FAILED)',
+                'Status LATE, Booking FAILED, Refund generated, 0 inventory mismatches',
+                CONCAT('Status: ', v_conf_status, ', DB: ', v_db_booking_status, ', Refunds: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Late payment successfully rejected, refunded, and inventory synced.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay Late (Refund & FAILED)',
+                'Status LATE, Booking FAILED, Refund generated, 0 inventory mismatches',
+                CONCAT('Status: ', COALESCE(v_conf_status, 'NULL'), ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Refunds: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'FAIL',
+                'Late payment handling failed.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 22: Online Payment Hold - Hold Expires and Released
+-- Verifies that sp_release_expired_holds releases seats, marks booking FAILED,
+-- promotes waiting passengers, and keeps inventory counters equal to real counts.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_payment_hold_expires_and_released$$
+CREATE PROCEDURE test_payment_hold_expires_and_released()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_released_count INT;
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_res_cancelled_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Expire User', 'age', 40, 'gender', 'MALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-18 10:00:00';
+
+    -- Create booking with hold
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    -- Advance time 20 minutes (expired)
+    SET @as_of_time = '2026-10-18 10:20:00';
+
+    CALL sp_release_expired_holds(0, v_released_count);
+
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+    SELECT COUNT(*) INTO v_res_cancelled_count FROM RESERVATION WHERE pnr = v_out_pnr AND status = 'CANCELLED';
+
+    -- Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_released_count >= 1 AND v_db_booking_status = 'FAILED' AND v_res_cancelled_count = 1 AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Expired Hold Released',
+                'Released >= 1, Booking FAILED, Reservations CANCELLED, 0 inventory mismatches',
+                CONCAT('Released: ', v_released_count, ', DB: ', v_db_booking_status, ', Cancelled: ', v_res_cancelled_count, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Expired hold released and inventory preserved in sync.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Expired Hold Released',
+                'Released >= 1, Booking FAILED, Reservations CANCELLED, 0 inventory mismatches',
+                CONCAT('Released: ', v_released_count, ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Mismatches: ', v_mismatch),
+                'FAIL',
+                'Expired hold release failed.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 23: Online Payment Hold - Idempotency (Same Gateway ID Twice)
+-- Verifies that calling sp_confirm_payment with the same gateway_payment_id returns
+-- the earlier result without inserting a second PAYMENT row.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_payment_hold_same_gateway_id_twice$$
+CREATE PROCEDURE test_payment_hold_same_gateway_id_twice()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_conf_stat_1 VARCHAR(20);
+    DECLARE v_pay_id_1 INT;
+    DECLARE v_conf_stat_2 VARCHAR(20);
+    DECLARE v_pay_id_2 INT;
+    DECLARE v_pay_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Idempotent User', 'age', 30, 'gender', 'MALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-18 10:00:00';
+
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    SET @as_of_time = '2026-10-18 10:03:00';
+
+    -- Call 1
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_idemp_key_99', 0, v_conf_stat_1, v_pay_id_1);
+
+    -- Call 2 with identical gateway_payment_id
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_idemp_key_99', 0, v_conf_stat_2, v_pay_id_2);
+
+    -- Count payments with this gateway id
+    SELECT COUNT(*) INTO v_pay_count FROM PAYMENT WHERE gateway_payment_id = 'gateway_idemp_key_99';
+
+    -- Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_conf_stat_1 = v_conf_stat_2 AND v_pay_id_1 = v_pay_id_2 AND v_pay_count = 1 AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Idempotency (Same Gateway ID Twice)',
+                'Identical status & pay_id, exactly 1 payment record, 0 inventory mismatches',
+                CONCAT('Stat1: ', v_conf_stat_1, ', Stat2: ', v_conf_stat_2, ', PayCount: ', v_pay_count, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Repeated payment confirmation is idempotent with no second insert.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Idempotency (Same Gateway ID Twice)',
+                'Identical status & pay_id, exactly 1 payment record, 0 inventory mismatches',
+                CONCAT('Stat1: ', COALESCE(v_conf_stat_1, 'NULL'), ', Stat2: ', COALESCE(v_conf_stat_2, 'NULL'), ', PayCount: ', v_pay_count),
+                'FAIL',
+                'Idempotency check failed.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 24: Counter Booking Unchanged
+-- Verifies that counter booking proceeds directly to CONFIRMED with immediate PAYMENT,
+-- without payment hold (p_hold_for_payment = 0), and inventory matches real counts.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_counter_booking_unchanged$$
+CREATE PROCEDURE test_counter_booking_unchanged()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_pay_status VARCHAR(20);
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Counter Walkin User', 'age', 45, 'gender', 'MALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    CALL sp_create_counter_booking(
+        1, NULL, v_sched_id, v_class_id, 1145, 1152, 'GENERAL', v_passengers, 'CASH', 0,
+        v_out_pnr, v_out_fare, v_out_stat, v_out_err
+    );
+
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+    SELECT status INTO v_pay_status FROM PAYMENT WHERE pnr = v_out_pnr ORDER BY payment_id DESC LIMIT 1;
+
+    -- Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_out_stat = 'CONFIRMED' AND v_db_booking_status = 'CONFIRMED' AND v_pay_status = 'SUCCESS' AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Counter Booking Unchanged',
+                'Status CONFIRMED immediately, PAYMENT SUCCESS, 0 inventory mismatches',
+                CONCAT('Stat: ', v_out_stat, ', Pay: ', v_pay_status, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Counter booking unchanged and confirmed without hold.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Counter Booking Unchanged',
+                'Status CONFIRMED immediately, PAYMENT SUCCESS, 0 inventory mismatches',
+                CONCAT('Stat: ', COALESCE(v_out_stat, 'NULL'), ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Pay: ', COALESCE(v_pay_status, 'NULL')),
+                'FAIL',
+                'Counter booking verification failed.');
+    END IF;
+
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 25: Online Payment Hold - Pay Late Promotes Waiting Passenger
+-- Verifies that when payment arrives late for a PAYMENT_PENDING booking without
+-- running sp_release_expired_holds, calling sp_confirm_payment:
+-- 1. Returns status 'LATE'
+-- 2. Sets BOOKING.status = 'FAILED'
+-- 3. Releases held seats (CANCELLED)
+-- 4. Promotes waiting passengers (RAC to CONFIRMED, WL to RAC)
+-- 5. Inserts exactly 1 refund row (PAYMENT_AFTER_EXPIRY, PROCESSED)
+-- 6. Keeps inventory counters equal to real counts (0 mismatches)
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_payment_hold_pay_late_promotes_waiting$$
+CREATE PROCEDURE test_payment_hold_pay_late_promotes_waiting()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1064;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_from_stop_id INT DEFAULT 1213;
+    DECLARE v_to_stop_id INT DEFAULT 1220;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_conf_status VARCHAR(20);
+    DECLARE v_pay_id INT;
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_res_cancelled_count INT;
+    DECLARE v_promoted_rac_status VARCHAR(20);
+    DECLARE v_promoted_wl_status VARCHAR(20);
+    DECLARE v_refund_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Pooja Verma', 'age', 26, 'gender', 'FEMALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-17 10:00:00';
+
+    -- Create online booking with p_hold_for_payment = 1
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, v_from_stop_id, v_to_stop_id, 'LADIES', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    -- Advance time past the window WITHOUT running sp_release_expired_holds
+    SET @as_of_time = '2026-10-17 10:15:00';
+
+    -- Call sp_confirm_payment
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_late_promo_test_01', 0, v_conf_status, v_pay_id);
+
+    -- 1. Check booking status
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+
+    -- 2. Check held seats released
+    SELECT COUNT(*) INTO v_res_cancelled_count
+    FROM RESERVATION
+    WHERE pnr = v_out_pnr AND status = 'CANCELLED' AND seat_id IS NULL;
+
+    -- 3. Check waiting passenger promoted (RAC 1 promoted to CONFIRMED, WL 1 promoted to RAC)
+    SELECT status INTO v_promoted_rac_status FROM RESERVATION WHERE pnr = '2849100410' AND passenger_no = 1;
+    SELECT status INTO v_promoted_wl_status FROM RESERVATION WHERE pnr = '2849100474' AND passenger_no = 1;
+
+    -- 4. Check refund row created once
+    SELECT COUNT(*) INTO v_refund_count
+    FROM REFUND r
+    JOIN PAYMENT p ON r.payment_id = p.payment_id
+    WHERE p.gateway_payment_id = 'gateway_late_promo_test_01'
+      AND r.reason = 'PAYMENT_AFTER_EXPIRY'
+      AND r.status = 'PROCESSED';
+
+    -- 5. Check inventory counters equal real reservation counts
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_conf_status = 'LATE'
+       AND v_db_booking_status = 'FAILED'
+       AND v_res_cancelled_count = 1
+       AND v_promoted_rac_status = 'CONFIRMED'
+       AND v_promoted_wl_status = 'RAC'
+       AND v_refund_count = 1
+       AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay Late Promotes Waiting Passenger',
+                'Status LATE, Booking FAILED, Seats Released, Waiting Promoted, Refund 1, Mismatches 0',
+                CONCAT('Status: ', v_conf_status, ', DB: ', v_db_booking_status, ', RAC: ', v_promoted_rac_status, ', WL: ', v_promoted_wl_status, ', Refund: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Late payment without running sp_release_expired_holds correctly released seats, promoted waiting passengers, issued refund, and synced inventory.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Payment Hold: Pay Late Promotes Waiting Passenger',
+                'Status LATE, Booking FAILED, Seats Released, Waiting Promoted, Refund 1, Mismatches 0',
+                CONCAT('Status: ', COALESCE(v_conf_status, 'NULL'), ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', RAC: ', COALESCE(v_promoted_rac_status, 'NULL'), ', WL: ', COALESCE(v_promoted_wl_status, 'NULL'), ', Refund: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'FAIL',
+                'Late payment failed to properly release seats or promote waiting passengers.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 26: Confirmed Booking Second Payment with Different Gateway ID
+-- Verifies that when an online booking is confirmed in time and a second payment
+-- arrives with a different gateway ID:
+-- 1. Booking status stays CONFIRMED (not flipped to FAILED)
+-- 2. Its seat stays reserved (CONFIRMED with valid seat_id)
+-- 3. Second payment gets exactly 1 refund row (PAYMENT_AFTER_EXPIRY, PROCESSED)
+-- 4. Inventory counters have 0 mismatches
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_confirmed_booking_second_payment_refunded$$
+CREATE PROCEDURE test_confirmed_booking_second_payment_refunded()
+BEGIN
+    DECLARE v_sched_id INT DEFAULT 1001;
+    DECLARE v_class_id INT DEFAULT 3;
+    DECLARE v_out_pnr VARCHAR(10);
+    DECLARE v_out_stat VARCHAR(20);
+    DECLARE v_out_fare DECIMAL(10,2);
+    DECLARE v_out_err VARCHAR(32);
+    DECLARE v_conf_status1 VARCHAR(20);
+    DECLARE v_conf_status2 VARCHAR(20);
+    DECLARE v_pay_id1 INT;
+    DECLARE v_pay_id2 INT;
+    DECLARE v_db_booking_status VARCHAR(20);
+    DECLARE v_conf_seat_count INT;
+    DECLARE v_refund_count INT;
+    DECLARE v_mismatch INT DEFAULT 0;
+    DECLARE v_passengers JSON;
+
+    SET v_passengers = JSON_ARRAY(
+        JSON_OBJECT('saved_passenger_id', 7, 'name', 'Double Pay User', 'age', 32, 'gender', 'FEMALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
+    );
+
+    START TRANSACTION;
+
+    SET @as_of_time = '2026-10-18 10:00:00';
+
+    -- 1. Create online booking with p_hold_for_payment = 1
+    CALL sp_create_booking(
+        50001, v_sched_id, v_class_id, 1001, 1005, 'GENERAL', 0, 0, 1, v_passengers, 'ONLINE', NULL, 0,
+        v_out_pnr, v_out_stat, v_out_fare, v_out_err
+    );
+
+    -- 2. Pay in time (inside 10-minute hold window) -> confirmed
+    SET @as_of_time = '2026-10-18 10:02:00';
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_dup_test_01', 0, v_conf_status1, v_pay_id1);
+
+    -- 3. Call sp_confirm_payment for the SAME pnr with a DIFFERENT gateway_payment_id
+    SET @as_of_time = '2026-10-18 10:05:00';
+    CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_dup_test_diff_02', 0, v_conf_status2, v_pay_id2);
+
+    -- 4. Check that booking stays CONFIRMED
+    SELECT status INTO v_db_booking_status FROM BOOKING WHERE pnr = v_out_pnr;
+
+    -- 5. Check that seat stays reserved
+    SELECT COUNT(*) INTO v_conf_seat_count
+    FROM RESERVATION
+    WHERE pnr = v_out_pnr AND status = 'CONFIRMED' AND seat_id IS NOT NULL;
+
+    -- 6. Check that the second payment gets one refund row
+    SELECT COUNT(*) INTO v_refund_count
+    FROM REFUND r
+    JOIN PAYMENT p ON r.payment_id = p.payment_id
+    WHERE p.gateway_payment_id = 'gateway_dup_test_diff_02'
+      AND r.reason = 'PAYMENT_AFTER_EXPIRY'
+      AND r.status = 'PROCESSED';
+
+    -- 7. Check inventory counters have 0 mismatches
+    SELECT COUNT(*) INTO v_mismatch
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT r.schedule_id, b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        WHERE r.schedule_id = v_sched_id AND b.class_id = v_class_id
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.schedule_id = v_sched_id AND sci.class_id = v_class_id
+      AND (sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+           OR sci.rac_count != COALESCE(res.rac_count, 0)
+           OR sci.wl_count != COALESCE(res.wl_count, 0));
+
+    IF v_conf_status1 = 'CONFIRMED'
+       AND v_db_booking_status = 'CONFIRMED'
+       AND v_conf_seat_count = 1
+       AND v_refund_count = 1
+       AND v_mismatch = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Confirmed Booking Second Payment with Different Gateway ID',
+                'Booking stays CONFIRMED, Seat Reserved, 1 Refund Row, 0 Mismatches',
+                CONCAT('DB: ', v_db_booking_status, ', Seat: ', v_conf_seat_count, ', Refund: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'PASS',
+                'Second payment for confirmed booking safely refunded without modifying booking or reserved seat.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Confirmed Booking Second Payment with Different Gateway ID',
+                'Booking stays CONFIRMED, Seat Reserved, 1 Refund Row, 0 Mismatches',
+                CONCAT('DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Seat: ', v_conf_seat_count, ', Refund: ', v_refund_count, ', Mismatches: ', v_mismatch),
+                'FAIL',
+                'Second payment corrupted confirmed booking status or failed refund creation.');
+    END IF;
+
+    SET @as_of_time = NULL;
+    ROLLBACK;
+END$$
+
+-- -----------------------------------------------------------------------------
+-- TEST 27: Master Inventory Audit across all 1,015 Inventory Rows
+-- Verifies that available_seats, rac_count, and wl_count match actual RESERVATION counts
+-- for every single schedule and class in the system (0 mismatches of 1,015).
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS test_all_inventory_counters_match_real_counts$$
+CREATE PROCEDURE test_all_inventory_counters_match_real_counts()
+BEGIN
+    DECLARE v_total_rows INT DEFAULT 0;
+    DECLARE v_mismatch_count INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_total_rows FROM SCHEDULE_CLASS_INVENTORY;
+
+    SELECT COUNT(*) INTO v_mismatch_count
+    FROM SCHEDULE_CLASS_INVENTORY sci
+    LEFT JOIN (
+        SELECT 
+            r.schedule_id,
+            b.class_id,
+            SUM(CASE WHEN r.status IN ('CONFIRMED', 'BOARDED') THEN 1 ELSE 0 END) as conf_count,
+            SUM(CASE WHEN r.status = 'RAC' THEN 1 ELSE 0 END) as rac_count,
+            SUM(CASE WHEN r.status = 'WAITING_LIST' THEN 1 ELSE 0 END) as wl_count
+        FROM RESERVATION r
+        JOIN BOOKING b ON r.pnr = b.pnr
+        GROUP BY r.schedule_id, b.class_id
+    ) res ON sci.schedule_id = res.schedule_id AND sci.class_id = res.class_id
+    WHERE sci.available_seats != (sci.total_seats - COALESCE(res.conf_count, 0))
+       OR sci.rac_count != COALESCE(res.rac_count, 0)
+       OR sci.wl_count != COALESCE(res.wl_count, 0);
+
+    IF v_mismatch_count = 0 THEN
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Master Inventory Verification: 1,015 Runs Audited',
+                '0 mismatches across 1,015 inventory records',
+                CONCAT('0 mismatches of ', v_total_rows),
+                'PASS',
+                'All 1,015 schedule class inventory counters precisely match real reservation counts.');
+    ELSE
+        INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
+        VALUES ('Master Inventory Verification: 1,015 Runs Audited',
+                '0 mismatches across 1,015 inventory records',
+                CONCAT(v_mismatch_count, ' mismatches of ', v_total_rows),
+                'FAIL',
+                CONCAT('Detected ', v_mismatch_count, ' inventory discrepancies with real reservation rows.'));
+    END IF;
+END$$
+
+-- -----------------------------------------------------------------------------
 -- Master Test Runner Procedure
 -- -----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_run_all_tests$$
@@ -1067,6 +1743,14 @@ BEGIN
     CALL test_real_general_waiting_list_full();
     CALL test_real_general_rac_allocation();
     CALL test_real_inventory_sync_after_cancel_promotion();
+    CALL test_payment_hold_pay_in_time();
+    CALL test_payment_hold_pay_late();
+    CALL test_payment_hold_expires_and_released();
+    CALL test_payment_hold_same_gateway_id_twice();
+    CALL test_counter_booking_unchanged();
+    CALL test_payment_hold_pay_late_promotes_waiting();
+    CALL test_confirmed_booking_second_payment_refunded();
+    CALL test_all_inventory_counters_match_real_counts();
 
     SELECT test_id, test_name, expected_outcome, actual_outcome, status, details FROM test_results;
 END$$

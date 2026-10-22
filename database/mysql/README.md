@@ -19,6 +19,8 @@ When executing the SQL scripts manually in MySQL Workbench (or CLI), run them in
 3. **`03_procedures.sql`**
    - Installs stored procedures for booking, chart preparation, cancellation, ticket collector operations, and promotions:
      - `sp_create_booking` / `sp_create_counter_booking`
+     - `sp_confirm_payment`
+     - `sp_release_expired_holds`
      - `sp_cancel_passenger_ticket`
      - `sp_prepare_chart`
      - `sp_mark_passenger_noshow`

@@ -1,0 +1,22 @@
+{
+  "name": "railway-reservation-backend",
+  "version": "1.0.0",
+  "description": "Railway Reservation & Management System Express Backend",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test:d1": "node scripts/test-d1.js",
+    "test:d2": "node scripts/test-d2.js",
+    "test:d3a": "node scripts/test-d3a.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.12.0",
+    "mysql2": "^3.12.0",
+    "razorpay": "^2.9.8"
+  }
+}

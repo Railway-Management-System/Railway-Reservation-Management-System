@@ -29,7 +29,7 @@ All error responses return one of the official system error codes:
 - `SEAT_NOT_AVAILABLE`: No seats remain in the requested quota or segment.
 - `WAITING_LIST_FULL`: Waitlist capacity (25% of quota confirmed seats) is exhausted.
 - `NOT_ALL_CONFIRMED`: User opted "book only if confirmed" and at least one passenger would be RAC or WL.
-- `HOLD_EXPIRED`: The 10-minute seat hold timer lapsed before payment completion.
+- `HOLD_EXPIRED`: The seat hold timer (HOLD_MINUTES) lapsed before payment completion.
 - `TRAIN_NOT_RUNNING`: The train does not operate on the origin departure date corresponding to the boarding date (BR-B1a).
 - `QUOTA_NOT_ELIGIBLE`: Passenger roster does not satisfy quota criteria (e.g., non-female in LADIES, non-senior in SENIOR_CITIZEN).
 - `CONCESSION_PROOF_REQUIRED`: Concession selected without valid proof type or certificate reference.
@@ -362,7 +362,7 @@ Authorization: Bearer <jwt_or_mock_token>
 ### 4.1 Temporary Seat Hold (Step 3 Entry, BR-B2)
 - **Method / Endpoint**: `POST /api/bookings/hold`
 - **Role**: Passenger / Staff
-- **Purpose**: Initiates 10-minute temporary lock on seats when user reaches Step 3 (Passenger Details) after choosing passenger count (1..6, or 4 for Tatkal).
+- **Purpose**: Seat hold window (HOLD_MINUTES, default 10 minutes) keeps seats, RAC or WL reserved for a PAYMENT_PENDING booking from creation until payment confirmation.
 - **Request Body**:
 ```json
 {
@@ -388,7 +388,7 @@ Authorization: Bearer <jwt_or_mock_token>
   }
 }
 ```
-- **Errors**: `400 Bad Request` (`MONTHLY_LIMIT_EXCEEDED`, `NO_ADULT_PASSENGER`, `SEAT_NOT_AVAILABLE`, `CHART_PREPARED`). Checked when hold starts and again on Create Booking (BR-B15).
+- **Errors**: `400 Bad Request` (`MONTHLY_LIMIT_EXCEEDED`, `NO_ADULT_PASSENGER`, `SEAT_NOT_AVAILABLE`, `CHART_PREPARED`). Checked on Create Booking (BR-B15).
 
 ---
 
@@ -556,7 +556,7 @@ Authorization: Bearer <jwt_or_mock_token>
   "success": false,
   "error": {
     "code": "HOLD_EXPIRED",
-    "message": "Payment arrived after the 10-minute seat hold expired. No seats were assigned. Your payment has been refunded in full automatically."
+    "message": "Payment arrived after the seat hold expired (HOLD_MINUTES). No seats were assigned. Your payment has been refunded in full automatically."
   },
   "data": {
     "bookingStatus": "FAILED",
@@ -669,6 +669,36 @@ Authorization: Bearer <jwt_or_mock_token>
 }
 ```
 - **Errors**: `CHART_PREPARED` (if $< 8$ hours before origin departure).
+
+#### 4.5.1 Refund Estimate Preview (Section 8)
+- **Method / Endpoint**: `GET /api/bookings/:pnr/refund-estimate`
+- **Role**: Passenger (own PNR only) / Staff / Admin
+- **Query Parameters**:
+  - `passengerNos` (optional): Comma-separated passenger numbers to preview (e.g., `?passengerNos=1,2`). If omitted or empty, estimates refund for all active passengers on the PNR.
+- **Behavior**: Strictly read-only preview using database function `fn_calculate_cancellation_refund(pnr, passenger_no, NULL)`. Modifies no database rows and records no charges or refunds.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "pnr": "2849102841",
+    "hoursBeforeOriginDeparture": 46.5,
+    "passengers": [
+      {
+        "passengerNo": 1,
+        "name": "Sunita Sharma",
+        "reservationStatus": "CONFIRMED",
+        "fare": 1400.00,
+        "charge": 350.00,
+        "refundAmount": 1050.00
+      }
+    ],
+    "totalCancellationCharge": 350.00,
+    "totalRefundAmount": 1050.00
+  }
+}
+```
+- **Errors**: `404 Not Found` (Booking not found), `403 Forbidden` (Not booking owner and not staff/admin), `400 Bad Request` (Invalid passenger numbers or non-CONFIRMED booking).
 
 ---
 
