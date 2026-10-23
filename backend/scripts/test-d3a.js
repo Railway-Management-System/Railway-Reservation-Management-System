@@ -25,7 +25,10 @@ async function startServer() {
 async function stopServer() {
   return new Promise((resolve) => {
     if (server) {
-      server.close(async () => {
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
+      server.close(() => {
         console.log('[Test Runner] Express test server closed.');
         resolve();
       });
@@ -64,6 +67,12 @@ function assert(condition, message) {
 }
 
 async function runTests() {
+  const safetyTimeout = setTimeout(() => {
+    console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d3a timed out!');
+    process.exit(1);
+  }, 120000);
+  safetyTimeout.unref();
+
   console.log('================================================================');
   console.log(' RAILWAY RESERVATION SYSTEM - SUITE D3A (CANCELLATION & REFUND)');
   console.log('================================================================');
@@ -460,30 +469,41 @@ async function runTests() {
     console.log(` ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY!`);
     console.log('================================================================');
 
+  } catch (err) {
+    console.error('\nTEST SUITE FAILED WITH ERROR:', err);
+    process.exitCode = 1;
   } finally {
+    clearTimeout(safetyTimeout);
     await stopServer();
-    await pool.end();
-    await closeMongo();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
+
+    // -------------------------------------------------------------------------
+    // RESET DATABASE VIA database/load/run-all.js PER INSTRUCTIONS
+    // -------------------------------------------------------------------------
+    console.log('\n================================================================');
+    console.log(' RESETTING DATABASE VIA database/load/run-all.js');
+    console.log('================================================================');
+    try {
+      const rootDir = path.resolve(__dirname, '../../');
+      execSync('node database/load/run-all.js', { stdio: 'inherit', cwd: rootDir });
+      console.log('\n✓ Test suite test-d3a.js finished and database restored.');
+    } catch (resetErr) {
+      console.error('Failed to reset database:', resetErr.message);
+    }
+
+    if (require.main === module) {
+      process.exit(process.exitCode || 0);
+    }
   }
-
-  // -------------------------------------------------------------------------
-  // RESET DATABASE VIA database/load/run-all.js PER INSTRUCTIONS
-  // -------------------------------------------------------------------------
-  console.log('\n================================================================');
-  console.log(' RESETTING DATABASE VIA database/load/run-all.js');
-  console.log('================================================================');
-  const rootDir = path.resolve(__dirname, '../../');
-  execSync('node database/load/run-all.js', { stdio: 'inherit', cwd: rootDir });
-
-  console.log('\n✓ Test suite test-d3a.js finished cleanly and database restored.');
 }
 
 runTests().catch(async (err) => {
   console.error('\n[FATAL ERROR IN TEST SUITE]:', err);
   try {
     await stopServer();
-    await pool.end();
-    await closeMongo();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
   } catch (_) {}
   process.exit(1);
 });

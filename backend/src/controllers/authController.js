@@ -3,6 +3,7 @@ const pool = require('../config/mysql');
 const config = require('../config/env');
 const AppError = require('../utils/appError');
 const { hashBcryptPassword, verifyPassword } = require('../utils/passwordUtils');
+const { logActivity } = require('../services/activityLogService');
 
 function generateToken(payload) {
   return jwt.sign(payload, config.JWT_SECRET, { expiresIn: '24h' });
@@ -148,6 +149,13 @@ async function loginPassenger(req, res, next) {
     const monthlyUsed = await getMonthlyTicketCount(user.user_id);
     const monthlyAllowed = user.aadhaar_verified ? 24 : 12;
 
+    logActivity({
+      userId: user.user_id,
+      action: 'LOGIN',
+      tableName: 'USER_ACCOUNT',
+      recordId: String(user.user_id)
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -219,6 +227,13 @@ async function loginStaff(req, res, next) {
       staffId: staffMember.staff_id
     });
 
+    logActivity({
+      userId: staffMember.user_id,
+      action: 'LOGIN',
+      tableName: 'USER_ACCOUNT',
+      recordId: String(staffMember.user_id)
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -278,6 +293,13 @@ async function loginAdmin(req, res, next) {
       adminId: admin.admin_id
     });
 
+    logActivity({
+      userId: admin.user_id,
+      action: 'LOGIN',
+      tableName: 'USER_ACCOUNT',
+      recordId: String(admin.user_id)
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -331,6 +353,13 @@ async function loginUniversal(req, res, next) {
 
     const monthlyUsed = await getMonthlyTicketCount(user.user_id);
     const monthlyAllowed = user.aadhaar_verified ? 24 : 12;
+
+    logActivity({
+      userId: user.user_id,
+      action: 'LOGIN',
+      tableName: 'USER_ACCOUNT',
+      recordId: String(user.user_id)
+    });
 
     return res.status(200).json({
       success: true,

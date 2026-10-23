@@ -32,6 +32,12 @@ function runSimulatorCli(args = []) {
 }
 
 async function runTestD4() {
+  const safetyTimeout = setTimeout(() => {
+    console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d4 timed out!');
+    process.exit(1);
+  }, 120000);
+  safetyTimeout.unref();
+
   console.log('========================================================================================');
   console.log(' TEST SUITE D4: DAILY OPERATIONS SIMULATOR & ROLLING WINDOW IDEMPOTENCY');
   console.log('========================================================================================\n');
@@ -214,19 +220,32 @@ async function runTestD4() {
       throw new Error(`Test suite failed: ${totalCount - passedCount} test(s) failed`);
     }
 
+  } catch (err) {
+    console.error('\nTEST SUITE FAILED WITH ERROR:', err);
+    process.exitCode = 1;
   } finally {
-    await pool.end();
-    await closeMongo();
+    clearTimeout(safetyTimeout);
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
 
     // Restore baseline seed dataset
     console.log('\n[Database] Restoring baseline seed dataset via database/load/run-all.js...');
-    spawnSync('node', ['database/load/run-all.js'], { cwd: rootDir, stdio: 'ignore' });
+    try {
+      spawnSync('node', ['database/load/run-all.js'], { cwd: rootDir, stdio: 'ignore' });
+    } catch (_) {}
+    if (require.main === module) {
+      process.exit(process.exitCode || 0);
+    }
   }
 }
 
 if (require.main === module) {
-  runTestD4().catch(err => {
+  runTestD4().catch(async (err) => {
     console.error('\n[FATAL ERROR]:', err);
+    try {
+      await pool.end().catch(() => {});
+      await closeMongo().catch(() => {});
+    } catch (_) {}
     process.exit(1);
   });
 }

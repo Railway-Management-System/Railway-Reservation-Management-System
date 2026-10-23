@@ -2,6 +2,8 @@ const pool = require('../config/mysql');
 const AppError = require('../utils/appError');
 const { CANONICAL_ERROR_MESSAGES, CANONICAL_ERROR_STATUS_CODES } = require('../middleware/errorHandler');
 const { processGatewayRefund } = require('../services/gatewayRefundService');
+const { createNotification } = require('../services/notificationService');
+const { logActivity } = require('../services/activityLogService');
 
 /**
  * Validates YYYY-MM-DD date format strictly without JS Date
@@ -199,6 +201,13 @@ async function createBooking(req, res, next) {
        ORDER BY passenger_no ASC`,
       [pnr]
     );
+
+    logActivity({
+      userId,
+      action: 'BOOKING',
+      tableName: 'BOOKING',
+      recordId: String(pnr)
+    });
 
     return res.status(201).json({
       success: true,
@@ -518,6 +527,26 @@ async function cancelBooking(req, res, next) {
         }
       }
     }
+
+    createNotification({
+      userId: Number(booking.user_id),
+      type: 'STATUS_UPDATE',
+      title: 'Ticket Cancellation & Refund',
+      message: `Your booking for PNR ${pnr} has been cancelled. Refund amount: Rs ${Number(totalRefundAmount.toFixed(2))}.`,
+      referenceId: String(pnr)
+    });
+
+    logActivity({
+      userId: Number(userId),
+      action: 'CANCEL',
+      tableName: 'BOOKING',
+      recordId: String(pnr),
+      newValue: {
+        pnr: String(pnr),
+        cancelledPassengers: cancelledPassengerNos,
+        refundAmount: Number(totalRefundAmount.toFixed(2))
+      }
+    });
 
     return res.status(200).json({
       success: true,

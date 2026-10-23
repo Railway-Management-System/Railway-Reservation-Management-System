@@ -1,6 +1,8 @@
 const pool = require('../config/mysql');
 const AppError = require('../utils/appError');
 const { CANONICAL_ERROR_MESSAGES, CANONICAL_ERROR_STATUS_CODES } = require('../middleware/errorHandler');
+const { createNotification } = require('../services/notificationService');
+const { logActivity } = require('../services/activityLogService');
 
 /**
  * 4.4 Station Counter Booking API
@@ -198,6 +200,38 @@ async function createCounterBooking(req, res, next) {
 
     const firstPass = passengersList[0] || {};
     const printableTicketText = `INDIAN RAILWAYS / PNR: ${pnr} / ${srcCode} -> ${destCode} / COACH: ${firstPass.coachNumber || 'WL'} SEAT: ${firstPass.seatNumber || 'WL'} (${firstPass.berthType || 'NONE'}) / FARE: Rs ${totalFare.toFixed(2)} (${paymentMethod} PAID)`;
+
+    createNotification({
+      userId: Number(targetUserId),
+      type: 'BOOKING_CONFIRMATION',
+      title: 'Booking Confirmed',
+      message: `Your booking for PNR ${pnr} is ${bookingStatus}.`,
+      referenceId: String(pnr)
+    });
+
+    logActivity({
+      userId: Number(req.user.user_id || req.user.userId),
+      action: 'BOOKING',
+      tableName: 'BOOKING',
+      recordId: String(pnr),
+      newValue: {
+        pnr: String(pnr),
+        channel: 'COUNTER',
+        status: bookingStatus
+      }
+    });
+
+    logActivity({
+      userId: Number(req.user.user_id || req.user.userId),
+      action: 'PAYMENT',
+      tableName: 'PAYMENT',
+      recordId: String(pnr),
+      newValue: {
+        pnr: String(pnr),
+        amount: totalFare,
+        method: paymentMethod
+      }
+    });
 
     return res.status(201).json({
       success: true,

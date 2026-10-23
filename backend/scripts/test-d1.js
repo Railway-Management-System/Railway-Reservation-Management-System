@@ -23,9 +23,12 @@ async function startTestServer() {
 async function stopTestServer() {
   return new Promise((resolve) => {
     if (server) {
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
       server.close(async () => {
-        await pool.end();
-        await closeMongo();
+        await pool.end().catch(() => {});
+        await closeMongo().catch(() => {});
         console.log('[Test Runner] Test server and DB connections stopped.');
         resolve();
       });
@@ -62,6 +65,12 @@ function assert(condition, message) {
 }
 
 async function runTests() {
+  const safetyTimeout = setTimeout(() => {
+    console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d1 timed out!');
+    process.exit(1);
+  }, 120000);
+  safetyTimeout.unref();
+
   console.log('====================================================');
   console.log('   RAILWAY RESERVATION BACKEND - D1 TEST SUITE');
   console.log('====================================================\n');
@@ -314,12 +323,22 @@ async function runTests() {
     }
     const [cntRow] = await pool.query('SELECT COUNT(*) as count FROM USER_ACCOUNT');
     console.log(`[Test Cleanup] Verified USER_ACCOUNT count: ${cntRow[0].count}`);
+    clearTimeout(safetyTimeout);
     await stopTestServer();
+    if (require.main === module) {
+      process.exit(process.exitCode || 0);
+    }
   }
 }
 
 if (require.main === module) {
-  runTests();
+  runTests().catch(async (err) => {
+    console.error('\n[FATAL ERROR IN TEST SUITE]:', err);
+    try {
+      await stopTestServer();
+    } catch (_) {}
+    process.exit(1);
+  });
 }
 
 module.exports = { runTests };

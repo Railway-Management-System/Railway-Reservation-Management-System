@@ -25,7 +25,10 @@ async function startServer() {
 async function stopServer() {
   return new Promise((resolve) => {
     if (server) {
-      server.close(async () => {
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
+      server.close(() => {
         console.log('[Test Runner] Express test server closed.');
         resolve();
       });
@@ -64,6 +67,12 @@ function assert(condition, message) {
 }
 
 async function runTests() {
+  const safetyTimeout = setTimeout(() => {
+    console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d2 timed out!');
+    process.exit(1);
+  }, 120000);
+  safetyTimeout.unref();
+
   console.log('================================================================');
   console.log(' RAILWAY RESERVATION SYSTEM - SUITE D2 VERIFICATION TESTS');
   console.log('================================================================');
@@ -538,21 +547,27 @@ async function runTests() {
     console.log(` ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY!`);
     console.log('================================================================');
 
+  } catch (err) {
+    console.error('\nTEST SUITE FAILED WITH ERROR:', err);
+    process.exitCode = 1;
   } finally {
+    clearTimeout(safetyTimeout);
     await stopServer();
-    await pool.end();
-    await closeMongo();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
+    console.log('\n✓ Test suite test-d2.js finished.');
+    if (require.main === module) {
+      process.exit(process.exitCode || 0);
+    }
   }
-
-  console.log('\n✓ Test suite test-d2.js finished cleanly.');
 }
 
 runTests().catch(async (err) => {
   console.error('\n[FATAL ERROR IN TEST SUITE]:', err);
   try {
     await stopServer();
-    await pool.end();
-    await closeMongo();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
   } catch (_) {}
   process.exit(1);
 });

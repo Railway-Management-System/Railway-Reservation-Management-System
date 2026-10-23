@@ -13,6 +13,7 @@
     "test:d3b3": "node scripts/test-d3b3.js",
     "test:d3c1": "node scripts/test-d3c1.js",
     "test:d3c2": "node scripts/test-d3c2.js",
+    "test:d3c3": "node scripts/test-d3c3.js",
     "test:d4": "node scripts/test-d4.js",
     "test:all": "node scripts/test-all.js",
     "simulate:daily": "node scripts/simulate-daily.js",

@@ -1606,10 +1606,290 @@ Authorization: Bearer <jwt_or_mock_token>
 ```
 - **Errors**: `400 Bad Request` (Invalid status), `401 Unauthorized`, `403 Forbidden` (Non-admin token), `404 Not Found` (Staff not found).
 
-### 7.7 Master Data Management (Stations, Trains, Routes, Coaches, Fares)
-Standard CRUD endpoints maintaining zero schema drift:
-- `/api/admin/stations` (158 stations with `platform_count`)
-- `/api/admin/trains` (60 trains with `running_days`)
-- `/api/admin/routes` (536 stops with `day_offset`)
-- `/api/admin/coaches` & `/api/admin/seats`
-- `/api/admin/fares` (distance slabs and class rates)
+### 7.7 Master Data Management (Stations, Trains, Routes, Coaches, Seats, Fares, Concessions, Refunds)
+
+Role: `ADMIN` only. All entities support full CRUD: `GET` (list), `GET :id` (one), `POST` (create), `PUT :id` (update), and `DELETE :id` (delete).
+Safe rules:
+- `DELETE` is refused (`409 Conflict` / `400 Bad Request`) when the row is referenced by other records or active schedules exist.
+- No change is permitted that breaks existing runs (e.g. altering a train's coaches, seats, or route stops when schedules or bookings exist).
+- Inserts use `MAX(primary_key) + 1` inside an exclusive transaction lock.
+- Fare, concession, and refund-rule changes are audited by MySQL triggers (Node writes no audit row). For stations, trains, routes, coaches, and seats, Node writes an `AUDIT_LOG` row.
+
+#### 7.7.1 Stations (`/api/admin/stations`)
+- `GET /api/admin/stations`: List stations.
+- `GET /api/admin/stations/:id`: Get station by ID or code.
+- `POST /api/admin/stations`: Create station (`stationCode`, `stationName`, `displayName`, `city`, `state`, `platformCount`).
+- `PUT /api/admin/stations/:id`: Update station attributes.
+- `DELETE /api/admin/stations/:id`: Delete station. Refused if referenced by trains, route stops, or staff assignments.
+
+#### 7.7.2 Trains (`/api/admin/trains`)
+- `GET /api/admin/trains`: List trains.
+- `GET /api/admin/trains/:id`: Get train by ID or number.
+- `POST /api/admin/trains`: Create train (`trainNumber`, `shortName`, `displayName`, `trainType`, `sourceStationId`, `destinationStationId`, `runningDays`, `status`).
+- `PUT /api/admin/trains/:id`: Update train. Refused if altering route endpoints when schedules exist.
+- `DELETE /api/admin/trains/:id`: Delete train. Refused if schedules exist.
+
+#### 7.7.3 Route Stops (`/api/admin/routes` & `/api/admin/route-stops`)
+- `GET /api/admin/routes`: List stops (optional `?trainId=`).
+- `GET /api/admin/routes/:id`: Get stop by ID.
+- `POST /api/admin/routes`: Create route stop (`trainId`, `stationId`, `stopSequence`, `arrivalTime`, `departureTime`, `dayOffset`, `distanceFromOrigin`, `platformNumber`). Refused if schedules exist for train.
+- `PUT /api/admin/routes/:id`: Update route stop. Refused if schedules exist for train.
+- `DELETE /api/admin/routes/:id`: Delete route stop. Refused if schedules or bookings exist.
+
+#### 7.7.4 Coaches (`/api/admin/coaches`)
+- `GET /api/admin/coaches`: List coaches (optional `?trainId=`).
+- `GET /api/admin/coaches/:id`: Get coach by ID.
+- `POST /api/admin/coaches`: Create coach (`trainId`, `classId`, `coachCode`, `sequenceNumber`, `totalSeats`). Refused if schedules exist for train.
+- `PUT /api/admin/coaches/:id`: Update coach. Refused if schedules exist for train.
+- `DELETE /api/admin/coaches/:id`: Delete coach. Refused if schedules or seats exist.
+
+#### 7.7.5 Seats (`/api/admin/seats`)
+- `GET /api/admin/seats`: List physical seats (optional `?coachId=`, `page`, `limit`).
+- `GET /api/admin/seats/:id`: Get seat by ID.
+- `POST /api/admin/seats`: Create seat (`coachId`, `seatNumber`, `berthType`). Refused if schedules exist for coach's train.
+- `PUT /api/admin/seats/:id`: Update seat. Refused if reserved or schedules exist.
+- `DELETE /api/admin/seats/:id`: Delete seat. Refused if reserved or schedules exist.
+
+#### 7.7.6 Fares (`/api/admin/fares`)
+- `GET /api/admin/fares`: List distance slab rates (optional `?classId=`).
+- `GET /api/admin/fares/:id`: Get fare slab by ID.
+- `POST /api/admin/fares`: Create distance slab (`classId`, `minDistanceKm`, `maxDistanceKm`, `ratePerKm`).
+- `PUT /api/admin/fares/:id`: Update distance slab. Audited via `trg_audit_fare_change`.
+- `DELETE /api/admin/fares/:id`: Delete fare slab.
+
+#### 7.7.7 Concession Rules (`/api/admin/concession-rules` & `/api/admin/concessions`)
+- `GET /api/admin/concession-rules`: List rules (optional `?concessionType=`).
+- `GET /api/admin/concession-rules/:id`: Get rule by ID.
+- `POST /api/admin/concession-rules`: Create rule (`concessionType`, `classId`, `trainGroup`, `discountPct`, `proofTypes`, `isActive`).
+- `PUT /api/admin/concession-rules/:id`: Update rule. Audited via `trg_audit_concession_change`.
+- `DELETE /api/admin/concession-rules/:id`: Delete rule.
+
+#### 7.7.8 Refund Rules (`/api/admin/refund-rules` & `/api/admin/refunds`)
+- `GET /api/admin/refund-rules`: List cancellation refund slabs.
+- `GET /api/admin/refund-rules/:id`: Get rule by ID.
+- `POST /api/admin/refund-rules`: Create refund slab (`minHours`, `maxHours`, `deductionPct`, `flatMinCharge`, `clerkage`).
+- `PUT /api/admin/refund-rules/:id`: Update refund slab. Audited via `trg_audit_refund_rule_change`.
+- `DELETE /api/admin/refund-rules/:id`: Delete refund slab.
+
+---
+
+### 7.8 Admin Complaints & Activity Logs (MongoDB)
+
+#### 7.8.1 List Complaints
+- **Method / Endpoint**: `GET /api/admin/complaints`
+- **Role**: `ADMIN`
+- **Query Parameters**: `status` (optional: `OPEN`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "grievanceId": "cmp_901",
+      "userId": 50001,
+      "category": "TRAIN_CLEANLINESS",
+      "subject": "Unhygienic washrooms in coach B1",
+      "description": "Washrooms in coach B1 of train 12951 were not sanitized prior to departure from Mumbai Central.",
+      "status": "RESOLVED",
+      "response": "Housekeeping on board (OBHS) was dispatched and sanitization was completed at Surat station halt.",
+      "createdAt": "2026-10-01 23:30:00"
+    }
+  ]
+}
+```
+
+#### 7.8.2 Review Complaint
+- **Method / Endpoint**: `PUT /api/admin/complaints/:grievanceId`
+- **Role**: `ADMIN`
+- **Request Body**:
+```json
+{
+  "response": "Refund processed to bank account.",
+  "status": "RESOLVED"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "grievanceId": "cmp_902",
+    "userId": 50002,
+    "category": "REFUND",
+    "subject": "Delay in cancellation refund for PNR 1938472910",
+    "description": "Cancelled ticket on 2026-10-05 but refund of Rs 555 is not yet credited to bank account.",
+    "status": "RESOLVED",
+    "response": "Refund processed to bank account.",
+    "createdAt": "2026-10-06 15:45:00"
+  }
+}
+```
+
+#### 7.8.3 Activity Logs
+- **Method / Endpoint**: `GET /api/admin/activity-logs`
+- **Role**: `ADMIN`
+- **Query Parameters**: `page` (default 1), `limit` (default 50), `userId` (optional), `action` (optional)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "logId": "act_1001",
+      "userId": 50001,
+      "action": "USER_LOGIN",
+      "tableName": null,
+      "recordId": null,
+      "oldValue": null,
+      "newValue": null,
+      "loggedAt": "2026-10-18 14:00:00"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 3,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## 8. Passenger & Public MongoDB APIs
+
+### 8.1 Notifications
+
+#### 8.1.1 Get Notifications
+- **Method / Endpoint**: `GET /api/notifications`
+- **Role**: Authenticated (own notifications only, newest first)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "notificationId": "ntf_1001",
+      "userId": 50001,
+      "type": "BOOKING_CONFIRMATION",
+      "title": "Booking Confirmation",
+      "message": "Your booking for PNR 2849100000 is CONFIRMED.",
+      "referenceId": "2849100000",
+      "isRead": true,
+      "createdAt": "2026-10-18 14:30:00"
+    }
+  ]
+}
+```
+
+#### 8.1.2 Mark Notification as Read
+- **Method / Endpoint**: `PUT /api/notifications/:id/read`
+- **Role**: Authenticated (own notification only)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "notificationId": "ntf_1002",
+    "userId": 50001,
+    "type": "STATUS_UPDATE",
+    "title": "Booking Status Update",
+    "message": "Chart preparation completed for your scheduled departure.",
+    "referenceId": "2849100000",
+    "isRead": true,
+    "createdAt": "2026-10-18 15:30:00"
+  }
+}
+```
+- **Errors**: `403 Forbidden` (User does not own notification), `404 Not Found`.
+
+### 8.2 Complaints
+
+#### 8.2.1 File Passenger Complaint
+- **Method / Endpoint**: `POST /api/complaints`
+- **Role**: `PASSENGER` (own)
+- **Request Body**:
+```json
+{
+  "category": "TRAIN_CLEANLINESS",
+  "subject": "Unhygienic coach washroom",
+  "description": "Coach B2 washroom was not cleaned before departure."
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "grievanceId": "cmp_1730000000_123",
+    "userId": 50001,
+    "category": "TRAIN_CLEANLINESS",
+    "subject": "Unhygienic coach washroom",
+    "description": "Coach B2 washroom was not cleaned before departure.",
+    "status": "OPEN",
+    "response": null,
+    "createdAt": "2026-10-24 02:40:00"
+  }
+}
+```
+
+#### 8.2.2 List Own Complaints
+- **Method / Endpoint**: `GET /api/complaints`
+- **Role**: `PASSENGER` (own)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "grievanceId": "cmp_901",
+      "userId": 50001,
+      "category": "TRAIN_CLEANLINESS",
+      "subject": "Unhygienic washrooms in coach B1",
+      "description": "Washrooms in coach B1 of train 12951 were not sanitized prior to departure from Mumbai Central.",
+      "status": "RESOLVED",
+      "response": "Housekeeping on board (OBHS) was dispatched and sanitization was completed at Surat station halt.",
+      "createdAt": "2026-10-01 23:30:00"
+    }
+  ]
+}
+```
+
+### 8.3 Live Train Status
+
+#### 8.3.1 Schedule Live Status
+- **Method / Endpoint**: `GET /api/schedules/:scheduleId/live-status`
+- **Role**: Any authenticated user
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "scheduleId": 1001,
+    "trainId": 129,
+    "journeyDate": "2026-10-18",
+    "status": "ON_TIME",
+    "delayMinutes": 0,
+    "platformNumber": 3
+  }
+}
+```
+
+#### 8.3.2 Train Live Status
+- **Method / Endpoint**: `GET /api/trains/:trainId/live-status`
+- **Role**: Any authenticated user
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "scheduleId": 1001,
+    "trainId": 129,
+    "journeyDate": "2026-10-18",
+    "status": "ON_TIME",
+    "delayMinutes": 0,
+    "platformNumber": 3
+  }
+}
+```
+

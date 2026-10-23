@@ -6,6 +6,8 @@ const { getMongoDb } = require('../config/mongodb');
 const AppError = require('../utils/appError');
 const { releaseExpiredHolds } = require('../services/holdCleanupService');
 const { toPaise, processGatewayRefund } = require('../services/gatewayRefundService');
+const { createNotification } = require('../services/notificationService');
+const { logActivity } = require('../services/activityLogService');
 
 /**
  * Initialize Razorpay instance with key and secret
@@ -268,6 +270,37 @@ async function verifyPayment(req, res, next) {
     }
     const paymentRecord = paymentRows[0];
     const paidAt = String(paymentRecord.paid_at);
+
+    createNotification({
+      userId: Number(booking.user_id),
+      type: 'BOOKING_CONFIRMATION',
+      title: 'Booking Confirmed',
+      message: `Your booking for PNR ${pnr} is ${outStatus}.`,
+      referenceId: String(pnr)
+    });
+
+    logActivity({
+      userId: Number(userId),
+      action: 'PAYMENT',
+      tableName: 'PAYMENT',
+      recordId: String(outPaymentId),
+      newValue: {
+        pnr: String(pnr),
+        amount: Number(booking.total_fare),
+        status: paymentRecord.status
+      }
+    });
+
+    logActivity({
+      userId: Number(userId),
+      action: 'BOOKING',
+      tableName: 'BOOKING',
+      recordId: String(pnr),
+      newValue: {
+        pnr: String(pnr),
+        status: outStatus
+      }
+    });
 
     // Retrieve passenger reservation allotment
     const [passengers] = await pool.query(

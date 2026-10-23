@@ -33,9 +33,15 @@ async function closeMongo() {
   }
 }
 
+async function getOrConnectMongoDb() {
+  if (db) return db;
+  return await connectMongo();
+}
+
 module.exports = {
   connectMongo,
   getMongoDb,
+  getOrConnectMongoDb,
   getMongoClient,
   closeMongo
 };

@@ -12,6 +12,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = require('../src/app');
 const pool = require('../src/config/mysql');
+const { closeMongo } = require('../src/config/mongodb');
 
 let server;
 let baseUrl;
@@ -31,6 +32,9 @@ function startServer() {
 function stopServer() {
   return new Promise((resolve) => {
     if (server) {
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
       server.close(() => {
         console.log('[Test Runner] Express test server closed.');
         resolve();
@@ -121,6 +125,12 @@ async function runInventoryAudit() {
 }
 
 async function runTests() {
+  const safetyTimeout = setTimeout(() => {
+    console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d3c2 timed out!');
+    process.exit(1);
+  }, 120000);
+  safetyTimeout.unref();
+
   console.log('================================================================');
   console.log(' RAILWAY RESERVATION SYSTEM - SUITE D3C-2');
   console.log(' Fines, Incidents, Live Reports, Audit Logs, Reports & Staff Accounts');
@@ -697,6 +707,7 @@ async function runTests() {
     console.error(err);
     process.exitCode = 1;
   } finally {
+    clearTimeout(safetyTimeout);
     try {
       await pool.query('DELETE FROM STAFF_ASSIGNMENT WHERE assign_id >= 9900');
       await pool.query('DELETE FROM FINE WHERE fine_id >= 9900');
@@ -709,8 +720,18 @@ async function runTests() {
     } catch (_) {}
 
     await stopServer();
-    await pool.end();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
+    process.exit(process.exitCode || 0);
   }
 }
 
-runTests();
+runTests().catch(async (err) => {
+  console.error('\n[FATAL ERROR IN TEST SUITE]:', err);
+  try {
+    await stopServer();
+    await pool.end().catch(() => {});
+    await closeMongo().catch(() => {});
+  } catch (_) {}
+  process.exit(1);
+});

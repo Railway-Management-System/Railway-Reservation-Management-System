@@ -2,6 +2,8 @@ const pool = require('../config/mysql');
 const { getMongoDb } = require('../config/mongodb');
 const AppError = require('../utils/appError');
 const { getBookingByPnr } = require('./bookingController');
+const { createNotification } = require('../services/notificationService');
+const { upsertLiveStatus } = require('../services/liveStatusService');
 
 /**
  * Middleware: require STAFF role
@@ -639,21 +641,27 @@ async function reportIncident(req, res, next) {
 
     // BR-ST9: A HIGH or CRITICAL incident immediately notifies all admins
     if (severity === 'HIGH' || severity === 'CRITICAL') {
-      const db = getMongoDb();
-      if (db) {
-        try {
-          await db.collection('notifications').insertOne({
+      try {
+        const [adminUsers] = await pool.query("SELECT user_id FROM USER_ACCOUNT WHERE role = 'ADMIN'");
+        for (const admin of adminUsers) {
+          await createNotification({
+            userId: Number(admin.user_id),
             type: 'EMERGENCY',
-            targetRole: 'ADMIN',
-            incidentId,
-            scheduleId: scheduleId ? Number(scheduleId) : null,
-            stationId: stationId ? Number(stationId) : null,
-            severity,
-            createdAt: new Date()
+            title: `Emergency Incident (${severity})`,
+            message: `Emergency incident #${incidentId}: ${type.trim()} reported (${severity})`,
+            referenceId: String(incidentId)
           });
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
     }
+
+    await createNotification({
+      userId: Number(req.user.user_id || req.user.userId),
+      type: 'EMERGENCY',
+      title: `Emergency Incident (${severity})`,
+      message: `Emergency incident #${incidentId}: ${type.trim()} reported (${severity})`,
+      referenceId: String(incidentId)
+    });
 
     return res.status(201).json({
       success: true,
@@ -743,17 +751,28 @@ async function logDelay(req, res, next) {
       [mins, newStatus, Number(scheduleId)]
     );
 
-    // Sync Mongo live_train_status if available
-    const db = getMongoDb();
-    if (db) {
-      try {
-        await db.collection('live_train_status').updateOne(
-          { scheduleId: Number(scheduleId) },
-          { $set: { delayMinutes: mins, status: newStatus, updatedAt: new Date() } },
-          { upsert: true }
-        );
-      } catch (_) {}
-    }
+    // Upsert live_train_status in MongoDB
+    await upsertLiveStatus(scheduleId, { delayMinutes: mins, status: newStatus });
+
+    // Notify passengers with confirmed or RAC bookings on that run
+    try {
+      const [passengerUsers] = await pool.query(
+        `SELECT DISTINCT b.user_id
+         FROM RESERVATION r
+         JOIN BOOKING b ON r.pnr = b.pnr
+         WHERE r.schedule_id = ? AND r.status IN ('CONFIRMED', 'RAC')`,
+        [Number(scheduleId)]
+      );
+      for (const p of passengerUsers) {
+        await createNotification({
+          userId: Number(p.user_id),
+          type: 'DELAY',
+          title: 'Train Delay Update',
+          message: `Train schedule ${scheduleId} is delayed by ${mins} minutes.`,
+          referenceId: String(scheduleId)
+        });
+      }
+    } catch (_) {}
 
     return res.status(200).json({
       success: true,

@@ -19,16 +19,18 @@ const SUITES = [
   { name: 'test:d3b3', script: 'scripts/test-d3b3.js', desc: 'TDR Filing, Review & Audit Assertions' },
   { name: 'test:d3c1', script: 'scripts/test-d3c1.js', desc: 'Chart Prep, Settings, Maintenance & Manifest' },
   { name: 'test:d3c2', script: 'scripts/test-d3c2.js', desc: 'Fines, Incidents, Live Reports, Reports & Staff' },
+  { name: 'test:d3c3', script: 'scripts/test-d3c3.js', desc: 'Mongo Features, Admin Master Data & Refused Rules' },
   { name: 'test:d4', script: 'scripts/test-d4.js', desc: 'Daily Operations Simulator & Idempotency' }
 ];
 
-function runQuietly(cmd, args, cwd) {
+function runQuietly(cmd, args, cwd, timeout = 120000) {
   const res = spawnSync(cmd, args, {
     cwd,
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
-    maxBuffer: 64 * 1024 * 1024
+    maxBuffer: 64 * 1024 * 1024,
+    timeout
   });
   return res;
 }
@@ -69,7 +71,7 @@ function extractAssertions(output) {
 
 async function main() {
   console.log('========================================================================================');
-  console.log(' MASTER TEST RUNNER: ALL SUITES (test:d1 -> test:d3c2)');
+  console.log(' MASTER TEST RUNNER: ALL SUITES (test:d1 -> test:d4)');
   console.log('========================================================================================\n');
 
   const results = [];
@@ -179,6 +181,7 @@ async function main() {
   if (!allPassed) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 main().catch((err) => {

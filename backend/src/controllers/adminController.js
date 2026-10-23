@@ -2,6 +2,7 @@ const pool = require('../config/mysql');
 const { processGatewayRefund } = require('../services/gatewayRefundService');
 const { prepareChartForSchedule } = require('../services/chartPreparationService');
 const { hashBcryptPassword } = require('../utils/passwordUtils');
+const { createNotification } = require('../services/notificationService');
 
 const VALID_SETTING_KEYS = {
   BOOKING_WINDOW_DAYS: 'number',
@@ -220,6 +221,22 @@ async function reviewTdr(req, res, next) {
           message: 'Failed to process TDR review'
         }
       });
+    }
+
+    if (out_status === 'APPROVED' || out_status === 'REJECTED') {
+      const [tdrUserRows] = await pool.query(
+        'SELECT t.pnr, b.user_id FROM TDR_FILING t JOIN BOOKING b ON t.pnr = b.pnr WHERE t.tdr_ref_no = ?',
+        [tdrRefNo]
+      );
+      if (tdrUserRows.length > 0) {
+        createNotification({
+          userId: Number(tdrUserRows[0].user_id),
+          type: 'STATUS_UPDATE',
+          title: `TDR Claim ${out_status}`,
+          message: `Your TDR claim ${tdrRefNo} for PNR ${tdrUserRows[0].pnr} was ${out_status.toLowerCase()}.`,
+          referenceId: String(tdrRefNo)
+        });
+      }
     }
 
     if (out_status === 'APPROVED') {
