@@ -18,7 +18,8 @@ const SUITES = [
   { name: 'test:d3b2', script: 'scripts/test-d3b2.js', desc: 'Staff Verification, Boarding & No-Show' },
   { name: 'test:d3b3', script: 'scripts/test-d3b3.js', desc: 'TDR Filing, Review & Audit Assertions' },
   { name: 'test:d3c1', script: 'scripts/test-d3c1.js', desc: 'Chart Prep, Settings, Maintenance & Manifest' },
-  { name: 'test:d3c2', script: 'scripts/test-d3c2.js', desc: 'Fines, Incidents, Live Reports, Reports & Staff' }
+  { name: 'test:d3c2', script: 'scripts/test-d3c2.js', desc: 'Fines, Incidents, Live Reports, Reports & Staff' },
+  { name: 'test:d4', script: 'scripts/test-d4.js', desc: 'Daily Operations Simulator & Idempotency' }
 ];
 
 function runQuietly(cmd, args, cwd) {

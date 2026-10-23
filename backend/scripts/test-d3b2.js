@@ -207,8 +207,8 @@ async function runTests() {
     console.log('\n--- SETUP: Assigning Staff 1 to Schedule 1064 ---');
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (8888, 1, 1064, 10, 'TRAIN_DUTY', '2026-10-18 00:00:00', '2026-10-18 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY'
+      VALUES (8888, 1, 1064, 10, 'TRAIN_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     // -------------------------------------------------------------------------

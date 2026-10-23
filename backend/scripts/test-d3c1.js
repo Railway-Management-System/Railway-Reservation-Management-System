@@ -306,8 +306,8 @@ async function runTests() {
     // Add temporary assignment for Staff 3
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (999, 3, NULL, 10, 'MAINTENANCE_DUTY', '2026-10-18 00:00:00', '2026-10-30 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'MAINTENANCE_DUTY'
+      VALUES (999, 3, NULL, 10, 'MAINTENANCE_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'MAINTENANCE_DUTY', shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     const createMaintStaff = await request('POST', '/api/maintenance/tasks', {
@@ -494,8 +494,8 @@ async function runTests() {
     // Assign Staff 1 to Schedule 1111, then Staff 1 can view chart manifest
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (998, 1, 1111, 69, 'TRAIN_DUTY', '2026-10-19 00:00:00', '2026-10-19 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', schedule_id = 1111
+      VALUES (998, 1, 1111, 69, 'TRAIN_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', schedule_id = 1111, shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     const staffChartView = await request('GET', '/api/staff/schedules/1111/chart', null, tokenStaff1);

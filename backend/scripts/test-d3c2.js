@@ -335,8 +335,8 @@ async function runTests() {
     // Assign Staff 1 to station 21 (BCT)
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (9950, 1, 1001, 21, 'STATION_DUTY', '2026-10-18 00:00:00', '2026-10-30 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'STATION_DUTY', station_id = 21
+      VALUES (9950, 1, 1001, 21, 'STATION_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'STATION_DUTY', station_id = 21, shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     const [incCountBefore] = await pool.query('SELECT COUNT(*) AS cnt FROM INCIDENT');
@@ -385,8 +385,8 @@ async function runTests() {
     // Assign Staff 1 on TRAIN_DUTY for schedule 1001
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (9951, 1, 1001, 21, 'TRAIN_DUTY', '2026-10-18 00:00:00', '2026-10-30 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', schedule_id = 1001
+      VALUES (9951, 1, 1001, 21, 'TRAIN_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', schedule_id = 1001, shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     // Valid delay log

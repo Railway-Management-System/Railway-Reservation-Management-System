@@ -5,6 +5,7 @@ const app = require('../src/app');
 const config = require('../src/config/env');
 const { connectMongo, getMongoDb, closeMongo } = require('../src/config/mongodb');
 const pool = require('../src/config/mysql');
+const { getOrEnsureFutureSchedule } = require('./helpers/scheduleHelper');
 
 let server;
 let baseUrl;
@@ -99,11 +100,15 @@ async function runTests() {
     assert(staffLogin.status === 200, 'Staff (EMP-TC-101) logged in successfully');
     const staffToken = staffLogin.data.data.token;
 
+    // Obtain or ensure an active future schedule for Train 129 so tests are 100% date-proof
+    const activeRun129 = await getOrEnsureFutureSchedule(pool, 129, 3);
+    const testJourneyDate = activeRun129.journeyDate;
+
     // Helper to create and pay for a booking
     async function createAndPayBooking(passengersList, userToken = token1, customPaymentId = null) {
       const payload = {
         trainId: 129,
-        journeyDate: '2026-10-24',
+        journeyDate: testJourneyDate,
         boardingStationId: 21,    // BCT
         destinationStationId: 10, // NDLS
         classType: '3A',
@@ -160,7 +165,7 @@ async function runTests() {
     console.log('\n--- TEST 2: Unpaid Booking Cancellation Rejection ---');
     const unpaidPayload = {
       trainId: 129,
-      journeyDate: '2026-10-24',
+      journeyDate: testJourneyDate,
       boardingStationId: 21,
       destinationStationId: 10,
       classType: '3A',
@@ -285,7 +290,7 @@ async function runTests() {
     console.log('\n--- TEST 8: Station Counter Booking Cancellation (STAFF Role) ---');
     const counterPayload = {
       trainId: 129,
-      journeyDate: '2026-10-24',
+      journeyDate: testJourneyDate,
       boardingStationId: 21,
       destinationStationId: 10,
       classType: '3A',

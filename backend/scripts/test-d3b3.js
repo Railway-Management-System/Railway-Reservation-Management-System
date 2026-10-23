@@ -190,8 +190,8 @@ async function runTests() {
     // Assign staff 1 on TRAIN_DUTY for schedule
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (9997, 1, ?, 10, 'TRAIN_DUTY', '2026-10-17 00:00:00', '2026-10-26 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY'
+      VALUES (9997, 1, ?, 10, 'TRAIN_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `, [racSchedId]);
 
     const boardRacRes = await request('POST', '/api/staff/boarding', {
@@ -561,8 +561,8 @@ async function runTests() {
     // 2. Staff marks passenger 2 as NO_SHOW via POST /api/staff/noshow
     await pool.query(`
       INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
-      VALUES (9995, 1, 1063, 10, 'TRAIN_DUTY', '2026-10-17 00:00:00', '2026-10-26 23:59:59')
-      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY'
+      VALUES (9995, 1, 1063, 10, 'TRAIN_DUTY', DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY))
+      ON DUPLICATE KEY UPDATE duty_type = 'TRAIN_DUTY', shift_end = DATE_ADD(NOW(), INTERVAL 30 DAY)
     `);
 
     const noShowRes = await request('POST', '/api/staff/no-show', {
