@@ -5,6 +5,7 @@
 This API contract defines the exact interface for all communication between the frontends and the backend for the **Railway Reservation & Management System**. It aligns with the Business Rules (`docs/BUSINESS_RULES.md`), the Relational Schema (`docs/DATA_SCHEMA.md`), and the approved ER diagram.
 
 ### 1.1 HTTP Response Conventions
+- All date-times are India time as 'YYYY-MM-DD HH:MM:SS', never append Z.
 - All successful responses return JSON with standard wrapper schemas:
 ```json
 {
@@ -700,9 +701,102 @@ Authorization: Bearer <jwt_or_mock_token>
 ```
 - **Errors**: `404 Not Found` (Booking not found), `403 Forbidden` (Not booking owner and not staff/admin), `400 Bad Request` (Invalid passenger numbers or non-CONFIRMED booking).
 
+#### 4.5.2 My Bookings List
+- **Method / Endpoint**: `GET /api/bookings`
+- **Role**: Passenger only (STAFF and ADMIN receive 403 Forbidden; logged-in passenger sees only their own bookings, newest first, then PNR descending)
+- **Query Parameters**:
+  - `status` (optional): Filter bookings by status (`CONFIRMED`, `RAC`, `WAITING_LIST`, `CANCELLED`, `FAILED`, `PAYMENT_PENDING`).
+  - `limit` (optional): Maximum number of bookings to return (default: `50`, maximum: `200`).
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "pnr": "2849100161",
+      "bookingStatus": "CONFIRMED",
+      "trainNumber": "12301",
+      "trainName": "Howrah Rajdhani Express (12301)",
+      "journeyDate": "2026-10-18",
+      "classType": "3A",
+      "quota": "GENERAL",
+      "totalFare": 4225.94,
+      "passengerCount": 2,
+      "createdAt": "2026-10-17 12:00:00",
+      "boardingStation": {
+        "stationCode": "HWH",
+        "stationName": "HOWRAH JN."
+      },
+      "destinationStation": {
+        "stationCode": "NDLS",
+        "stationName": "NEW DELHI"
+      }
+    }
+  ]
+}
+```
+- **Errors**: `401 Unauthorized` (Token missing, invalid, or expired), `403 Forbidden` (Only passengers can access booking list).
+
+#### 4.5.3 PNR Status Lookup
+- **Method / Endpoint**: `GET /api/bookings/:pnr`
+- **Role**: Passenger (own PNR only) / Staff / Admin (may read any PNR)
+- **Parameters**:
+  - `pnr` (path parameter, required): 10-digit PNR string.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "pnr": "2849100001",
+    "bookingStatus": "CONFIRMED",
+    "trainNumber": "12301",
+    "trainName": "Howrah Rajdhani Express (12301)",
+    "journeyDate": "2026-10-18",
+    "classType": "1A",
+    "quota": "GENERAL",
+    "totalFare": 15374.61,
+    "passengerCount": 3,
+    "createdAt": "2026-10-17 12:00:00",
+    "boardingStation": {
+      "stationCode": "HWH",
+      "stationName": "HOWRAH JN."
+    },
+    "destinationStation": {
+      "stationCode": "NDLS",
+      "stationName": "NEW DELHI"
+    },
+    "passengers": [
+      {
+        "passengerNo": 1,
+        "name": "Ekapad Dhingra",
+        "age": 79,
+        "gender": "MALE",
+        "status": "CONFIRMED",
+        "queuePosition": null,
+        "coachNumber": "H1",
+        "seatNumber": 3,
+        "berthType": "LOWER"
+      },
+      {
+        "passengerNo": 2,
+        "name": "Advaith Tata",
+        "age": 77,
+        "gender": "MALE",
+        "status": "CONFIRMED",
+        "queuePosition": null,
+        "coachNumber": "H1",
+        "seatNumber": 4,
+        "berthType": "UPPER"
+      }
+    ]
+  }
+}
+```
+- **Errors**: `404 Not Found` (Booking not found), `403 Forbidden` (Not booking owner and not staff/admin), `401 Unauthorized` (Token missing, invalid, or expired), `400 Bad Request` (Invalid PNR parameter).
+
 ---
 
-### 4.6 File TDR (Ticket Deposit Receipt, Section 9)
+### 4.6 File and Track TDR (Ticket Deposit Receipt, Section 9)
 - **Method / Endpoint**: `POST /api/tdr`
 - **Role**: Passenger
 - **Request Body**:
@@ -719,46 +813,385 @@ Authorization: Bearer <jwt_or_mock_token>
 {
   "success": true,
   "data": {
-    "tdrRefNo": 701,
+    "tdrRefNo": "TDR-2849102841-1-1",
     "pnr": "2849102841",
     "reason": "TRAIN_DELAYED_OVER_3_HOURS",
     "status": "FILED",
-    "filedAt": "2026-10-18T16:15:00Z"
+    "filedAt": "2026-10-18T16:15:00.000Z",
+    "tdrRefNos": [
+      "TDR-2849102841-1-1"
+    ],
+    "tdrs": [
+      {
+        "tdrRefNo": "TDR-2849102841-1-1",
+        "passengerNo": 1,
+        "status": "FILED"
+      }
+    ]
   }
 }
 ```
-- **Errors**: `400 Bad Request` (Invalid reason code, deadline exceeded, or passenger already marked `BOARDED`).
+- **Errors**: `400 Bad Request` (Invalid reason code, deadline exceeded, missing evidence, duplicate TDR, or passenger already marked `BOARDED`), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Not PNR owner or non-passenger token), `404 Not Found` (Booking or passenger not found).
+
+- **Method / Endpoint**: `GET /api/tdr`
+- **Role**: Passenger
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "tdrRefNo": "TDR-2849102841-1-1",
+      "pnr": "2849102841",
+      "passengerNo": 1,
+      "reason": "TRAIN_DELAYED_OVER_3_HOURS",
+      "status": "FILED",
+      "filedAt": "2026-10-18T16:15:00.000Z",
+      "refundAmount": null,
+      "remarks": null
+    }
+  ]
+}
+```
+- **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-passenger role).
+
+- **Method / Endpoint**: `GET /api/tdr/:tdrRefNo`
+- **Role**: Passenger (own filings only)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "tdrRefNo": "TDR-2849102841-1-1",
+    "pnr": "2849102841",
+    "passengerNo": 1,
+    "reason": "TRAIN_DELAYED_OVER_3_HOURS",
+    "status": "FILED",
+    "filedAt": "2026-10-18T16:15:00.000Z",
+    "refundAmount": null,
+    "remarks": null
+  }
+}
+```
+- **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Not owner of filing or non-passenger role), `404 Not Found` (TDR not found).
 
 ---
 
 ## 5. Staff & Operations APIs
 
 ### 5.1 Staff Duty & Passenger Chart Manifest
-- **`GET /api/staff/assignments/current`**: Get active duty assignment (train, coaches, station platform, or counter window).
-- **`GET /api/staff/schedules/:scheduleId/chart`**: Retrieve the immutable `CHART_SNAPSHOT` generated 8 hours prior to departure.
+
+#### 5.1.1 Current Staff Duty Assignment
+- **Method / Endpoint**: `GET /api/staff/assignments/current`
+- **Role**: `STAFF` (staff ID extracted from JWT token)
+- **Behavior**: Returns the assignment active now (`NOW() BETWEEN shift_start AND shift_end`), otherwise the most recent one with `isActive: false` (since seed shifts are in the past).
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "assignId": 1,
+    "staffId": 1,
+    "scheduleId": 1001,
+    "stationId": 21,
+    "dutyType": "TRAIN_DUTY",
+    "shiftStart": "2026-10-18T06:00:00.000Z",
+    "shiftEnd": "2026-10-18T14:00:00.000Z",
+    "isActive": false,
+    "station": {
+      "stationId": 21,
+      "stationCode": "BCT",
+      "stationName": "MUMBAI CENTRAL"
+    },
+    "schedule": {
+      "scheduleId": 1001,
+      "trainId": 101,
+      "trainNumber": "12951",
+      "trainName": "Mumbai Tejas Rajdhani Express",
+      "journeyDate": "2026-10-18"
+    }
+  }
+}
+```
+- **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-staff role), `404 Not Found` (No duty assignment found).
+
+#### 5.1.2 Passenger Chart Manifest View
+- **Method / Endpoint**: `GET /api/staff/schedules/:scheduleId/chart`
+- **Role**: `STAFF` (must have assignment for that run) or `ADMIN`
+- **Behavior**: Returns immutable `CHART_SNAPSHOT` rows for the schedule. Refuses with `400 Bad Request` if the chart has not been prepared yet.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "snapshotId": 1,
+      "scheduleId": 1111,
+      "pnr": "2849100001",
+      "passengerNo": 1,
+      "passengerName": "Ekapad Dhingra",
+      "coachNo": "H1",
+      "seatNo": 3,
+      "berthType": "LOWER",
+      "status": "CONFIRMED",
+      "fromStationId": 69,
+      "fromStationCode": "HWH",
+      "toStationId": 10,
+      "toStationCode": "NDLS",
+      "concessionFlag": false,
+      "generatedAt": "2026-10-23T12:00:00.000Z"
+    }
+  ]
+}
+```
+- **Errors**: `400 Bad Request` (Chart not prepared yet or invalid scheduleId), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Staff not assigned to this schedule, or non-staff/non-admin token), `404 Not Found` (Schedule not found).
+
 - **`GET /api/staff/pnr/:pnr`**: Instant lookup of passenger status and allocated berth.
 
 ### 5.2 Ticket Verification & Boarding (BR-ST3, BR-ST4)
 - **`POST /api/staff/verification`**:
-  - Request: `{ "pnr": "2849102841", "passengerNo": 1, "idChecked": true, "concessionChecked": false, "result": "VALID" }`
-  - Response: `{ "verifyId": 801, "result": "VALID" }`
+  - **Role**: `STAFF` (staff ID extracted from JWT token)
+  - **Request Body**:
+    ```json
+    {
+      "pnr": "2849102841",
+      "passengerNo": 1,
+      "idChecked": true,
+      "concessionChecked": false,
+      "result": "VALID",
+      "remarks": "ID verified"
+    }
+    ```
+  - **Response (200 OK)**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "verifyId": 801,
+        "result": "VALID"
+      }
+    }
+    ```
+  - **Errors**: `400 Bad Request` (Validation error or idChecked false), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Staff not assigned on TRAIN_DUTY for this train schedule, or non-staff token), `404 Not Found` (Booking or passenger not found).
+
 - **`POST /api/staff/boarding`**:
-  - Request: `{ "pnr": "2849102841", "passengerNo": 1, "status": "BOARDED" }`
-  - Errors: `400 Bad Request` if passenger has an open delay TDR (BR-ST4, BR-T6).
+  - **Role**: `STAFF` (staff ID extracted from JWT token)
+  - **Request Body**:
+    ```json
+    {
+      "pnr": "2849102841",
+      "passengerNo": 1
+    }
+    ```
+  - **Response (200 OK)**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "pnr": "2849102841",
+        "passengerNo": 1,
+        "status": "BOARDED"
+      }
+    }
+    ```
+  - **Errors**: `400 Bad Request` (Passenger has open delay TDR [BR-ST4, BR-T6] or status not eligible), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Staff not assigned on TRAIN_DUTY for this train schedule, or non-staff token), `404 Not Found` (Booking or passenger not found).
+
 - **`POST /api/staff/no-show`**:
-  - Request: `{ "pnr": "2849102841", "passengerNo": 1 }`
-  - Purpose: Marks `NO_SHOW`, releases the berth for downstream segments, and triggers promotion pipeline (BR-ST5, BR-W4).
+  - **Role**: `STAFF` (staff ID extracted from JWT token)
+  - **Request Body**:
+    ```json
+    {
+      "pnr": "2849102841",
+      "passengerNo": 1
+    }
+    ```
+  - **Response (200 OK)**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "pnr": "2849102841",
+        "passengerNo": 1,
+        "status": "NO_SHOW"
+      }
+    }
+    ```
+  - **Errors**: `400 Bad Request` (Passenger status not eligible for no-show [BR-ST4]), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Staff not assigned on TRAIN_DUTY for this train schedule, or non-staff token), `404 Not Found` (Booking or passenger not found).
 
 ### 5.3 On-Spot Fines & Incident Reports
-- **`POST /api/staff/fines`**:
-  - Request: `{ "passengerName": "Ajay Kumar", "idProofReference": "VOTER-88491", "trainId": 129, "amount": 550.00, "reason": "TICKETLESS_TRAVEL", "paymentStatus": "PAID" }`
-- **`POST /api/staff/incidents`**:
-  - Request: `{ "scheduleId": 1001, "type": "MEDICAL_EMERGENCY", "severity": "HIGH", "description": "Passenger in coach B1 required immediate medical assistance." }`
+
+#### 5.3.1 Issue On-Spot Fine (BR-ST7)
+- **Method / Endpoint**: `POST /api/staff/fines`
+- **Role**: `STAFF` (staff ID extracted from JWT token)
+- **Validation**:
+  - `passengerName`, `idProofReference`, `trainId` are required.
+  - `amount` must be greater than 0.
+  - `reason` must be a valid FINE ENUM (`TICKETLESS_TRAVEL`, `UNAUTHORIZED_CLASS`, `SMOKING_NUISANCE`, `UNBOOKED_LUGGAGE`).
+  - `paymentStatus` must be `PAID` or `UNPAID`.
+  - ID generated as `MAX(fine_id) + 1` inside transaction.
+- **Request Body**:
+```json
+{
+  "passengerName": "Ajay Kumar",
+  "idProofReference": "VOTER-88491",
+  "trainId": 129,
+  "amount": 550.00,
+  "reason": "TICKETLESS_TRAVEL",
+  "paymentStatus": "PAID"
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "fineId": 101,
+    "verifyId": null,
+    "staffId": 1,
+    "passengerName": "Ajay Kumar",
+    "idProofReference": "VOTER-88491",
+    "trainId": 129,
+    "amount": 550.00,
+    "reason": "TICKETLESS_TRAVEL",
+    "paymentStatus": "PAID",
+    "issuedAt": "2026-10-23 19:35:46"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Missing required field, negative/zero amount, invalid reason or status), `401 Unauthorized`, `403 Forbidden` (Non-staff token), `404 Not Found` (Train not found).
+
+#### 5.3.2 Report Operational Incident (BR-ST8, BR-ST9)
+- **Method / Endpoint**: `POST /api/staff/incidents`
+- **Role**: `STAFF` (staff ID extracted from JWT token)
+- **Validation**:
+  - Staff member must have active or scheduled assignment for the train schedule or station.
+  - `severity` must be `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+  - Status starts as `REPORTED`.
+  - ID generated as `MAX(incident_id) + 1` inside transaction.
+- **Request Body**:
+```json
+{
+  "scheduleId": 1001,
+  "stationId": 21,
+  "type": "MEDICAL_EMERGENCY",
+  "severity": "HIGH"
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "incidentId": 101,
+    "staffId": 1,
+    "scheduleId": 1001,
+    "stationId": 21,
+    "type": "MEDICAL_EMERGENCY",
+    "severity": "HIGH",
+    "status": "REPORTED",
+    "reportedAt": "2026-10-23 19:35:46"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Missing type, invalid severity, neither scheduleId nor stationId provided), `401 Unauthorized`, `403 Forbidden` (Staff not assigned to schedule/station, or non-staff token).
 
 ### 5.4 Live Operations, Crowds & Cleanliness
-- **`POST /api/staff/delays`**: Log schedule delay in minutes (`{ "scheduleId": 1001, "delayMinutes": 35 }`).
-- **`POST /api/staff/crowd-reports`**: Report platform crowd density (`LOW`, `MODERATE`, `HIGH`, `OVERCROWDED`).
-- **`POST /api/staff/cleanliness-reports`**: Report coach or platform hygiene defects (`TOILET_DIRTY`, `LITTER`, etc.).
+
+#### 5.4.1 Log Train Delay (BR-ST8)
+- **Method / Endpoint**: `POST /api/staff/delays`
+- **Role**: `STAFF` (must have `TRAIN_DUTY` assignment on that schedule)
+- **Validation**:
+  - `delayMinutes` must be an integer between 0 and 1,440.
+  - Updates `TRAIN_SCHEDULE.delay_minutes` and status (`DELAYED` if > 0, `ON_TIME` if 0, preserves `CANCELLED`).
+- **Request Body**:
+```json
+{
+  "scheduleId": 1001,
+  "delayMinutes": 35
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "scheduleId": 1001,
+    "delayMinutes": 35,
+    "status": "DELAYED"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (delayMinutes out of 0..1440 range or invalid scheduleId), `401 Unauthorized`, `403 Forbidden` (Staff not on TRAIN_DUTY for schedule), `404 Not Found` (Schedule not found).
+
+#### 5.4.2 Report Platform Crowd Density (BR-ST8)
+- **Method / Endpoint**: `POST /api/staff/crowd-reports`
+- **Role**: `STAFF` (station inferred from staff assignment or validated against it)
+- **Validation**:
+  - `crowdLevel` must be `LOW`, `MODERATE`, `HIGH`, or `OVERCROWDED`.
+  - Platform number must exist at the assigned station.
+  - ID generated as `MAX(crowd_report_id) + 1` inside transaction.
+- **Request Body**:
+```json
+{
+  "stationId": 21,
+  "platformNo": 2,
+  "crowdLevel": "HIGH",
+  "headCount": 150
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "crowdReportId": 101,
+    "stationId": 21,
+    "platformNo": 2,
+    "crowdLevel": "HIGH",
+    "headCount": 150,
+    "staffId": 1,
+    "recordedAt": "2026-10-23 19:35:46"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Invalid crowdLevel, invalid platform number for station), `401 Unauthorized`, `403 Forbidden` (Staff not assigned to station, or non-staff token).
+
+#### 5.4.3 Report Cleanliness Defect (BR-ST8)
+- **Method / Endpoint**: `POST /api/staff/cleanliness-reports`
+- **Role**: `STAFF` (staff ID extracted from JWT token)
+- **Validation**:
+  - `issueType` must be one of: `TOILET_DIRTY`, `LITTER`, `WATER_SHORTAGE`, `LINEN_SOILED`, `PESTS`, `SPILLAGE`.
+  - `description` is required.
+  - Optional targets: `trainId`, `coachId`, `stationId`, `platformNo`.
+  - ID generated as `MAX(cleanliness_report_id) + 1` inside transaction.
+- **Request Body**:
+```json
+{
+  "issueType": "TOILET_DIRTY",
+  "description": "Coach B1 toilet requires immediate sanitation",
+  "trainId": 129,
+  "coachId": 301
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "cleanlinessReportId": 101,
+    "staffId": 1,
+    "trainId": 129,
+    "coachId": 301,
+    "stationId": null,
+    "platformNo": null,
+    "issueType": "TOILET_DIRTY",
+    "description": "Coach B1 toilet requires immediate sanitation",
+    "status": "REPORTED",
+    "recordedAt": "2026-10-23 19:35:46"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Invalid issueType, missing description), `401 Unauthorized`, `403 Forbidden` (Non-staff token).
 
 ---
 
@@ -818,10 +1251,53 @@ Authorization: Bearer <jwt_or_mock_token>
 ## 7. Administrator Master Data & Settings APIs
 
 ### 7.1 System Settings Management (Section 15)
-- **`GET /api/admin/settings`**: List all system settings and configurable constants.
-- **`PUT /api/admin/settings/:key`**:
-  - Request: `{ "value": "7" }`
-  - Response: `{ "settingKey": "BOOKING_WINDOW_DAYS", "settingValue": "7", "updatedAt": "2026-10-18T16:22:00Z" }`
+
+#### 7.1.1 List System Settings
+- **Method / Endpoint**: `GET /api/admin/settings`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "settingKey": "BOOKING_WINDOW_DAYS",
+      "settingValue": "7",
+      "description": "Advance booking window in days",
+      "updatedAt": "2026-10-18T00:00:00.000Z"
+    }
+  ]
+}
+```
+- **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-admin token).
+
+#### 7.1.2 Update System Setting
+- **Method / Endpoint**: `PUT /api/admin/settings/:key`
+- **Role**: `ADMIN`
+- **Validation**:
+  - Key must exist in SETTING table (13 supported configuration keys).
+  - Numeric settings must be strictly positive (> 0).
+  - Boolean flag settings (`CONCESSION_SENIOR_ENABLED`, `DYNAMIC_FARE_ENABLED`) must be `'true'` or `'false'`.
+  - Trigger `trg_audit_setting_change` automatically records audit trail into `AUDIT_LOG`.
+- **Request Body**:
+```json
+{
+  "value": "7"
+}
+```
+*(Accepts either `"value"` or `"settingValue"`)*
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "settingKey": "BOOKING_WINDOW_DAYS",
+    "settingValue": "7",
+    "updatedAt": "2026-10-18T16:22:00.000Z"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Unknown setting key, negative or zero numeric value, or invalid boolean value), `401 Unauthorized`, `403 Forbidden`.
 
 ### 7.2 Chart Preparation Execution (BR-B12a, BR-B16)
 - **Method / Endpoint**: `POST /api/admin/schedules/:scheduleId/chart-preparation`
@@ -849,31 +1325,291 @@ Authorization: Bearer <jwt_or_mock_token>
 ```
 
 ### 7.3 TDR Review & Adjudication (Section 9)
-- **`GET /api/admin/tdr`**: List all pending TDR claims across all trains.
+- **`GET /api/admin/tdr`**:
+  - **Role**: Admin (admin ID extracted from token)
+  - **Query Parameters**: `?status=` (optional; defaults to `FILED` and `UNDER_REVIEW`)
+  - **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "tdrRefNo": "TDR-2849102841-1-1",
+      "pnr": "2849102841",
+      "passengerNo": 1,
+      "reason": "TRAIN_DELAYED_OVER_3_HOURS",
+      "status": "FILED",
+      "filedAt": "2026-10-18T16:15:00.000Z",
+      "evidenceRef": "DELAY_LOG_STATION_BCT",
+      "refundAmount": null,
+      "remarks": null,
+      "reviewedBy": null,
+      "reviewedAt": null
+    }
+  ]
+}
+```
+  - **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-admin token).
+
 - **`PUT /api/admin/tdr/:tdrRefNo`**:
-  - Request: `{ "status": "APPROVED", "refundAmount": 2039.80, "remarks": "Train delay exceeded 180 min at boarding stop confirmed via schedule log." }`
-  - Response:
+  - **Role**: Admin (admin ID extracted from token)
+  - **Request Body (Approval)**:
+```json
+{
+  "status": "APPROVED",
+  "refundAmount": 2039.80,
+  "remarks": "Train delay exceeded 180 min at boarding stop confirmed via schedule log."
+}
+```
+  - **Request Body (Rejection)**:
+```json
+{
+  "status": "REJECTED",
+  "remarks": "Claim rejected: train arrived with less than 3 hours delay."
+}
+```
+  - **Response (200 OK - Approved)**:
 ```json
 {
   "success": true,
   "data": {
-    "tdrRefNo": 701,
+    "tdrRefNo": "TDR-2849102841-1-1",
     "status": "APPROVED",
     "refundAmount": 2039.80,
     "refund": {
       "refundId": 303,
       "reason": "TDR_APPROVED",
       "status": "PROCESSED"
-    }
+    },
+    "gatewayRefund": "SKIPPED"
   }
 }
 ```
+  - **Response (200 OK - Rejected)**:
+```json
+{
+  "success": true,
+  "data": {
+    "tdrRefNo": "TDR-2849102841-1-1",
+    "status": "REJECTED",
+    "refundAmount": 0,
+    "refund": null
+  }
+}
+```
+  - **Errors**: `400 Bad Request` (Invalid decision, refundAmount exceeds passenger fare line, or TDR already reviewed), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-admin token), `404 Not Found` (TDR record not found).
 
-### 7.4 Master Data Management (Stations, Trains, Routes, Coaches, Fares)
+### 7.4 Forensic Audit Logs (BR-A7)
+- **Method / Endpoint**: `GET /api/admin/audit-logs`
+- **Role**: `ADMIN`
+- **Query Parameters**:
+  - `page` (optional, default: 1)
+  - `limit` (optional, default: 50, maximum: 200)
+  - `tableName` (optional): Filter by table name (e.g. `SETTING`, `STAFF`)
+  - `recordId` (optional): Filter by entity primary key
+  - `userId` (optional): Filter by acting user ID
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "logId": 1,
+      "userId": 2,
+      "action": "UPDATE_SETTING",
+      "tableName": "SETTING",
+      "recordId": "HOLD_MINUTES",
+      "oldValue": {
+        "setting_value": "10"
+      },
+      "newValue": {
+        "setting_value": "15"
+      },
+      "loggedAt": "2026-10-23 19:35:46"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+- **Errors**: `401 Unauthorized`, `403 Forbidden` (Non-admin token).
+
+### 7.5 Analytical RANK Reports (06_reports.sql)
+
+#### 7.5.1 List Analytical Reports
+- **Method / Endpoint**: `GET /api/admin/reports`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "reportKey": "busiest-trains",
+      "reportType": "BUSIEST_TRAINS",
+      "name": "Top Busiest Trains Ranked by Passenger Count",
+      "description": "Ranks trains by total passengers booked and revenue using RANK() and DENSE_RANK()."
+    },
+    {
+      "reportKey": "top-routes",
+      "reportType": "TOP_ROUTES",
+      "name": "Top Routes Ranked by Gross Revenue",
+      "description": "Ranks route origin-destination pairs by gross revenue using DENSE_RANK()."
+    },
+    {
+      "reportKey": "station-ranking",
+      "reportType": "STATION_RANKING",
+      "name": "Rank of Stations by Total Passenger Boardings",
+      "description": "Ranks stations by total boarding passengers and originating revenue using RANK()."
+    },
+    {
+      "reportKey": "class-revenue",
+      "reportType": "CLASS_REVENUE",
+      "name": "Class-wise Revenue, Volume and Cumulative Share",
+      "description": "Calculates running cumulative revenue and percentage share across coach classes."
+    },
+    {
+      "reportKey": "quota-utilization",
+      "reportType": "QUOTA_UTILIZATION",
+      "name": "Quota Utilization and Demand Spread",
+      "description": "Ranks booking quotas by popularity and total fare collected using RANK()."
+    }
+  ]
+}
+```
+- **Errors**: `401 Unauthorized`, `403 Forbidden` (Non-admin token).
+
+#### 7.5.2 Execute Analytical Report
+- **Method / Endpoint**: `GET /api/admin/reports/:reportKey`
+- **Role**: `ADMIN`
+- **Behavior**: Runs the report's read-only SQL and records each execution as an audit entry in the `REPORT` table (`report_id = MAX+1` inside a transaction).
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "reportId": 101,
+    "reportKey": "busiest-trains",
+    "reportType": "BUSIEST_TRAINS",
+    "generatedAt": "2026-10-23 19:35:46",
+    "rowCount": 15,
+    "rows": [
+      {
+        "rank_pos": 1,
+        "dense_rank_pos": 1,
+        "train_id": 111,
+        "train_number": "12301",
+        "train_name": "Howrah Rajdhani Express (12301)",
+        "train_type": "RAJDHANI",
+        "total_runs_conducted": 6,
+        "total_passengers_booked": 850,
+        "total_revenue": 1733650.00
+      }
+    ]
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Unknown reportKey), `401 Unauthorized`, `403 Forbidden` (Non-admin token).
+
+### 7.6 Staff Account Management (BR-ST1)
+
+#### 7.6.1 List Staff Accounts
+- **Method / Endpoint**: `GET /api/admin/staff`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "staffId": 1,
+      "employeeNo": "EMP-TC-101",
+      "designation": "TRAIN_TICKET_EXAMINER",
+      "status": "ACTIVE",
+      "userId": 50002,
+      "name": "Vikram Singh",
+      "email": "vikram.singh@railways.gov.in",
+      "phone": "+91-9876543211",
+      "accountStatus": "ACTIVE",
+      "createdAt": "2026-10-18 00:00:00"
+    }
+  ]
+}
+```
+- **Errors**: `401 Unauthorized`, `403 Forbidden` (Non-admin token).
+
+#### 7.6.2 Create Staff Account
+- **Method / Endpoint**: `POST /api/admin/staff`
+- **Role**: `ADMIN`
+- **Validation**:
+  - `employeeNo`, `name`, `email`, `phone`, `designation`, and initial `password` are required.
+  - Password is hashed with bcrypt like registration; never returned or logged.
+  - `user_id` and `staff_id` generated via `MAX+1` inside transaction.
+  - Duplicate `employeeNo` or `email` refused.
+  - Automatically writes an `AUDIT_LOG` row (`action: 'CREATE_STAFF'`).
+- **Request Body**:
+```json
+{
+  "employeeNo": "EMP-TC-104",
+  "name": "Amit Patel",
+  "email": "amit.patel@railways.gov.in",
+  "phone": "+91-9876543219",
+  "designation": "TRAIN_TICKET_EXAMINER",
+  "password": "Password123!"
+}
+```
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "staffId": 4,
+    "userId": 50009,
+    "employeeNo": "EMP-TC-104",
+    "name": "Amit Patel",
+    "email": "amit.patel@railways.gov.in",
+    "phone": "+91-9876543219",
+    "designation": "TRAIN_TICKET_EXAMINER",
+    "status": "ACTIVE"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Validation error or duplicate employeeNo/email), `401 Unauthorized`, `403 Forbidden` (Non-admin token).
+
+#### 7.6.3 Update Staff Status
+- **Method / Endpoint**: `PUT /api/admin/staff/:staffId/status`
+- **Role**: `ADMIN`
+- **Validation**:
+  - `status` must be `ACTIVE`, `ON_LEAVE`, or `SUSPENDED`.
+  - Automatically synchronizes `USER_ACCOUNT.account_status` (`SUSPENDED` prevents login across all portals).
+  - Automatically writes an `AUDIT_LOG` row (`action: 'UPDATE_STAFF_STATUS'`).
+- **Request Body**:
+```json
+{
+  "status": "SUSPENDED"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "staffId": 4,
+    "employeeNo": "EMP-TC-104",
+    "status": "SUSPENDED"
+  }
+}
+```
+- **Errors**: `400 Bad Request` (Invalid status), `401 Unauthorized`, `403 Forbidden` (Non-admin token), `404 Not Found` (Staff not found).
+
+### 7.7 Master Data Management (Stations, Trains, Routes, Coaches, Fares)
 Standard CRUD endpoints maintaining zero schema drift:
 - `/api/admin/stations` (158 stations with `platform_count`)
 - `/api/admin/trains` (60 trains with `running_days`)
 - `/api/admin/routes` (536 stops with `day_offset`)
 - `/api/admin/coaches` & `/api/admin/seats`
 - `/api/admin/fares` (distance slabs and class rates)
-- `/api/admin/audit-logs` (immutable forensic trail)

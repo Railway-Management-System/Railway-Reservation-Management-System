@@ -103,7 +103,7 @@ async function runTests() {
     async function createAndPayBooking(passengersList, userToken = token1, customPaymentId = null) {
       const payload = {
         trainId: 129,
-        journeyDate: '2026-10-22',
+        journeyDate: '2026-10-24',
         boardingStationId: 21,    // BCT
         destinationStationId: 10, // NDLS
         classType: '3A',
@@ -160,7 +160,7 @@ async function runTests() {
     console.log('\n--- TEST 2: Unpaid Booking Cancellation Rejection ---');
     const unpaidPayload = {
       trainId: 129,
-      journeyDate: '2026-10-22',
+      journeyDate: '2026-10-24',
       boardingStationId: 21,
       destinationStationId: 10,
       classType: '3A',
@@ -285,7 +285,7 @@ async function runTests() {
     console.log('\n--- TEST 8: Station Counter Booking Cancellation (STAFF Role) ---');
     const counterPayload = {
       trainId: 129,
-      journeyDate: '2026-10-22',
+      journeyDate: '2026-10-24',
       boardingStationId: 21,
       destinationStationId: 10,
       classType: '3A',
@@ -321,7 +321,7 @@ async function runTests() {
        JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
        WHERE b.status = 'CONFIRMED'
          AND p.gateway_payment_id LIKE 'pay_test_%'
-         AND TIMESTAMP(ts.journey_date, ts.departure_time) > NOW() + INTERVAL 24 HOUR
+         AND TIMESTAMP(ts.journey_date, ts.departure_time) > NOW() + INTERVAL 8 HOUR
        LIMIT 1`
     );
     assert(seededRows.length === 1, 'Seeded confirmed booking identified');

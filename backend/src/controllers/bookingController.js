@@ -699,9 +699,227 @@ async function getRefundEstimate(req, res, next) {
   }
 }
 
+/**
+ * Helper to format booking row according to API specification
+ */
+function formatBookingRow(row) {
+  return {
+    pnr: row.pnr,
+    bookingStatus: row.bookingStatus,
+    trainNumber: row.trainNumber,
+    trainName: row.trainName,
+    journeyDate: row.journeyDate,
+    classType: row.classType,
+    quota: row.quota,
+    totalFare: Number(row.totalFare),
+    passengerCount: Number(row.passengerCount),
+    createdAt: row.createdAt,
+    boardingStation: {
+      stationCode: row.boardingStationCode,
+      stationName: row.boardingStationName
+    },
+    destinationStation: {
+      stationCode: row.destinationStationCode,
+      stationName: row.destinationStationName
+    }
+  };
+}
+
+/**
+ * 1. GET /api/bookings (my bookings list)
+ * Passenger only, newest first, then pnr DESC, optional ?status= filter, limit default 50 capped at 200.
+ */
+async function getMyBookings(req, res, next) {
+  try {
+    const userRole = (req.user.role || '').toUpperCase();
+    if (userRole !== 'PASSENGER') {
+      throw new AppError('FORBIDDEN', 'Access denied: only passengers can view booking list', 403);
+    }
+
+    const userId = req.user.user_id || req.user.userId;
+    const { status, limit } = req.query;
+
+    const parsedLimit = parseInt(limit, 10);
+    let limitVal = !isNaN(parsedLimit) && parsedLimit > 0 ? parsedLimit : 50;
+    if (limitVal > 200) {
+      limitVal = 200;
+    }
+
+    let query = `
+      SELECT
+        b.pnr,
+        b.status AS bookingStatus,
+        t.train_number AS trainNumber,
+        t.display_name AS trainName,
+        ts.journey_date AS journeyDate,
+        sc.class_code AS classType,
+        b.quota,
+        b.total_fare AS totalFare,
+        COUNT(pb.passenger_no) AS passengerCount,
+        b.created_at AS createdAt,
+        s_from.station_code AS boardingStationCode,
+        s_from.station_name AS boardingStationName,
+        s_to.station_code AS destinationStationCode,
+        s_to.station_name AS destinationStationName
+      FROM BOOKING b
+      JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
+      JOIN TRAIN t ON ts.train_id = t.train_id
+      JOIN SEAT_CLASS sc ON b.class_id = sc.class_id
+      JOIN ROUTE_STOP rs_from ON b.from_stop_id = rs_from.stop_id
+      JOIN STATION s_from ON rs_from.station_id = s_from.station_id
+      JOIN ROUTE_STOP rs_to ON b.to_stop_id = rs_to.stop_id
+      JOIN STATION s_to ON rs_to.station_id = s_to.station_id
+      LEFT JOIN PASSENGER_BOOKING pb ON b.pnr = pb.pnr
+      WHERE b.user_id = ?
+    `;
+
+    const params = [userId];
+
+    if (status) {
+      query += ` AND b.status = ?`;
+      params.push(status);
+    }
+
+    query += `
+      GROUP BY
+        b.pnr, b.status, t.train_number, t.display_name, ts.journey_date,
+        sc.class_code, b.quota, b.total_fare, b.created_at,
+        s_from.station_code, s_from.station_name, s_to.station_code, s_to.station_name
+      ORDER BY b.created_at DESC, b.pnr DESC
+      LIMIT ?
+    `;
+    params.push(limitVal);
+
+    const [rows] = await pool.query(query, params);
+    const bookings = rows.map(formatBookingRow);
+
+    return res.status(200).json({
+      success: true,
+      data: bookings
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 2. GET /api/bookings/:pnr (PNR status)
+ * Owner PASSENGER only; STAFF and ADMIN may read any PNR.
+ */
+async function getBookingByPnr(req, res, next) {
+  try {
+    const user = req.user;
+    const userId = user.user_id || user.userId;
+    const userRole = (user.role || '').toUpperCase();
+    const { pnr } = req.params;
+
+    if (!pnr) {
+      throw new AppError('VALIDATION_ERROR', 'PNR parameter is required', 400);
+    }
+
+    const [bookingRows] = await pool.query(
+      `SELECT
+        b.pnr,
+        b.user_id,
+        b.status AS bookingStatus,
+        t.train_number AS trainNumber,
+        t.display_name AS trainName,
+        ts.journey_date AS journeyDate,
+        sc.class_code AS classType,
+        b.quota,
+        b.total_fare AS totalFare,
+        COUNT(pb.passenger_no) AS passengerCount,
+        b.created_at AS createdAt,
+        s_from.station_code AS boardingStationCode,
+        s_from.station_name AS boardingStationName,
+        s_to.station_code AS destinationStationCode,
+        s_to.station_name AS destinationStationName
+      FROM BOOKING b
+      JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
+      JOIN TRAIN t ON ts.train_id = t.train_id
+      JOIN SEAT_CLASS sc ON b.class_id = sc.class_id
+      JOIN ROUTE_STOP rs_from ON b.from_stop_id = rs_from.stop_id
+      JOIN STATION s_from ON rs_from.station_id = s_from.station_id
+      JOIN ROUTE_STOP rs_to ON b.to_stop_id = rs_to.stop_id
+      JOIN STATION s_to ON rs_to.station_id = s_to.station_id
+      LEFT JOIN PASSENGER_BOOKING pb ON b.pnr = pb.pnr
+      WHERE b.pnr = ?
+      GROUP BY
+        b.pnr, b.user_id, b.status, t.train_number, t.display_name, ts.journey_date,
+        sc.class_code, b.quota, b.total_fare, b.created_at,
+        s_from.station_code, s_from.station_name, s_to.station_code, s_to.station_name`,
+      [pnr]
+    );
+
+    if (bookingRows.length === 0) {
+      throw new AppError('NOT_FOUND', 'Booking not found', 404);
+    }
+
+    const bookingRow = bookingRows[0];
+
+    // Authorization check: Owner PASSENGER only; STAFF and ADMIN may read any PNR
+    if (userRole === 'PASSENGER' || (!userRole && userId)) {
+      if (Number(bookingRow.user_id) !== Number(userId)) {
+        throw new AppError('FORBIDDEN', 'Access denied: you do not own this booking', 403);
+      }
+    } else if (userRole !== 'STAFF' && userRole !== 'ADMIN') {
+      throw new AppError('FORBIDDEN', 'Insufficient permissions to view booking', 403);
+    }
+
+    // Plain joins across PASSENGER_BOOKING, RESERVATION, SEAT and COACH
+    const [passengerRows] = await pool.query(
+      `SELECT
+        pb.passenger_no AS passengerNo,
+        pb.name,
+        pb.age,
+        pb.gender,
+        CASE WHEN b.status = 'CANCELLED' OR r.status = 'CANCELLED' THEN 'CANCELLED' ELSE r.status END AS status,
+        CASE WHEN b.status = 'CANCELLED' OR r.status = 'CANCELLED' THEN NULL ELSE r.queue_position END AS queuePosition,
+        CASE WHEN b.status = 'CANCELLED' OR r.status = 'CANCELLED' THEN NULL ELSE c.coach_code END AS coachNumber,
+        CASE WHEN b.status = 'CANCELLED' OR r.status = 'CANCELLED' THEN NULL ELSE s.seat_number END AS seatNumber,
+        CASE WHEN b.status = 'CANCELLED' OR r.status = 'CANCELLED' THEN NULL ELSE s.berth_type END AS berthType
+      FROM PASSENGER_BOOKING pb
+      JOIN BOOKING b ON pb.pnr = b.pnr
+      JOIN RESERVATION r ON pb.pnr = r.pnr AND pb.passenger_no = r.passenger_no
+      LEFT JOIN SEAT s ON r.seat_id = s.seat_id
+      LEFT JOIN COACH c ON s.coach_id = c.coach_id
+      WHERE pb.pnr = ?
+      ORDER BY pb.passenger_no ASC`,
+      [pnr]
+    );
+
+    const passengers = passengerRows.map(p => ({
+      passengerNo: Number(p.passengerNo),
+      name: p.name,
+      age: Number(p.age),
+      gender: p.gender,
+      status: p.status,
+      queuePosition: p.queuePosition || null,
+      coachNumber: p.coachNumber || null,
+      seatNumber: p.seatNumber !== null && p.seatNumber !== undefined ? Number(p.seatNumber) : null,
+      berthType: p.berthType || null
+    }));
+
+    const formattedBooking = formatBookingRow(bookingRow);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...formattedBooking,
+        passengers
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createBooking,
   getBookingHold,
   cancelBooking,
-  getRefundEstimate
+  getRefundEstimate,
+  getMyBookings,
+  getBookingByPnr
 };
+

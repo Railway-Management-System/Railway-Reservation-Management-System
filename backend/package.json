@@ -7,7 +7,13 @@
     "start": "node src/server.js",
     "test:d1": "node scripts/test-d1.js",
     "test:d2": "node scripts/test-d2.js",
-    "test:d3a": "node scripts/test-d3a.js"
+    "test:d3a": "node scripts/test-d3a.js",
+    "test:d3b1": "node scripts/test-d3b1.js",
+    "test:d3b2": "node scripts/test-d3b2.js",
+    "test:d3b3": "node scripts/test-d3b3.js",
+    "test:d3c1": "node scripts/test-d3c1.js",
+    "test:d3c2": "node scripts/test-d3c2.js",
+    "test:all": "node scripts/test-all.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

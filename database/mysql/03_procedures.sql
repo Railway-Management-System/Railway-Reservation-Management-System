@@ -228,28 +228,66 @@ END proc_label$$
 -- -----------------------------------------------------------------------------
 -- 2. sp_mark_passenger_noshow
 -- Staff action to mark a passenger NO_SHOW, freeing their berth and calling
--- the single promotion procedure sp_promote_passenger (BR-ST5).
+-- the single promotion procedure sp_promote_passenger (BR-ST4, BR-ST5).
+-- Transaction managed via p_manage_tx.
 -- -----------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp_mark_passenger_noshow$$
 CREATE PROCEDURE sp_mark_passenger_noshow(
     IN p_pnr VARCHAR(10),
     IN p_passenger_no INT,
+    IN p_staff_id INT,
+    IN p_manage_tx TINYINT(1),
     OUT p_out_status VARCHAR(20)
 )
 proc_label: BEGIN
     DECLARE v_sched_id INT;
     DECLARE v_cls_id INT;
     DECLARE v_st_id INT DEFAULT NULL;
+    DECLARE v_res_status VARCHAR(20);
+    DECLARE v_on_duty INT DEFAULT 0;
 
-    SELECT b.schedule_id, b.class_id, r.seat_id
-    INTO v_sched_id, v_cls_id, v_st_id
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_status = 'FAILED';
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    SELECT b.schedule_id, b.class_id, r.seat_id, r.status
+    INTO v_sched_id, v_cls_id, v_st_id, v_res_status
     FROM BOOKING b
     JOIN RESERVATION r ON b.pnr = r.pnr
     WHERE b.pnr = p_pnr AND r.passenger_no = p_passenger_no
     LIMIT 1;
 
     IF v_sched_id IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
         SET p_out_status = 'NOT_FOUND';
+        LEAVE proc_label;
+    END IF;
+
+    -- Staff member must have a TRAIN_DUTY row in STAFF_ASSIGNMENT for that schedule (BR-ST2)
+    SELECT COUNT(*) INTO v_on_duty
+    FROM STAFF_ASSIGNMENT
+    WHERE staff_id = p_staff_id
+      AND schedule_id = v_sched_id
+      AND duty_type = 'TRAIN_DUTY';
+
+    IF v_on_duty = 0 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'NOT_ON_DUTY';
+        LEAVE proc_label;
+    END IF;
+
+    -- Only RESERVATION status CONFIRMED or RAC may become NO_SHOW (BR-ST4)
+    IF v_res_status NOT IN ('CONFIRMED', 'RAC') THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'NOT_ELIGIBLE';
         LEAVE proc_label;
     END IF;
 
@@ -259,12 +297,218 @@ proc_label: BEGIN
         seat_id = NULL
     WHERE pnr = p_pnr AND passenger_no = p_passenger_no;
 
-    -- Trigger the single promotion procedure
-    IF v_st_id IS NOT NULL THEN
+    -- Trigger promotion
+    IF v_res_status = 'CONFIRMED' AND v_st_id IS NOT NULL THEN
         CALL sp_promote_passenger(v_sched_id, v_cls_id, v_st_id);
+    ELSEIF v_res_status = 'RAC' THEN
+        CALL sp_promote_passenger(v_sched_id, v_cls_id, NULL);
+    END IF;
+
+    IF p_manage_tx = 1 THEN
+        COMMIT;
     END IF;
 
     SET p_out_status = 'NO_SHOW_MARKED';
+END proc_label$$
+
+-- -----------------------------------------------------------------------------
+-- 2a. sp_verify_ticket
+-- Inserts TICKET_VERIFICATION record with MAX+1 verify_id (BR-ST3).
+-- Transaction managed via p_manage_tx.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_verify_ticket$$
+CREATE PROCEDURE sp_verify_ticket(
+    IN p_pnr VARCHAR(10),
+    IN p_passenger_no INT,
+    IN p_staff_id INT,
+    IN p_id_checked TINYINT(1),
+    IN p_concession_checked TINYINT(1),
+    IN p_result VARCHAR(20),
+    IN p_remarks VARCHAR(255),
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_verify_id INT,
+    OUT p_out_status VARCHAR(20)
+)
+proc_label: BEGIN
+    DECLARE v_sched_id INT;
+    DECLARE v_on_duty INT DEFAULT 0;
+    DECLARE v_new_verify_id INT;
+    DECLARE v_concession_match VARCHAR(20);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_verify_id = NULL;
+        SET p_out_status = 'FAILED';
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    -- idChecked must be true
+    IF p_id_checked != 1 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_verify_id = NULL;
+        SET p_out_status = 'VALIDATION_ERROR';
+        LEAVE proc_label;
+    END IF;
+
+    IF p_result NOT IN ('VALID', 'INVALID', 'MISMATCH') THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_verify_id = NULL;
+        SET p_out_status = 'VALIDATION_ERROR';
+        LEAVE proc_label;
+    END IF;
+
+    -- Check reservation exists
+    SELECT b.schedule_id INTO v_sched_id
+    FROM BOOKING b
+    JOIN RESERVATION r ON b.pnr = r.pnr
+    WHERE b.pnr = p_pnr AND r.passenger_no = p_passenger_no
+    LIMIT 1;
+
+    IF v_sched_id IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_verify_id = NULL;
+        SET p_out_status = 'NOT_FOUND';
+        LEAVE proc_label;
+    END IF;
+
+    -- Same on-duty check
+    SELECT COUNT(*) INTO v_on_duty
+    FROM STAFF_ASSIGNMENT
+    WHERE staff_id = p_staff_id
+      AND schedule_id = v_sched_id
+      AND duty_type = 'TRAIN_DUTY';
+
+    IF v_on_duty = 0 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_verify_id = NULL;
+        SET p_out_status = 'NOT_ON_DUTY';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT COALESCE(MAX(verify_id), 0) + 1 INTO v_new_verify_id FROM TICKET_VERIFICATION;
+
+    SET v_concession_match = IF(p_concession_checked = 1, p_result, 'NOT_APPLICABLE');
+
+    INSERT INTO TICKET_VERIFICATION (
+        verify_id, staff_id, pnr, passenger_no, id_proof_match, concession_match, result, remarks, verified_at
+    ) VALUES (
+        v_new_verify_id, p_staff_id, p_pnr, p_passenger_no, p_result, v_concession_match, p_result, p_remarks, NOW()
+    );
+
+    IF p_manage_tx = 1 THEN
+        COMMIT;
+    END IF;
+
+    SET p_out_verify_id = v_new_verify_id;
+    SET p_out_status = 'SUCCESS';
+END proc_label$$
+
+-- -----------------------------------------------------------------------------
+-- 2b. sp_board_passenger
+-- Marks a CONFIRMED or RAC passenger as BOARDED (BR-ST4, BR-T6).
+-- Refuses with TDR_OPEN if delay TDR exists.
+-- When an RAC passenger boards, updates inventory so compare_inventory stays at 0.
+-- Transaction managed via p_manage_tx.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_board_passenger$$
+CREATE PROCEDURE sp_board_passenger(
+    IN p_pnr VARCHAR(10),
+    IN p_passenger_no INT,
+    IN p_staff_id INT,
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_status VARCHAR(20)
+)
+proc_label: BEGIN
+    DECLARE v_sched_id INT;
+    DECLARE v_cls_id INT;
+    DECLARE v_res_status VARCHAR(20);
+    DECLARE v_on_duty INT DEFAULT 0;
+    DECLARE v_tdr_count INT DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_status = 'FAILED';
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    SELECT b.schedule_id, b.class_id, r.status
+    INTO v_sched_id, v_cls_id, v_res_status
+    FROM BOOKING b
+    JOIN RESERVATION r ON b.pnr = r.pnr
+    WHERE b.pnr = p_pnr AND r.passenger_no = p_passenger_no
+    LIMIT 1;
+
+    IF v_sched_id IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'NOT_FOUND';
+        LEAVE proc_label;
+    END IF;
+
+    -- Check staff on duty
+    SELECT COUNT(*) INTO v_on_duty
+    FROM STAFF_ASSIGNMENT
+    WHERE staff_id = p_staff_id
+      AND schedule_id = v_sched_id
+      AND duty_type = 'TRAIN_DUTY';
+
+    IF v_on_duty = 0 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'NOT_ON_DUTY';
+        LEAVE proc_label;
+    END IF;
+
+    -- CONFIRMED or RAC only (BR-ST4)
+    IF v_res_status NOT IN ('CONFIRMED', 'RAC') THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'NOT_ELIGIBLE';
+        LEAVE proc_label;
+    END IF;
+
+    -- Refuse with status TDR_OPEN if passenger has a TRAIN_DELAYED_OVER_3_HOURS TDR_FILING
+    -- in FILED, UNDER_REVIEW or APPROVED (treat TDR passenger_no NULL as the whole PNR) (BR-T6)
+    SELECT COUNT(*) INTO v_tdr_count
+    FROM TDR_FILING
+    WHERE pnr = p_pnr
+      AND (passenger_no IS NULL OR passenger_no = p_passenger_no)
+      AND reason = 'TRAIN_DELAYED_OVER_3_HOURS'
+      AND status IN ('FILED', 'UNDER_REVIEW', 'APPROVED');
+
+    IF v_tdr_count > 0 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_status = 'TDR_OPEN';
+        LEAVE proc_label;
+    END IF;
+
+    -- Update reservation status to BOARDED
+    UPDATE RESERVATION
+    SET status = 'BOARDED'
+    WHERE pnr = p_pnr AND passenger_no = p_passenger_no;
+
+    -- If passenger was RAC, update inventory to keep compare_inventory audit at 0
+    IF v_res_status = 'RAC' THEN
+        UPDATE SCHEDULE_CLASS_INVENTORY
+        SET available_seats = GREATEST(0, available_seats - 1),
+            rac_count = GREATEST(0, rac_count - 1)
+        WHERE schedule_id = v_sched_id AND class_id = v_cls_id;
+    END IF;
+
+    IF p_manage_tx = 1 THEN
+        COMMIT;
+    END IF;
+
+    SET p_out_status = 'BOARDED';
 END proc_label$$
 
 -- -----------------------------------------------------------------------------
@@ -1457,4 +1701,463 @@ proc_label: BEGIN
 
 END proc_label$$
 
+-- -----------------------------------------------------------------------------
+-- 10. sp_file_tdr
+-- Files a Ticket Deposit Receipt (TDR) per BR-T3, BR-T4, BR-T6.
+-- One TDR_FILING row per passenger. Owner check enforced.
+-- Handles transaction management via p_manage_tx.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_file_tdr$$
+CREATE PROCEDURE sp_file_tdr(
+    IN p_pnr VARCHAR(10),
+    IN p_passenger_no INT,
+    IN p_user_id INT,
+    IN p_reason VARCHAR(64),
+    IN p_evidence_ref VARCHAR(128),
+    IN p_remarks TEXT,
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_tdr_ref_no VARCHAR(32),
+    OUT p_out_status VARCHAR(32)
+)
+proc_label: BEGIN
+    DECLARE v_book_user_id INT;
+    DECLARE v_sched_id INT;
+    DECLARE v_cls_id INT;
+    DECLARE v_from_stop_id INT;
+    DECLARE v_to_stop_id INT;
+    DECLARE v_res_status VARCHAR(20);
+    DECLARE v_seat_id INT;
+    
+    DECLARE v_deadline_hours INT;
+    DECLARE v_requires_verification TINYINT(1);
+    DECLARE v_refund_pct DECIMAL(5,2);
+    
+    DECLARE v_journey_date DATE;
+    DECLARE v_sched_dep_time TIME;
+    DECLARE v_delay_minutes INT DEFAULT 0;
+    
+    DECLARE v_from_dep_time TIME;
+    DECLARE v_from_day_offset INT DEFAULT 0;
+    
+    DECLARE v_to_arr_time TIME;
+    DECLARE v_to_day_offset INT DEFAULT 0;
+    
+    DECLARE v_as_of DATETIME;
+    DECLARE v_dep_datetime DATETIME;
+    DECLARE v_dest_arr_datetime DATETIME;
+    DECLARE v_deadline DATETIME;
+    
+    DECLARE v_open_tdr_count INT DEFAULT 0;
+    DECLARE v_tdr_seq INT DEFAULT 1;
+    DECLARE v_tdr_ref_no VARCHAR(32);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_tdr_ref_no = NULL;
+        SET p_out_status = 'FAILED';
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    SET v_as_of = COALESCE(@as_of_time, NOW());
+
+    -- 1. Check reservation and booking ownership (BR-T3)
+    SELECT b.user_id, b.schedule_id, b.class_id, b.from_stop_id, b.to_stop_id, r.status, r.seat_id
+    INTO v_book_user_id, v_sched_id, v_cls_id, v_from_stop_id, v_to_stop_id, v_res_status, v_seat_id
+    FROM BOOKING b
+    JOIN RESERVATION r ON b.pnr = r.pnr
+    WHERE b.pnr = p_pnr AND r.passenger_no = p_passenger_no
+    LIMIT 1;
+
+    IF v_book_user_id IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_tdr_ref_no = NULL;
+        SET p_out_status = 'NOT_FOUND';
+        LEAVE proc_label;
+    END IF;
+
+    IF v_book_user_id != p_user_id THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_tdr_ref_no = NULL;
+        SET p_out_status = 'FORBIDDEN';
+        LEAVE proc_label;
+    END IF;
+
+    -- 2. Validate reason code against TDR_RULE
+    SELECT deadline_hours, requires_verification, refund_pct
+    INTO v_deadline_hours, v_requires_verification, v_refund_pct
+    FROM TDR_RULE
+    WHERE reason_code = p_reason
+    LIMIT 1;
+
+    IF v_deadline_hours IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_tdr_ref_no = NULL;
+        SET p_out_status = 'INVALID_REASON';
+        LEAVE proc_label;
+    END IF;
+
+    -- 3. Check for existing open or approved TDR (treat passenger_no NULL as whole PNR) (BR-T3)
+    SELECT COUNT(*) INTO v_open_tdr_count
+    FROM TDR_FILING
+    WHERE pnr = p_pnr
+      AND (passenger_no IS NULL OR passenger_no = p_passenger_no)
+      AND status IN ('FILED', 'UNDER_REVIEW', 'APPROVED');
+
+    IF v_open_tdr_count > 0 THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_tdr_ref_no = NULL;
+        SET p_out_status = 'DUPLICATE_TDR';
+        LEAVE proc_label;
+    END IF;
+
+    -- 4. Read TRAIN_SCHEDULE and ROUTE_STOP data
+    SELECT journey_date, departure_time, delay_minutes
+    INTO v_journey_date, v_sched_dep_time, v_delay_minutes
+    FROM TRAIN_SCHEDULE
+    WHERE schedule_id = v_sched_id;
+
+    SELECT departure_time, day_offset
+    INTO v_from_dep_time, v_from_day_offset
+    FROM ROUTE_STOP
+    WHERE stop_id = v_from_stop_id;
+
+    SELECT arrival_time, day_offset
+    INTO v_to_arr_time, v_to_day_offset
+    FROM ROUTE_STOP
+    WHERE stop_id = v_to_stop_id;
+
+    -- 5. Reason specific eligibility checks
+    IF p_reason IN ('TRAIN_DELAYED_OVER_3_HOURS', 'TRAIN_DIVERTED') THEN
+        -- Reservation must be CONFIRMED or RAC
+        IF v_res_status NOT IN ('CONFIRMED', 'RAC') THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'NOT_ELIGIBLE';
+            LEAVE proc_label;
+        END IF;
+
+        -- Delay reason needs delay_minutes >= 180
+        IF p_reason = 'TRAIN_DELAYED_OVER_3_HOURS' AND v_delay_minutes < 180 THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'NOT_ELIGIBLE';
+            LEAVE proc_label;
+        END IF;
+
+        -- Train must not have departed yet (scheduled departure + TRAIN_SCHEDULE.delay_minutes)
+        SET v_dep_datetime = TIMESTAMP(v_journey_date, v_from_dep_time) + INTERVAL v_from_day_offset DAY + INTERVAL v_delay_minutes MINUTE;
+        IF v_as_of >= v_dep_datetime THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'DEADLINE_EXCEEDED';
+            LEAVE proc_label;
+        END IF;
+
+    ELSE
+        -- The other four reasons: reservation CONFIRMED, RAC or BOARDED
+        IF v_res_status NOT IN ('CONFIRMED', 'RAC', 'BOARDED') THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'NOT_ELIGIBLE';
+            LEAVE proc_label;
+        END IF;
+
+        -- Evidence ref required when requires_verification = 1
+        IF v_requires_verification = 1 AND (p_evidence_ref IS NULL OR TRIM(p_evidence_ref) = '') THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'EVIDENCE_REQUIRED';
+            LEAVE proc_label;
+        END IF;
+
+        -- Filed within TDR_RULE.deadline_hours after scheduled destination arrival + delay_minutes
+        SET v_dest_arr_datetime = TIMESTAMP(v_journey_date, v_to_arr_time) + INTERVAL v_to_day_offset DAY + INTERVAL v_delay_minutes MINUTE;
+        SET v_deadline = v_dest_arr_datetime + INTERVAL v_deadline_hours HOUR;
+
+        IF v_as_of > v_deadline THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_tdr_ref_no = NULL;
+            SET p_out_status = 'DEADLINE_EXCEEDED';
+            LEAVE proc_label;
+        END IF;
+
+    END IF;
+
+    -- 6. Generate tdr_ref_no: 'TDR-<pnr>-<passengerNo>-<n>'
+    SET v_tdr_seq = 1;
+    WHILE EXISTS (SELECT 1 FROM TDR_FILING WHERE tdr_ref_no = CONCAT('TDR-', p_pnr, '-', p_passenger_no, '-', v_tdr_seq)) DO
+        SET v_tdr_seq = v_tdr_seq + 1;
+    END WHILE;
+    SET v_tdr_ref_no = CONCAT('TDR-', p_pnr, '-', p_passenger_no, '-', v_tdr_seq);
+
+    -- 7. Insert into TDR_FILING (status FILED, one row per passenger)
+    INSERT INTO TDR_FILING (
+        tdr_ref_no, pnr, passenger_no, reason, filed_at, status, evidence_ref, remarks
+    ) VALUES (
+        v_tdr_ref_no, p_pnr, p_passenger_no, p_reason, v_as_of, 'FILED', p_evidence_ref, p_remarks
+    );
+
+    IF p_manage_tx = 1 THEN
+        COMMIT;
+    END IF;
+
+    SET p_out_tdr_ref_no = v_tdr_ref_no;
+    SET p_out_status = 'FILED';
+END proc_label$$
+
+-- -----------------------------------------------------------------------------
+-- 11. sp_review_tdr
+-- Reviews a TDR claim by admin (APPROVED or REJECTED) per BR-T7, BR-T8.
+-- On APPROVED: inserts REFUND, sets REFUND_PROCESSED, promotes passengers
+-- for delay/diverted, maintains BOOKING.status, logs to AUDIT_LOG.
+-- Handles transaction management via p_manage_tx.
+-- -----------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_review_tdr$$
+CREATE PROCEDURE sp_review_tdr(
+    IN p_tdr_ref_no VARCHAR(32),
+    IN p_admin_id INT,
+    IN p_decision VARCHAR(20),
+    IN p_refund_amount DECIMAL(10,2),
+    IN p_remarks TEXT,
+    IN p_manage_tx TINYINT(1),
+    OUT p_out_refund_id INT,
+    OUT p_out_status VARCHAR(32)
+)
+proc_label: BEGIN
+    DECLARE v_admin_user_id INT;
+    DECLARE v_pnr VARCHAR(10);
+    DECLARE v_passenger_no INT;
+    DECLARE v_reason VARCHAR(64);
+    DECLARE v_curr_status VARCHAR(20);
+    DECLARE v_old_refund_amount DECIMAL(10,2);
+    DECLARE v_max_refund DECIMAL(10,2);
+    
+    DECLARE v_payment_id INT;
+    DECLARE v_new_refund_id INT;
+    DECLARE v_sched_id INT;
+    DECLARE v_cls_id INT;
+    DECLARE v_res_status VARCHAR(20);
+    DECLARE v_seat_id INT;
+    DECLARE v_as_of DATETIME;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF p_manage_tx = 1 THEN
+            ROLLBACK;
+        END IF;
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'FAILED';
+    END;
+
+    IF p_manage_tx = 1 THEN
+        START TRANSACTION;
+    END IF;
+
+    SET v_as_of = COALESCE(@as_of_time, NOW());
+
+    -- 1. Check admin exists
+    SELECT user_id INTO v_admin_user_id
+    FROM ADMIN
+    WHERE admin_id = p_admin_id;
+
+    IF v_admin_user_id IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'FORBIDDEN';
+        LEAVE proc_label;
+    END IF;
+
+    -- 2. Validate decision
+    IF p_decision NOT IN ('APPROVED', 'REJECTED') THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'INVALID_DECISION';
+        LEAVE proc_label;
+    END IF;
+
+    -- 3. Lock and retrieve TDR row
+    SELECT pnr, passenger_no, reason, status, refund_amount
+    INTO v_pnr, v_passenger_no, v_reason, v_curr_status, v_old_refund_amount
+    FROM TDR_FILING
+    WHERE tdr_ref_no = p_tdr_ref_no
+    FOR UPDATE;
+
+    IF v_pnr IS NULL THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'NOT_FOUND';
+        LEAVE proc_label;
+    END IF;
+
+    -- Can only review FILED or UNDER_REVIEW
+    IF v_curr_status NOT IN ('FILED', 'UNDER_REVIEW') THEN
+        IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'ALREADY_REVIEWED';
+        LEAVE proc_label;
+    END IF;
+
+    -- 4. Get passenger fare line (total_fare - insurance)
+    IF v_passenger_no IS NOT NULL THEN
+        SELECT (total_fare - insurance) INTO v_max_refund
+        FROM PASSENGER_BOOKING
+        WHERE pnr = v_pnr AND passenger_no = v_passenger_no;
+    ELSE
+        SELECT SUM(total_fare - insurance) INTO v_max_refund
+        FROM PASSENGER_BOOKING
+        WHERE pnr = v_pnr;
+    END IF;
+
+    IF p_decision = 'APPROVED' THEN
+        -- Re-check current reservation status with the same eligibility rules as sp_file_tdr
+        IF v_passenger_no IS NOT NULL THEN
+            SELECT b.schedule_id, b.class_id, r.status, r.seat_id
+            INTO v_sched_id, v_cls_id, v_res_status, v_seat_id
+            FROM BOOKING b
+            JOIN RESERVATION r ON b.pnr = r.pnr
+            WHERE b.pnr = v_pnr AND r.passenger_no = v_passenger_no
+            LIMIT 1;
+
+            IF v_res_status IS NULL THEN
+                IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+                SET p_out_refund_id = NULL;
+                SET p_out_status = 'NOT_FOUND';
+                LEAVE proc_label;
+            END IF;
+
+            IF v_reason IN ('TRAIN_DELAYED_OVER_3_HOURS', 'TRAIN_DIVERTED') THEN
+                IF v_res_status NOT IN ('CONFIRMED', 'RAC') THEN
+                    IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+                    SET p_out_refund_id = NULL;
+                    SET p_out_status = 'NOT_ELIGIBLE';
+                    LEAVE proc_label;
+                END IF;
+            ELSE
+                IF v_res_status NOT IN ('CONFIRMED', 'RAC', 'BOARDED') THEN
+                    IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+                    SET p_out_refund_id = NULL;
+                    SET p_out_status = 'NOT_ELIGIBLE';
+                    LEAVE proc_label;
+                END IF;
+            END IF;
+        END IF;
+
+        -- Check refund amount
+        IF p_refund_amount IS NULL OR p_refund_amount <= 0 OR p_refund_amount > v_max_refund THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_refund_id = NULL;
+            SET p_out_status = 'INVALID_REFUND_AMOUNT';
+            LEAVE proc_label;
+        END IF;
+
+        -- Find original successful payment
+        SELECT payment_id INTO v_payment_id
+        FROM PAYMENT
+        WHERE pnr = v_pnr AND status = 'SUCCESS'
+        ORDER BY paid_at DESC, payment_id DESC
+        LIMIT 1;
+
+        IF v_payment_id IS NULL THEN
+            IF p_manage_tx = 1 THEN ROLLBACK; END IF;
+            SET p_out_refund_id = NULL;
+            SET p_out_status = 'FAILED';
+            LEAVE proc_label;
+        END IF;
+
+        -- Insert REFUND row: refund_id = MAX+1 inside transaction
+        SELECT COALESCE(MAX(refund_id), 0) + 1 INTO v_new_refund_id FROM REFUND;
+
+        INSERT INTO REFUND (refund_id, cancel_id, tdr_ref_no, payment_id, amount, reason, status)
+        VALUES (v_new_refund_id, NULL, p_tdr_ref_no, v_payment_id, p_refund_amount, 'TDR_APPROVED', 'PROCESSED');
+
+        -- Set TDR status to REFUND_PROCESSED
+        UPDATE TDR_FILING
+        SET status = 'REFUND_PROCESSED',
+            refund_amount = p_refund_amount,
+            reviewed_by = p_admin_id,
+            reviewed_at = v_as_of,
+            remarks = COALESCE(p_remarks, remarks)
+        WHERE tdr_ref_no = p_tdr_ref_no;
+
+        -- ONLY for delay or diverted TDRs: set reservation CANCELLED with seat NULL and call sp_promote_passenger
+        IF v_reason IN ('TRAIN_DELAYED_OVER_3_HOURS', 'TRAIN_DIVERTED') THEN
+            UPDATE RESERVATION
+            SET status = 'CANCELLED',
+                seat_id = NULL,
+                queue_position = NULL
+            WHERE pnr = v_pnr AND passenger_no = v_passenger_no;
+
+            -- Promote passenger
+            IF v_res_status = 'CONFIRMED' AND v_seat_id IS NOT NULL THEN
+                CALL sp_promote_passenger(v_sched_id, v_cls_id, v_seat_id);
+            ELSEIF v_res_status = 'RAC' THEN
+                CALL sp_promote_passenger(v_sched_id, v_cls_id, NULL);
+            END IF;
+
+            -- Keep BOOKING.status consistent the way sp_cancel_passenger_ticket does
+            IF NOT EXISTS (
+                SELECT 1 FROM RESERVATION WHERE pnr = v_pnr AND status != 'CANCELLED'
+            ) THEN
+                UPDATE BOOKING SET status = 'CANCELLED' WHERE pnr = v_pnr;
+            END IF;
+        END IF;
+
+        -- Write to AUDIT_LOG (BR-T7)
+        INSERT INTO AUDIT_LOG (user_id, action, table_name, record_id, old_value, new_value, logged_at)
+        VALUES (
+            v_admin_user_id,
+            'TDR_REVIEW',
+            'TDR_FILING',
+            p_tdr_ref_no,
+            JSON_OBJECT('status', v_curr_status, 'refund_amount', v_old_refund_amount),
+            JSON_OBJECT('status', 'REFUND_PROCESSED', 'refund_amount', p_refund_amount, 'refund_id', v_new_refund_id, 'reviewed_by', p_admin_id),
+            v_as_of
+        );
+
+        IF p_manage_tx = 1 THEN
+            COMMIT;
+        END IF;
+
+        SET p_out_refund_id = v_new_refund_id;
+        SET p_out_status = 'APPROVED';
+
+    ELSE
+        -- Decision is REJECTED
+        UPDATE TDR_FILING
+        SET status = 'REJECTED',
+            refund_amount = 0.00,
+            reviewed_by = p_admin_id,
+            reviewed_at = v_as_of,
+            remarks = COALESCE(p_remarks, remarks)
+        WHERE tdr_ref_no = p_tdr_ref_no;
+
+        -- Write to AUDIT_LOG (BR-T7)
+        INSERT INTO AUDIT_LOG (user_id, action, table_name, record_id, old_value, new_value, logged_at)
+        VALUES (
+            v_admin_user_id,
+            'TDR_REVIEW',
+            'TDR_FILING',
+            p_tdr_ref_no,
+            JSON_OBJECT('status', v_curr_status, 'refund_amount', v_old_refund_amount),
+            JSON_OBJECT('status', 'REJECTED', 'refund_amount', 0.00, 'reviewed_by', p_admin_id),
+            v_as_of
+        );
+
+        IF p_manage_tx = 1 THEN
+            COMMIT;
+        END IF;
+
+        SET p_out_refund_id = NULL;
+        SET p_out_status = 'REJECTED';
+    END IF;
+
+END proc_label$$
+
 DELIMITER ;
+

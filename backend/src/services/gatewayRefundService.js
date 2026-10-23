@@ -22,7 +22,6 @@ function toPaise(decimalStrOrNum) {
  */
 function isRealRazorpayPaymentId(id) {
   if (typeof id !== 'string') return false;
-  if (id.startsWith('pay_test_') || id.startsWith('pay_sim_')) return false;
   return /^pay_[a-zA-Z0-9]{14}$/.test(id);
 }
 
@@ -51,8 +50,13 @@ async function processGatewayRefund({ pnr, paymentMethod, gatewayPaymentId, amou
     return { status: 'SKIPPED', reason: 'CASH_OR_NO_GATEWAY_ID' };
   }
 
-  // 2. Skip seeded fake IDs and simulated test IDs
-  if (!isRealRazorpayPaymentId(gatewayPaymentId)) {
+  // 2. Validate gateway payment ID:
+  // Must match /^pay_[a-zA-Z0-9]{14}$/. Skipped for pay_test_ ids, pay_sim_ ids and CASH for EVERY refund reason.
+  // Only exception: when _razorpayClientOverride is set (test-only), pay_sim_ ids may pass.
+  const isReal = isRealRazorpayPaymentId(gatewayPaymentId);
+  const isAllowedTestOverride = Boolean(_razorpayClientOverride) && typeof gatewayPaymentId === 'string' && gatewayPaymentId.startsWith('pay_sim_');
+
+  if (!isReal && !isAllowedTestOverride) {
     return { status: 'SKIPPED', reason: 'SEEDED_OR_SIMULATED_PAYMENT_ID', gatewayPaymentId };
   }
 

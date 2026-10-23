@@ -263,17 +263,11 @@ async function verifyPayment(req, res, next) {
       'SELECT payment_id, pnr, amount, method, status, gateway_payment_id, paid_at FROM PAYMENT WHERE payment_id = ?',
       [outPaymentId]
     );
-    const paymentRecord = paymentRows[0] || {
-      payment_id: outPaymentId,
-      status: 'SUCCESS',
-      paid_at: new Date().toISOString()
-    };
-
-    const paidAtIso = paymentRecord.paid_at
-      ? (typeof paymentRecord.paid_at === 'string'
-          ? (paymentRecord.paid_at.includes('T') ? paymentRecord.paid_at : new Date(paymentRecord.paid_at.replace(' ', 'T') + 'Z').toISOString())
-          : new Date(paymentRecord.paid_at).toISOString())
-      : new Date().toISOString();
+    if (paymentRows.length === 0) {
+      throw new AppError('INTERNAL_SERVER_ERROR', 'Payment record not found', 500);
+    }
+    const paymentRecord = paymentRows[0];
+    const paidAt = String(paymentRecord.paid_at);
 
     // Retrieve passenger reservation allotment
     const [passengers] = await pool.query(
@@ -298,7 +292,7 @@ async function verifyPayment(req, res, next) {
         pnr: String(pnr),
         paymentStatus: paymentRecord.status,
         gatewayPaymentId: String(razorpayPaymentId),
-        paidAt: paidAtIso,
+        paidAt,
         bookingStatus: outStatus,
         passengers: passengers.map(p => {
           const item = {

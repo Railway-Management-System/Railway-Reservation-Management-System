@@ -201,6 +201,11 @@ async function runTests() {
     assert(verifyRes1.data.data.paymentStatus === 'SUCCESS', 'Payment status is SUCCESS');
     assert(verifyRes1.data.data.bookingStatus === 'CONFIRMED', 'Booking status transitioned to CONFIRMED');
     assert(verifyRes1.data.data.gatewayPaymentId === simPaymentId1, 'Gateway payment ID matches simulated payment ID');
+    assert(
+      typeof verifyRes1.data.data.paidAt === 'string' &&
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(verifyRes1.data.data.paidAt),
+      'paidAt is returned as real raw MySQL string YYYY-MM-DD HH:MM:SS'
+    );
     assert(Array.isArray(verifyRes1.data.data.passengers) && verifyRes1.data.data.passengers.length === 1, 'Passengers list returned');
     assert(verifyRes1.data.data.passengers[0].status === 'CONFIRMED', 'Passenger allotment status is CONFIRMED');
     assert(verifyRes1.data.data.passengers[0].coachNumber !== null, 'Passenger has assigned coach');
@@ -299,18 +304,40 @@ async function runTests() {
     await pool.query('UPDATE BOOKING SET created_at = DATE_SUB(NOW(), INTERVAL 15 MINUTE) WHERE pnr = ?', [pnr3]);
 
     console.log('  [SIMULATED] Simulating late payment via verify API');
+    const { setRazorpayClientOverride } = require('../src/services/gatewayRefundService');
+    const mockLateRazorpayClient = {
+      payments: {
+        refund: async (paymentId, options) => {
+          return {
+            id: `rfnd_sim_${Date.now()}`,
+            entity: 'refund',
+            amount: options.amount,
+            currency: 'INR',
+            payment_id: paymentId,
+            status: 'processed'
+          };
+        }
+      }
+    };
+    setRazorpayClientOverride(mockLateRazorpayClient);
+
     const simPaymentId3 = `pay_sim_${Date.now()}_late`;
     const validSignature3 = crypto
       .createHmac('sha256', config.RAZORPAY_KEY_SECRET)
       .update(`${orderId3}|${simPaymentId3}`)
       .digest('hex');
 
-    const lateVerifyRes = await request('POST', '/api/payments/razorpay/verify', {
-      pnr: pnr3,
-      razorpayOrderId: orderId3,
-      razorpayPaymentId: simPaymentId3,
-      razorpaySignature: validSignature3
-    }, token1);
+    let lateVerifyRes;
+    try {
+      lateVerifyRes = await request('POST', '/api/payments/razorpay/verify', {
+        pnr: pnr3,
+        razorpayOrderId: orderId3,
+        razorpayPaymentId: simPaymentId3,
+        razorpaySignature: validSignature3
+      }, token1);
+    } finally {
+      setRazorpayClientOverride(null);
+    }
 
     assert(lateVerifyRes.status === 200, 'Late payment returns HTTP 200 per Contract 4.3.2');
     assert(lateVerifyRes.data.success === false, 'Late payment response success is false');

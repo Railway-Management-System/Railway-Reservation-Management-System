@@ -132,12 +132,16 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Staff marks NO_SHOW via sp_mark_passenger_noshow (calls sp_promote_passenger)
-    CALL sp_mark_passenger_noshow(v_ns_pnr, 1, v_stat);
+    -- Assign staff 1 on TRAIN_DUTY for schedule 1137 for this test run
+    INSERT INTO STAFF_ASSIGNMENT (assign_id, staff_id, schedule_id, station_id, duty_type, shift_start, shift_end)
+    VALUES (9999, 1, 1137, 10, 'TRAIN_DUTY', '2026-10-19 00:00:00', '2026-10-19 23:59:59');
+
+    -- Staff marks NO_SHOW via sp_mark_passenger_noshow (calls sp_promote_passenger) with p_manage_tx = 0
+    CALL sp_mark_passenger_noshow(v_ns_pnr, 1, 1, 0, v_stat);
 
     SELECT status INTO v_res_rac_status FROM RESERVATION WHERE pnr = v_rac_pnr AND passenger_no = 1;
 
-    IF v_res_rac_status = 'CONFIRMED' THEN
+    IF v_res_rac_status = 'CONFIRMED' AND v_stat = 'NO_SHOW_MARKED' THEN
         INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
         VALUES ('Story 3: Train 125 on 2026-10-19 (PNR: 2849100701) No-Show & Promotion', 'RAC->CONFIRMED', v_res_rac_status, 'PASS', 'NO_SHOW marked by TC successfully promoted next RAC passenger.');
     ELSE

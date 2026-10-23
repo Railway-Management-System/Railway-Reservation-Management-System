@@ -46,6 +46,15 @@ async function authenticate(req, res, next) {
       }
     }
 
+    if (decoded.adminId) {
+      user.adminId = decoded.adminId;
+    } else if (user.role === 'ADMIN') {
+      const [adminRows] = await pool.query('SELECT admin_id FROM ADMIN WHERE user_id = ?', [user.user_id]);
+      if (adminRows.length > 0) {
+        user.adminId = adminRows[0].admin_id;
+      }
+    }
+
     req.user = user;
     next();
   } catch (error) {
