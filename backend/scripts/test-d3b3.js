@@ -73,6 +73,22 @@ function assert(condition, message) {
   console.log(`  PASS: ${message}`);
 }
 
+async function pollNotifications(token, predicate, timeoutMs = 3000, intervalMs = 200) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const res = await request('GET', '/api/notifications', null, token);
+    if (res.status === 200 && Array.isArray(res.data.data)) {
+      const match = res.data.data.find(predicate);
+      if (match) return match;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  const finalRes = await request('GET', '/api/notifications', null, token);
+  return finalRes.status === 200 && Array.isArray(finalRes.data.data)
+    ? finalRes.data.data.find(predicate)
+    : null;
+}
+
 async function runInventoryAudit() {
   const [resRows] = await pool.query(`
     SELECT 
@@ -179,6 +195,11 @@ async function runTests() {
     assert(otherLogin.status === 200, 'Passenger Other (user 50001) logged in successfully');
     const tokenOther = otherLogin.data.data.token;
 
+    // Advance schedule 1063 to future date: seed run date (2026-10-24) has passed;
+    // ensure schedule has not departed so delay TDR deadline checks pass.
+    // The database is reloaded when the suite ends.
+    await pool.query('UPDATE TRAIN_SCHEDULE SET journey_date = DATE_ADD(CURDATE(), INTERVAL 1 DAY) WHERE schedule_id = 1063');
+
     // -------------------------------------------------------------------------
     // REQUIREMENT 1: Board an RAC passenger via POST /api/staff/boarding and audit
     // -------------------------------------------------------------------------
@@ -224,7 +245,7 @@ async function runTests() {
     // REQUIREMENT 5a: Delay TDR refused when delay_minutes is under 180
     // -------------------------------------------------------------------------
     console.log('\n--- TEST 2: Delay TDR Refused When Delay < 180 Minutes ---');
-    // Set delay_minutes = 120 on schedule 1063 (departs 2026-10-24, has not departed yet)
+    // Set delay_minutes = 120 on schedule 1063 (future journey_date, has not departed yet)
     await pool.query('UPDATE TRAIN_SCHEDULE SET delay_minutes = 120 WHERE schedule_id = 1063');
 
     const delayUnder180Res = await request('POST', '/api/tdr', {
@@ -458,6 +479,15 @@ async function runTests() {
     assert(auditRows.length >= 1, 'Audit log entry created for TDR review');
     assert(auditRows[0].action === 'TDR_REVIEW', 'Audit action is TDR_REVIEW');
 
+    // Check a: After a TDR is APPROVED through the admin review route, the owner has a notification with type STATUS_UPDATE, title containing "TDR Claim APPROVED", and referenceId equal to tdrRefNo
+    const approvedNtf = await pollNotifications(
+      tokenOwner,
+      (n) => n.type === 'STATUS_UPDATE' && typeof n.title === 'string' && n.title.includes('TDR Claim APPROVED') && n.referenceId === createdTdrRefNo,
+      3000
+    );
+    assert(approvedNtf !== null && approvedNtf !== undefined, 'Owner received notification with type STATUS_UPDATE and title containing "TDR Claim APPROVED"');
+    assert(approvedNtf.referenceId === createdTdrRefNo, 'Approved TDR notification referenceId equals tdrRefNo');
+
     // 6. Master inventory audit MUST stay 0 mismatches of 1,015
     const postPromotionAudit = await runInventoryAudit();
     console.log(`  Master inventory audit after TDR approval & promotion: ${postPromotionAudit.mismatches} mismatches of ${postPromotionAudit.total}`);
@@ -501,6 +531,15 @@ async function runTests() {
     // Assert audit log has status REJECTED
     const [auditRows2] = await pool.query('SELECT * FROM AUDIT_LOG WHERE table_name = "TDR_FILING" AND record_id = ?', [tdr2RefNo]);
     assert(auditRows2.length >= 1, 'Audit log entry created for rejection');
+
+    // Check b: After a TDR is REJECTED, the owner has a notification with type STATUS_UPDATE, title containing "TDR Claim REJECTED", and referenceId equal to tdrRefNo
+    const rejectedNtf = await pollNotifications(
+      token12470,
+      (n) => n.type === 'STATUS_UPDATE' && typeof n.title === 'string' && n.title.includes('TDR Claim REJECTED') && n.referenceId === tdr2RefNo,
+      3000
+    );
+    assert(rejectedNtf !== null && rejectedNtf !== undefined, 'Owner received notification with type STATUS_UPDATE and title containing "TDR Claim REJECTED"');
+    assert(rejectedNtf.referenceId === tdr2RefNo, 'Rejected TDR notification referenceId equals tdrRefNo');
 
     // -------------------------------------------------------------------------
     // REQUIREMENT: Cancelled passenger after filing delay TDR refused on approval

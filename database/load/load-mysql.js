@@ -132,17 +132,14 @@ async function loadTable(connection, tableName) {
     return 0;
   }
 
-  const fileStream = fs.createReadStream(filePath);
-  const rl = readline.createInterface({
-    input: fileStream,
-    crlfDelay: Infinity
-  });
+  const fileContent = fs.readFileSync(filePath, 'utf8');
+  const lines = fileContent.split(/\r?\n/);
 
   let header = null;
   let batch = [];
   let totalInserted = 0;
 
-  for await (const line of rl) {
+  for (const line of lines) {
     if (!line || line.trim() === '') continue;
     
     if (!header) {
