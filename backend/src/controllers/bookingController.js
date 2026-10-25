@@ -98,33 +98,42 @@ async function createBooking(req, res, next) {
       throw new AppError('VALIDATION_ERROR', `Invalid classType: ${classType}`, 400);
     }
     const classId = classRows[0].class_id;
+ 
+    // 5. Verify saved_passenger_id ownership and format passengers array
+    const formattedPassengers = [];
+    for (const p of passengers) {
+      const rawSavedId = p.saved_passenger_id || p.savedPassengerId;
+      let verifiedSavedId = null;
 
-    // 5. Ensure saved_passenger_id fallback
-    let defaultSavedId = 7;
-    const [savedPassRows] = await pool.query(
-      'SELECT passenger_id FROM SAVED_PASSENGER WHERE user_id = ? LIMIT 1',
-      [userId]
-    );
-    if (savedPassRows.length > 0) {
-      defaultSavedId = savedPassRows[0].passenger_id;
-    } else {
-      const [anySaved] = await pool.query('SELECT passenger_id FROM SAVED_PASSENGER LIMIT 1');
-      if (anySaved.length > 0) {
-        defaultSavedId = anySaved[0].passenger_id;
+      if (rawSavedId !== undefined && rawSavedId !== null && rawSavedId !== '') {
+        const parsedSavedId = parseInt(rawSavedId, 10);
+        if (isNaN(parsedSavedId) || parsedSavedId <= 0) {
+          throw new AppError('BAD_REQUEST', `Invalid saved passenger ID: ${rawSavedId}`, 400);
+        }
+
+        const [ownerRows] = await pool.query(
+          'SELECT passenger_id FROM SAVED_PASSENGER WHERE passenger_id = ? AND user_id = ?',
+          [parsedSavedId, userId]
+        );
+
+        if (ownerRows.length === 0) {
+          throw new AppError('FORBIDDEN', `Saved passenger with ID ${parsedSavedId} does not belong to the authenticated user`, 403);
+        }
+
+        verifiedSavedId = parsedSavedId;
       }
-    }
 
-    // 6. Format passengers array for JSON input to procedure
-    const formattedPassengers = passengers.map(p => ({
-      saved_passenger_id: p.saved_passenger_id || p.savedPassengerId || defaultSavedId,
-      name: p.name,
-      age: Number(p.age),
-      gender: p.gender,
-      concession_type: p.concession_type || p.concessionType || 'NONE',
-      concession_proof_type: p.concession_proof_type || p.concessionProofType || p.idProofType || null,
-      concession_proof_ref: p.concession_proof_ref || p.concessionProofRef || p.idProofReference || null,
-      berth_preference: p.berth_preference || p.berthPreference || 'NO_BERTH'
-    }));
+      formattedPassengers.push({
+        saved_passenger_id: verifiedSavedId,
+        name: p.name,
+        age: Number(p.age),
+        gender: p.gender,
+        concession_type: p.concession_type || p.concessionType || 'NONE',
+        concession_proof_type: p.concession_proof_type || p.concessionProofType || p.idProofType || null,
+        concession_proof_ref: p.concession_proof_ref || p.concessionProofRef || p.idProofReference || null,
+        berth_preference: p.berth_preference || p.berthPreference || 'NO_BERTH'
+      });
+    }
 
     const fallbackConsent = continueWithGeneralQuota ? 1 : 0;
     const berthCondition = preferences.berthCondition ? 1 : 0;
@@ -787,9 +796,9 @@ async function getMyBookings(req, res, next) {
         COUNT(pb.passenger_no) AS passengerCount,
         b.created_at AS createdAt,
         s_from.station_code AS boardingStationCode,
-        s_from.station_name AS boardingStationName,
+        COALESCE(NULLIF(s_from.display_name, ''), s_from.station_name) AS boardingStationName,
         s_to.station_code AS destinationStationCode,
-        s_to.station_name AS destinationStationName
+        COALESCE(NULLIF(s_to.display_name, ''), s_to.station_name) AS destinationStationName
       FROM BOOKING b
       JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
       JOIN TRAIN t ON ts.train_id = t.train_id
@@ -813,7 +822,7 @@ async function getMyBookings(req, res, next) {
       GROUP BY
         b.pnr, b.status, t.train_number, t.display_name, ts.journey_date,
         sc.class_code, b.quota, b.total_fare, b.created_at,
-        s_from.station_code, s_from.station_name, s_to.station_code, s_to.station_name
+        s_from.station_code, s_from.display_name, s_from.station_name, s_to.station_code, s_to.display_name, s_to.station_name
       ORDER BY b.created_at DESC, b.pnr DESC
       LIMIT ?
     `;
@@ -860,9 +869,9 @@ async function getBookingByPnr(req, res, next) {
         COUNT(pb.passenger_no) AS passengerCount,
         b.created_at AS createdAt,
         s_from.station_code AS boardingStationCode,
-        s_from.station_name AS boardingStationName,
+        COALESCE(NULLIF(s_from.display_name, ''), s_from.station_name) AS boardingStationName,
         s_to.station_code AS destinationStationCode,
-        s_to.station_name AS destinationStationName
+        COALESCE(NULLIF(s_to.display_name, ''), s_to.station_name) AS destinationStationName
       FROM BOOKING b
       JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
       JOIN TRAIN t ON ts.train_id = t.train_id
@@ -876,7 +885,7 @@ async function getBookingByPnr(req, res, next) {
       GROUP BY
         b.pnr, b.user_id, b.status, t.train_number, t.display_name, ts.journey_date,
         sc.class_code, b.quota, b.total_fare, b.created_at,
-        s_from.station_code, s_from.station_name, s_to.station_code, s_to.station_name`,
+        s_from.station_code, s_from.display_name, s_from.station_name, s_to.station_code, s_to.display_name, s_to.station_name`,
       [pnr]
     );
 

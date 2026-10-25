@@ -358,6 +358,65 @@ Authorization: Bearer <jwt_or_mock_token>
 
 ---
 
+### 3.4 List Stations (Public)
+- **Method / Endpoint**: `GET /api/stations`
+- **Role**: Public (Unauthenticated)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "stationId": 10,
+      "stationCode": "NDLS",
+      "stationName": "New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi"
+    },
+    {
+      "stationId": 21,
+      "stationCode": "BCT",
+      "stationName": "Mumbai Central",
+      "city": "Mumbai",
+      "state": "Maharashtra"
+    }
+  ]
+}
+```
+- **Errors**: `500 Internal Server Error`.
+
+---
+
+### 3.5 List Trains (Public)
+- **Method / Endpoint**: `GET /api/trains`
+- **Role**: Public (Unauthenticated)
+- `shortName` is an abbreviated label and clients should show `displayName`.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "trainId": 101,
+      "trainNumber": "12221",
+      "shortName": "PA-HWH DURAN",
+      "displayName": "Pune–Howrah Duronto Express (12221)",
+      "trainType": "DURONTO"
+    },
+    {
+      "trainId": 129,
+      "trainNumber": "12951",
+      "shortName": "MUMBAI RAJDH",
+      "displayName": "Mumbai Rajdhani Express (12951)",
+      "trainType": "RAJDHANI"
+    }
+  ]
+}
+```
+- **Errors**: `500 Internal Server Error`.
+
+---
+
 ## 4. Booking & Ticket Lifecycle APIs
 
 ### 4.1 Temporary Seat Hold (Step 3 Entry, BR-B2)

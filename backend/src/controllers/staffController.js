@@ -254,7 +254,7 @@ async function getCurrentAssignment(req, res, next) {
     const [activeRows] = await pool.query(
       `SELECT sa.assign_id, sa.staff_id, sa.schedule_id, sa.station_id, sa.duty_type,
               sa.shift_start, sa.shift_end,
-              s.station_code, s.station_name,
+              s.station_code, COALESCE(NULLIF(s.display_name, ''), s.station_name) AS station_name,
               ts.train_id, t.train_number, t.display_name AS train_name, ts.journey_date
        FROM STAFF_ASSIGNMENT sa
        LEFT JOIN STATION s ON sa.station_id = s.station_id
@@ -277,7 +277,7 @@ async function getCurrentAssignment(req, res, next) {
       const [recentRows] = await pool.query(
         `SELECT sa.assign_id, sa.staff_id, sa.schedule_id, sa.station_id, sa.duty_type,
                 sa.shift_start, sa.shift_end,
-                s.station_code, s.station_name,
+                s.station_code, COALESCE(NULLIF(s.display_name, ''), s.station_name) AS station_name,
                 ts.train_id, t.train_number, t.display_name AS train_name, ts.journey_date
          FROM STAFF_ASSIGNMENT sa
          LEFT JOIN STATION s ON sa.station_id = s.station_id

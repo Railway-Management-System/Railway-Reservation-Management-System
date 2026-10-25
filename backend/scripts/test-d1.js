@@ -284,6 +284,11 @@ async function runTests() {
     assert(firstStop.stopSequence === 1, 'First stop sequence is 1');
     assert(firstStop.dayOffset === 0, 'First stop dayOffset is 0');
 
+    // Route stop station display name check (Station 21)
+    const bctStop = routeRes.data.data.route.find(st => st.stationId === 21);
+    assert(bctStop && bctStop.stationName === 'Mumbai Central', `Route stop for station 21 has stationName "Mumbai Central" (got "${bctStop?.stationName}")`);
+    assert(bctStop && bctStop.stationName !== 'MUMBAI CENTR', 'Route stop stationName is never "MUMBAI CENTR"');
+
     // 4d. Direct Quota Availability: GET /api/trains/:trainId/availability
     const availRes = await request(`/api/trains/${trainResult.trainId}/availability?journeyDate=2026-10-20&classType=3A&quota=GENERAL`);
     assert(availRes.status === 200, 'Direct availability check returns HTTP 200');
@@ -302,6 +307,45 @@ async function runTests() {
     assert(typeof fallbackRes.data.data.fallbackNotice === 'string', 'fallbackNotice contains required notice text');
     assert(fallbackRes.data.data.fallbackNotice.includes('No seats are left in the LADIES quota'), 'fallbackNotice text matches BR-Q13 canonical text');
     assert(Boolean(fallbackRes.data.data.generalQuotaStatus), 'generalQuotaStatus contains projected status in GENERAL quota');
+
+    // 4f. Public Stations List: GET /api/stations (No login needed)
+    const stationsRes = await request('/api/stations');
+    assert(stationsRes.status === 200, 'GET /api/stations works with NO token');
+    assert(Array.isArray(stationsRes.data.data), 'GET /api/stations returns an array in data');
+    assert(stationsRes.data.data.length === 158, `GET /api/stations returns 158 stations (got ${stationsRes.data.data.length})`);
+
+    const expectedStationKeys = ['stationId', 'stationCode', 'stationName', 'city', 'state'].sort();
+    const allStationsHaveExactKeys = stationsRes.data.data.every(st => {
+      const actualKeys = Object.keys(st).sort();
+      return actualKeys.length === expectedStationKeys.length &&
+        actualKeys.every((k, idx) => k === expectedStationKeys[idx]);
+    });
+    assert(allStationsHaveExactKeys, 'Each station has exactly the keys: stationId, stationCode, stationName, city, state');
+
+    // Check specific fixed station names
+    const st19 = stationsRes.data.data.find(s => s.stationId === 19);
+    assert(st19 && st19.stationName === 'Krantivira Sangolli Rayanna', `Station 19 is named "Krantivira Sangolli Rayanna" in GET /api/stations (got "${st19?.stationName}")`);
+
+    const st21 = stationsRes.data.data.find(s => s.stationId === 21);
+    assert(st21 && st21.stationName === 'Mumbai Central', `Station 21 is named "Mumbai Central" in GET /api/stations (got "${st21?.stationName}")`);
+
+    // 4g. Public Trains List: GET /api/trains (No login needed)
+    const trainsRes = await request('/api/trains');
+    assert(trainsRes.status === 200, 'GET /api/trains works with NO token');
+    assert(Array.isArray(trainsRes.data.data), 'GET /api/trains returns an array in data');
+    assert(trainsRes.data.data.length === 60, `GET /api/trains returns 60 trains (got ${trainsRes.data.data.length})`);
+
+    const expectedTrainKeys = ['trainId', 'trainNumber', 'shortName', 'displayName', 'trainType'].sort();
+    const allTrainsHaveExactKeys = trainsRes.data.data.every(tr => {
+      const actualKeys = Object.keys(tr).sort();
+      return actualKeys.length === expectedTrainKeys.length &&
+        actualKeys.every((k, idx) => k === expectedTrainKeys[idx]);
+    });
+    assert(allTrainsHaveExactKeys, 'Each train has exactly the keys: trainId, trainNumber, shortName, displayName, trainType');
+
+    // 4h. Admin Stations Security: GET /api/admin/stations without token returns 401
+    const adminStationsNoTokenRes = await request('/api/admin/stations');
+    assert(adminStationsNoTokenRes.status === 401, `GET /api/admin/stations without a token returns HTTP 401 (got ${adminStationsNoTokenRes.status})`);
 
     console.log('\n====================================================');
     console.log(`   ALL TESTS PASSED: ${passedTests}/${totalTests}`);

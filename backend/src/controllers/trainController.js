@@ -274,7 +274,7 @@ async function getTrainById(req, res, next) {
         rs.stop_id,
         s.station_id,
         s.station_code,
-        s.display_name as station_name,
+        COALESCE(NULLIF(s.display_name, ''), s.station_name) as station_name,
         v.stop_sequence,
         v.arrival_time,
         v.departure_time,
@@ -462,8 +462,38 @@ async function getTrainAvailability(req, res, next) {
   }
 }
 
+/**
+ * List All Trains (Public)
+ * GET /api/trains
+ * No login needed.
+ * Returns { trainId, trainNumber, shortName, displayName, trainType } ordered by trainNumber.
+ */
+async function listPublicTrains(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+        train_id AS trainId,
+        train_number AS trainNumber,
+        short_name AS shortName,
+        display_name AS displayName,
+        train_type AS trainType
+      FROM TRAIN
+      ORDER BY train_number ASC`
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   searchTrains,
   getTrainById,
-  getTrainAvailability
+  getTrainAvailability,
+  listPublicTrains
 };
+

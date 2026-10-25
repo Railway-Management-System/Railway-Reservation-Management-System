@@ -256,6 +256,16 @@ async function runTests() {
     assert(pax1.berthType === null || typeof pax1.berthType === 'string', 'berthType is string or null');
 
     // -------------------------------------------------------------------------
+    // TEST 3b: Seeded PNR with Fixed Station Names Shows Full Display Names
+    // -------------------------------------------------------------------------
+    console.log('\n--- TEST 3b: Seeded PNR with Fixed Station Names Shows Full Display Names ---');
+    const pnrFixedStations = '2849101771'; // User A (26009): from 109 (TVC), to 83 (NZM)
+    const pnrFixedRes = await request('GET', `/api/bookings/${pnrFixedStations}`, null, tokenUserA);
+    assert(pnrFixedRes.status === 200, `User A retrieves PNR ${pnrFixedStations} with HTTP 200`);
+    assert(pnrFixedRes.data.data.boardingStation && pnrFixedRes.data.data.boardingStation.stationName === 'Trivandrum Central', `Boarding station name is full display name "Trivandrum Central" (got "${pnrFixedRes.data.data.boardingStation?.stationName}")`);
+    assert(pnrFixedRes.data.data.destinationStation && pnrFixedRes.data.data.destinationStation.stationName === 'Hazrat Nizamuddin', `Destination station name is full display name "Hazrat Nizamuddin" (got "${pnrFixedRes.data.data.destinationStation?.stationName}")`);
+
+    // -------------------------------------------------------------------------
     // TEST 4: Someone Else's PNR is Refused (HTTP 403)
     // -------------------------------------------------------------------------
     console.log('\n--- TEST 4: Someone Else\'s PNR is Refused (HTTP 403) ---');

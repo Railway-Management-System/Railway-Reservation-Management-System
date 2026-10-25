@@ -409,7 +409,7 @@ CREATE TABLE BOOKING (
 CREATE TABLE PASSENGER_BOOKING (
     pnr VARCHAR(10) NOT NULL,
     passenger_no INT NOT NULL,
-    saved_passenger_id INT NOT NULL,
+    saved_passenger_id INT NULL,
     name VARCHAR(128) NOT NULL,
     age INT NOT NULL,
     gender ENUM('MALE', 'FEMALE', 'OTHER') NOT NULL,
@@ -428,7 +428,7 @@ CREATE TABLE PASSENGER_BOOKING (
     PRIMARY KEY (pnr, passenger_no),
     KEY idx_pb_saved_passenger (saved_passenger_id),
     CONSTRAINT fk_pb_booking FOREIGN KEY (pnr) REFERENCES BOOKING (pnr) ON DELETE CASCADE,
-    CONSTRAINT fk_pb_saved_passenger FOREIGN KEY (saved_passenger_id) REFERENCES SAVED_PASSENGER (passenger_id)
+    CONSTRAINT fk_pb_saved_passenger FOREIGN KEY (saved_passenger_id) REFERENCES SAVED_PASSENGER (passenger_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- 24. RESERVATION (30,852 seat allotments and queue states)
