@@ -2,7 +2,8 @@ const express = require('express');
 const {
   searchTrains,
   getTrainById,
-  getTrainAvailability
+  getTrainAvailability,
+  listPublicTrains
 } = require('../controllers/trainController');
 
 const { authenticate } = require('../middleware/auth');
@@ -10,6 +11,7 @@ const { getTrainLiveStatus } = require('../services/liveStatusService');
 
 const router = express.Router();
 
+router.get('/', listPublicTrains);
 router.get('/search', searchTrains);
 router.get('/:trainId/live-status', authenticate, async (req, res, next) => {
   try {
