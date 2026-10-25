@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStaff } from '../context/StaffContext';
 import { StatusBadge } from '../components/StatusBadge';
-import { Search, CheckCircle, AlertTriangle, XCircle, FileWarning } from 'lucide-react';
+import { Search, CheckCircle, AlertTriangle, XCircle, FileWarning, Loader2 } from 'lucide-react';
+import { staffApiService, PnrBookingDetails } from '../services/staffApiService';
 
 interface ScannerPageProps {
   initialPnr?: string;
@@ -9,19 +10,91 @@ interface ScannerPageProps {
 }
 
 export const ScannerPage: React.FC<ScannerPageProps> = ({ initialPnr = '', onIssueFinePrefill }) => {
-  const { data, markPassengerBoarding } = useStaff();
+  const { data, markPassengerBoarding, verifyPassenger, boardPassengerApi, noShowPassengerApi } = useStaff();
   const [pnrInput, setPnrInput] = useState<string>(initialPnr);
   const [notes, setNotes] = useState<string>('');
+  const [searching, setSearching] = useState<boolean>(false);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [liveBooking, setLiveBooking] = useState<PnrBookingDetails | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPnr) setPnrInput(initialPnr);
   }, [initialPnr]);
 
-  const passenger = data.manifest.find(m => m.pnr === pnrInput.trim() || (pnrInput.trim().length >= 4 && m.pnr.includes(pnrInput.trim())));
+  // Live PNR fetch when 10 digits entered
+  useEffect(() => {
+    const trimmed = pnrInput.trim();
+    if (trimmed.length === 10) {
+      setSearching(true);
+      setSearchError(null);
+      staffApiService.getBookingByPnr(trimmed)
+        .then(res => {
+          if (res && res.pnr) {
+            setLiveBooking(res);
+          } else {
+            setLiveBooking(null);
+          }
+        })
+        .catch(err => {
+          setLiveBooking(null);
+          setSearchError(err.message || 'PNR not found in live system');
+        })
+        .finally(() => {
+          setSearching(false);
+        });
+    } else {
+      setLiveBooking(null);
+      setSearchError(null);
+    }
+  }, [pnrInput]);
 
-  const handleDecision = (verifyStatus: 'VALID' | 'INVALID' | 'MISMATCH', boardStatus: 'BOARDED' | 'NO_SHOW' | 'NOT_VERIFIED') => {
-    if (passenger) {
-      markPassengerBoarding(passenger.manifestId, boardStatus, verifyStatus, notes);
+  const localPassenger = data.manifest.find(m => m.pnr === pnrInput.trim() || (pnrInput.trim().length >= 4 && m.pnr.includes(pnrInput.trim())));
+
+  // Unified passenger view: live booking's first passenger if found, or local manifest passenger
+  const passenger = liveBooking ? {
+    manifestId: localPassenger ? localPassenger.manifestId : 9999,
+    name: liveBooking.passengers?.[0]?.name || 'Passenger',
+    pnr: liveBooking.pnr,
+    age: liveBooking.passengers?.[0]?.age || 30,
+    gender: liveBooking.passengers?.[0]?.gender || 'MALE',
+    quota: liveBooking.quota,
+    coachNumber: liveBooking.passengers?.[0]?.coachNumber || null,
+    seatNumber: liveBooking.passengers?.[0]?.seatNumber || null,
+    berthType: liveBooking.passengers?.[0]?.berthType || null,
+    classType: liveBooking.classType || '3A',
+    bookingStatus: (liveBooking.passengers?.[0]?.status as any) || liveBooking.bookingStatus,
+    boardingStatus: localPassenger ? localPassenger.boardingStatus : 'NOT_VERIFIED',
+    verificationStatus: localPassenger ? localPassenger.verificationStatus : 'UNCHECKED',
+    verificationNotes: localPassenger ? localPassenger.verificationNotes : '',
+    idProofType: 'GOVT_ID',
+    idProofReference: `PNR-${liveBooking.pnr}`,
+    boardingStationId: 1,
+    destinationStationId: 2,
+    passengerNo: liveBooking.passengers?.[0]?.passengerNo || 1
+  } : localPassenger ? {
+    ...localPassenger,
+    passengerNo: localPassenger.passengerId || 1
+  } : null;
+
+  const handleDecision = async (verifyStatus: 'VALID' | 'INVALID' | 'MISMATCH', boardStatus: 'BOARDED' | 'NO_SHOW' | 'NOT_VERIFIED') => {
+    if (!passenger || actionLoading) return;
+    setActionLoading(true);
+
+    try {
+      if (localPassenger) {
+        await markPassengerBoarding(localPassenger.manifestId, boardStatus, verifyStatus, notes);
+      } else {
+        // Direct server API calls for live PNR
+        await verifyPassenger(passenger.pnr, passenger.passengerNo, verifyStatus, notes);
+        if (boardStatus === 'BOARDED') {
+          await boardPassengerApi(passenger.pnr, passenger.passengerNo);
+        } else if (boardStatus === 'NO_SHOW') {
+          await noShowPassengerApi(passenger.pnr, passenger.passengerNo);
+        }
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -152,24 +225,27 @@ export const ScannerPage: React.FC<ScannerPageProps> = ({ initialPnr = '', onIss
 
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
+                    disabled={actionLoading}
                     onClick={() => handleDecision('VALID', 'BOARDED')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all"
                   >
-                    <CheckCircle className="w-4 h-4" />
+                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                     <span>Accept & Mark ID VALID</span>
                   </button>
 
                   <button
+                    disabled={actionLoading}
                     onClick={() => handleDecision('INVALID', 'NO_SHOW')}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all"
                   >
-                    <XCircle className="w-4 h-4" />
+                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                     <span>Reject & Mark INVALID (No-Show)</span>
                   </button>
 
                   <button
+                    disabled={actionLoading}
                     onClick={() => handleDecision('MISMATCH', 'NOT_VERIFIED')}
-                    className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"
+                    className="px-4 py-2 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"
                   >
                     <AlertTriangle className="w-4 h-4" />
                     <span>ID MISMATCH (Request Proof)</span>

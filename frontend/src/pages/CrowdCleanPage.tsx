@@ -14,31 +14,44 @@ export const CrowdCleanPage: React.FC = () => {
   // Clean Form State
   const [issueType, setIssueType] = useState('TOILET_DIRTY');
   const [description, setDescription] = useState('');
+  const [crowdSubmitting, setCrowdSubmitting] = useState(false);
+  const [cleanSubmitting, setCleanSubmitting] = useState(false);
 
-  const handleCrowdSubmit = (e: React.FormEvent) => {
+  const handleCrowdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addCrowdReport({
-      stationId: activeStaff.assignedStationId || 1,
-      platformNumber: platform,
-      crowdLevel,
-      headCount,
-      recordedBy: activeStaff.staffId
-    });
+    if (crowdSubmitting) return;
+    setCrowdSubmitting(true);
+    try {
+      await addCrowdReport({
+        stationId: activeStaff.assignedStationId || 1,
+        platformNumber: platform,
+        crowdLevel,
+        headCount,
+        recordedBy: activeStaff.staffId
+      });
+    } finally {
+      setCrowdSubmitting(false);
+    }
   };
 
-  const handleCleanSubmit = (e: React.FormEvent) => {
+  const handleCleanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
-    addCleanlinessReport({
-      reportedBy: activeStaff.staffId,
-      trainId: activeStaff.assignedTrainId || 101,
-      coachId: 301,
-      stationId: activeStaff.assignedStationId,
-      platformNumber: platform,
-      issueType,
-      description: description.trim()
-    });
-    setDescription('');
+    if (!description.trim() || cleanSubmitting) return;
+    setCleanSubmitting(true);
+    try {
+      await addCleanlinessReport({
+        reportedBy: activeStaff.staffId,
+        trainId: activeStaff.assignedTrainId || 101,
+        coachId: 301,
+        stationId: activeStaff.assignedStationId,
+        platformNumber: platform,
+        issueType,
+        description: description.trim()
+      });
+      setDescription('');
+    } finally {
+      setCleanSubmitting(false);
+    }
   };
 
   return (
@@ -95,9 +108,10 @@ export const CrowdCleanPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-all mt-1"
+            disabled={crowdSubmitting}
+            className="w-full py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs transition-all mt-1"
           >
-            Record Crowd Assessment
+            {crowdSubmitting ? 'Recording Assessment...' : 'Record Crowd Assessment'}
           </button>
         </form>
 
@@ -163,9 +177,10 @@ export const CrowdCleanPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all"
+            disabled={cleanSubmitting}
+            className="w-full py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs transition-all"
           >
-            Dispatch Housekeeping Ticket
+            {cleanSubmitting ? 'Dispatching Ticket...' : 'Dispatch Housekeeping Ticket'}
           </button>
         </form>
 

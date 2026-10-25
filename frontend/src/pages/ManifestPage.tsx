@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useStaff } from '../context/StaffContext';
 import { StatusBadge } from '../components/StatusBadge';
-import { Search, Check, X, ShieldAlert } from 'lucide-react';
+import { Search, Check, X, ShieldAlert, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface ManifestPageProps {
   onInspectPassenger: (pnr: string) => void;
 }
 
 export const ManifestPage: React.FC<ManifestPageProps> = ({ onInspectPassenger }) => {
-  const { data, activeStaff, markPassengerBoarding } = useStaff();
+  const { data, activeStaff, markPassengerBoarding, chartStatus, refreshAssignmentAndChart } = useStaff();
   const [selectedCoach, setSelectedCoach] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
+  const [pendingActionId, setPendingActionId] = useState<number | null>(null);
 
   const trainId = activeStaff.assignedTrainId || 101;
   let list = data.manifest.filter(m => m.trainId === trainId);
@@ -37,25 +38,48 @@ export const ManifestPage: React.FC<ManifestPageProps> = ({ onInspectPassenger }
         {/* Header & Coach Selectors */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Passenger Chart & Manifest</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900">Passenger Chart & Manifest</h3>
+              {chartStatus.prepared && (
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Live Server Chart
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-1">Real-time onboard manifest for assigned coaches</p>
           </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {coachTabs.map(c => (
-              <button
-                key={c}
-                onClick={() => setSelectedCoach(c)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  selectedCoach === c
-                    ? 'bg-orange-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {c === 'ALL' ? 'All Assigned' : `Coach ${c}`}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refreshAssignmentAndChart()}
+              title="Refresh chart from server"
+              className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${chartStatus.loading ? 'animate-spin text-blue-600' : ''}`} />
+            </button>
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {coachTabs.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setSelectedCoach(c)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    selectedCoach === c
+                      ? 'bg-orange-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {c === 'ALL' ? 'All Assigned' : `Coach ${c}`}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+
+        {chartStatus.error && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Notice: {chartStatus.error}. Showing roster data.</span>
+          </div>
+        )}
 
         {/* Search Bar */}
         <div className="pt-4 pb-5">
@@ -136,7 +160,15 @@ export const ManifestPage: React.FC<ManifestPageProps> = ({ onInspectPassenger }
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => markPassengerBoarding(p.manifestId, 'BOARDED')}
+                            disabled={pendingActionId === p.manifestId}
+                            onClick={async () => {
+                              setPendingActionId(p.manifestId);
+                              try {
+                                await markPassengerBoarding(p.manifestId, 'BOARDED');
+                              } finally {
+                                setPendingActionId(null);
+                              }
+                            }}
                             title="Mark Boarded"
                             className={`p-1.5 rounded-lg border text-xs font-semibold transition-all ${
                               p.boardingStatus === 'BOARDED'
@@ -144,10 +176,18 @@ export const ManifestPage: React.FC<ManifestPageProps> = ({ onInspectPassenger }
                                 : 'bg-white text-emerald-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
                             }`}
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            {pendingActionId === p.manifestId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                           </button>
                           <button
-                            onClick={() => markPassengerBoarding(p.manifestId, 'NO_SHOW')}
+                            disabled={pendingActionId === p.manifestId}
+                            onClick={async () => {
+                              setPendingActionId(p.manifestId);
+                              try {
+                                await markPassengerBoarding(p.manifestId, 'NO_SHOW');
+                              } finally {
+                                setPendingActionId(null);
+                              }
+                            }}
                             title="Mark No-Show (Frees Berth to RAC)"
                             className={`p-1.5 rounded-lg border text-xs font-semibold transition-all ${
                               p.boardingStatus === 'NO_SHOW'
