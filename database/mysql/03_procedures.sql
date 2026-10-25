@@ -763,6 +763,7 @@ proc_label: BEGIN
             DECLARE v_res_id INT;
 
             SET v_p_saved_id = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].saved_passenger_id')));
+            IF v_p_saved_id IS NULL OR v_p_saved_id = 'null' OR v_p_saved_id = '' THEN SET v_p_saved_id = NULL; END IF;
             SET v_p_name = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].name')));
             SET v_p_age = JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].age'));
             SET v_p_gender = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].gender')));

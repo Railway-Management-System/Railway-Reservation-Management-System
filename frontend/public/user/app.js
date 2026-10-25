@@ -3,7 +3,7 @@
  * Main controller for all dashboard functionality.
  */
 
-import * as Service from './services/mockService.js';
+import * as Service from './services/apiService.js';
 
 // ════════════════════════════════════════════════════════════════ STATE
 const State = {
@@ -46,8 +46,29 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Check if already logged in (session persist)
   const savedUser = sessionStorage.getItem('railconnect_user');
   if (savedUser) {
-    State.user = JSON.parse(savedUser);
-    await enterDashboard();
+    try {
+      const profile = await Service.getProfile();
+      State.user = { ...JSON.parse(savedUser), ...profile };
+      sessionStorage.setItem('railconnect_user', JSON.stringify(State.user));
+      await enterDashboard();
+    } catch (err) {
+      if (err.status === 401 || err.code === 'UNAUTHORIZED') {
+        sessionStorage.removeItem('railconnect_user');
+        State.user = null;
+        document.getElementById('public-home')?.classList.remove('hidden');
+        document.getElementById('dashboard-container')?.classList.add('hidden');
+      } else if (err.code === 'NETWORK_ERROR') {
+        State.user = null;
+        document.getElementById('public-home')?.classList.remove('hidden');
+        document.getElementById('dashboard-container')?.classList.add('hidden');
+        showToast(err.message, 'error');
+      } else {
+        sessionStorage.removeItem('railconnect_user');
+        State.user = null;
+        document.getElementById('public-home')?.classList.remove('hidden');
+        document.getElementById('dashboard-container')?.classList.add('hidden');
+      }
+    }
   }
 
   // Handle initial hash or default to home without scrolling
@@ -183,10 +204,25 @@ function setGreeting() {
 }
 
 function setDefaultDate() {
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const today = `${y}-${m}-${d}`;
+
+  const maxD = new Date(y, now.getMonth(), now.getDate() + 7);
+  const maxY = maxD.getFullYear();
+  const maxM = String(maxD.getMonth() + 1).padStart(2, '0');
+  const maxDay = String(maxD.getDate()).padStart(2, '0');
+  const maxDate = `${maxY}-${maxM}-${maxDay}`;
+
   ['qs-date', 'search-date', 'public-date', 'public-track-date', 'connect-date'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = today;
+    if (el) {
+      el.value = today;
+      el.min = today;
+      el.max = maxDate;
+    }
   });
 }
 
@@ -198,29 +234,30 @@ async function populateStationDropdowns() {
       `<option value="${s.stationId}">${s.stationCode} – ${s.stationName} (${s.city})</option>`
     ).join('');
 
-    ['qs-from', 'qs-to', 'search-from', 'search-to', 'public-from', 'public-to', 'connect-from', 'connect-to'].forEach(id => {
+    const fromDropdownIds = ['qs-from', 'search-from', 'public-from', 'connect-from'];
+    const toDropdownIds = ['qs-to', 'search-to', 'public-to', 'connect-to'];
+
+    [...fromDropdownIds, ...toDropdownIds].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = stationOptions;
     });
 
-    // Set default selections
-    const fromEl1 = document.getElementById('qs-from');
-    const toEl1 = document.getElementById('qs-to');
-    const fromEl2 = document.getElementById('search-from');
-    const toEl2 = document.getElementById('search-to');
-    const fromPublic = document.getElementById('public-from');
-    const toPublic = document.getElementById('public-to');
-    const fromConnect = document.getElementById('connect-from');
-    const toConnect = document.getElementById('connect-to');
+    // Set default selections by stationCode: 'BCT' (Mumbai Central) and 'NDLS' (New Delhi)
+    const bct = State.stations.find(s => s.stationCode === 'BCT');
+    const ndls = State.stations.find(s => s.stationCode === 'NDLS');
 
-    if (fromEl1) fromEl1.value = '7'; // Mumbai Central
-    if (toEl1) toEl1.value = '1';    // New Delhi
-    if (fromEl2) fromEl2.value = '7';
-    if (toEl2) toEl2.value = '1';
-    if (fromPublic) fromPublic.value = '7';
-    if (toPublic) toPublic.value = '1';
-    if (fromConnect) fromConnect.value = '7';
-    if (toConnect) toConnect.value = '1';
+    if (bct) {
+      fromDropdownIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = String(bct.stationId);
+      });
+    }
+    if (ndls) {
+      toDropdownIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = String(ndls.stationId);
+      });
+    }
   } catch (e) {
     console.error('Could not load stations', e);
   }
@@ -238,7 +275,7 @@ window.switchAuthTab = (tab) => {
 async function loadPublicTrainTools() {
   try {
     const trains = await Service.getAllTrains();
-    const options = trains.filter(train => train.status === 'ACTIVE')
+    const options = trains
       .map(train => `<option value="${train.trainId}">${train.trainNumber} · ${train.trainName}</option>`).join('');
     ['public-schedule-train', 'public-track-train'].forEach(id => {
       const select = document.getElementById(id);
@@ -283,9 +320,34 @@ window.lookupPublicPNR = async (event) => {
   container.innerHTML = '<p>Looking up PNR…</p>';
   try {
     const booking = await Service.enquirePNR(pnr);
-    if (!booking) { container.innerHTML = `<p>No sample booking was found for PNR ${pnr}.</p>`; return; }
-    container.innerHTML = `<div class="public-pnr-card"><div><small>PNR ${booking.pnr}</small><strong>${booking.bookingStatus.replaceAll('_', ' ')}</strong></div><p>${booking.train?.trainNumber} · ${booking.train?.trainName}</p><p>${booking.boardingStation?.stationCode} → ${booking.destinationStation?.stationCode} · ${formatDate(booking.journeyDate)}</p><div class="pnr-passenger-status">${booking.passengers.map(passenger => `<span>${passenger.passengerInfo?.name || passenger.name || 'Passenger'} · ${passenger.passengerStatus.replaceAll('_', ' ')}</span>`).join('')}</div></div>`;
-  } catch (error) { container.innerHTML = '<p>PNR lookup failed. Please try again.</p>'; }
+    if (!booking) { container.innerHTML = `<p>No booking was found for PNR ${pnr}.</p>`; return; }
+    const trainDisplay = booking.trainName || (booking.trainNumber ? `Train ${booking.trainNumber}` : (booking.train?.trainName || 'N/A'));
+    const passengersHtml = Array.isArray(booking.passengers)
+      ? booking.passengers.map(p => {
+          const seatInfo = p.coachNumber ? ` · ${p.coachNumber}/${p.seatNumber} (${p.berthType})` : '';
+          const status = (p.status || p.passengerStatus || booking.bookingStatus || '').replace(/_/g, ' ');
+          return `<span>${p.name || p.passengerInfo?.name || 'Passenger'} · ${status}${seatInfo}</span>`;
+        }).join('')
+      : '';
+
+    container.innerHTML = `
+      <div class="public-pnr-card">
+        <div>
+          <small>PNR ${booking.pnr}</small>
+          <strong>${(booking.bookingStatus || '').replace(/_/g, ' ')}</strong>
+        </div>
+        <p>${booking.trainNumber ? `${booking.trainNumber} · ` : ''}${trainDisplay}</p>
+        <p>${booking.boardingStation?.stationCode || '—'} → ${booking.destinationStation?.stationCode || '—'} · ${formatDate(booking.journeyDate)}</p>
+        <div class="pnr-passenger-status">${passengersHtml}</div>
+      </div>
+    `;
+  } catch (error) {
+    if (error?.code === 'NOT_FOUND' || error?.status === 404) {
+      container.innerHTML = `<p>No booking was found for PNR ${pnr}.</p>`;
+    } else {
+      container.innerHTML = `<p>${error?.message || 'PNR lookup failed. Please try again.'}</p>`;
+    }
+  }
 };
 
 window.searchPublicConnections = async (event) => {
@@ -387,10 +449,12 @@ window.handleLogin = async (e) => {
     await enterDashboard();
     showToast('Welcome back, ' + user.name.split(' ')[0] + '! 🎉', 'success');
   } catch (err) {
-    showToast(
-      err.message === 'ACCOUNT_SUSPENDED' ? 'Your account is suspended. Contact support.' :
-      'Invalid email or password. Please try again.', 'error'
-    );
+    const msg =
+      err?.code === 'UNAUTHORIZED' ? 'Invalid email or password. Please try again.' :
+      err?.code === 'FORBIDDEN' ? 'Your account is suspended. Contact support.' :
+      (err?.code === 'CONFLICT' || err?.code === 'VALIDATION_ERROR' || err?.code === 'NETWORK_ERROR') ? err.message :
+      'Invalid email or password. Please try again.';
+    showToast(msg, 'error');
   } finally {
     btn.querySelector('.btn-text').classList.remove('hidden');
     btn.querySelector('.btn-spinner').classList.add('hidden');
@@ -415,8 +479,12 @@ window.handleRegister = async (e) => {
     await enterDashboard();
     showToast('Account created successfully! Welcome 🚆', 'success');
   } catch (err) {
-    showToast(err.message === 'EMAIL_EXISTS' ? 'Email already registered.' :
-      err.message === 'PHONE_EXISTS' ? 'Phone number already registered.' : 'Registration failed.', 'error');
+    const msg =
+      err?.code === 'UNAUTHORIZED' ? 'Invalid email or password. Please try again.' :
+      err?.code === 'FORBIDDEN' ? 'Your account is suspended. Contact support.' :
+      (err?.code === 'CONFLICT' || err?.code === 'VALIDATION_ERROR' || err?.code === 'NETWORK_ERROR') ? err.message :
+      'Registration failed.';
+    showToast(msg, 'error');
   } finally {
     btn.querySelector('.btn-text').classList.remove('hidden');
     btn.querySelector('.btn-spinner').classList.add('hidden');
@@ -461,14 +529,17 @@ async function enterDashboard() {
   showLoading('Loading your dashboard...');
   try {
     const [bookings, savedPax, notifications] = await Promise.all([
-      Service.getUserBookings(user.userId),
-      Service.getSavedPassengers(user.userId),
-      Service.getUserNotifications(user.userId)
+      Service.getUserBookings().catch(err => {
+        console.error('Failed to load user bookings:', err);
+        return [];
+      }),
+      Service.getSavedPassengers(user.userId).catch(() => []),
+      Service.getUserNotifications(user.userId).catch(() => [])
     ]);
 
-    State.allBookings = bookings;
-    State.savedPassengers = savedPax;
-    State.notifications = notifications;
+    State.allBookings = Array.isArray(bookings) ? bookings : [];
+    State.savedPassengers = Array.isArray(savedPax) ? savedPax : [];
+    State.notifications = Array.isArray(notifications) ? notifications : [];
 
     renderHomeStats();
     renderRecentBookings();
@@ -539,8 +610,10 @@ function closeSidebar() {
 
 function renderHomeStats() {
   const confirmed = State.allBookings.filter(b => b.bookingStatus === 'CONFIRMED').length;
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const upcoming = State.allBookings.filter(b =>
-    b.bookingStatus === 'CONFIRMED' && new Date(b.journeyDate) >= new Date()
+    b.bookingStatus === 'CONFIRMED' && (b.journeyDate >= todayStr)
   ).length;
   const unread = State.notifications.filter(n => !n.isRead).length;
   const totalSpent = State.allBookings
@@ -580,7 +653,9 @@ function renderRecentBookings() {
     return;
   }
 
-  container.innerHTML = recent.map(b => `
+  container.innerHTML = recent.map(b => {
+    const trainDisplayName = b.trainName || (b.trainNumber ? `Train ${b.trainNumber}` : (b.train?.trainName || 'N/A'));
+    return `
     <div class="booking-mini-card" onclick="navigateTo('bookings')">
       <div class="mini-card-header">
         <div class="mini-pnr">PNR: ${b.pnr}</div>
@@ -591,10 +666,11 @@ function renderRecentBookings() {
         <div class="mini-arrow">→</div>
         <div class="mini-station">${b.destinationStation?.stationCode || '—'}</div>
       </div>
-      <div class="mini-train">${b.train?.trainName || 'N/A'}</div>
+      <div class="mini-train">${trainDisplayName}</div>
       <div class="mini-date">📅 ${formatDate(b.journeyDate)} | 🚃 ${b.classType}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderHomeAlerts() {
@@ -780,12 +856,14 @@ function renderSearchResults(results) {
       if (racOnly) { availClass = 'amber'; availText = `RAC ${a.racCount}`; }
       if (waitlist) { availClass = 'red'; availText = `WL ${a.waitingListCount}`; }
 
+      const fareAmount = a.estimatedTotalFare != null ? a.estimatedTotalFare : (a.baseFare != null ? a.baseFare : 0);
+
       return `
         <div class="class-chip ${!available && !racOnly ? 'unavailable' : ''}"
              onclick="selectClassForTrain(${train.trainId}, '${a.classType}', this)">
           <div class="class-type">${a.classType}</div>
           <div class="class-avail ${availClass}">${availText}</div>
-          <div class="class-fare">from ₹${getFareForClass(a.classType)}</div>
+          <div class="class-fare">from ₹${fareAmount}</div>
         </div>
       `;
     }).join('');
@@ -793,6 +871,10 @@ function renderSearchResults(results) {
     const dayBadges = days.map(d => `
       <div class="day-badge ${train.runningDays?.includes(d) ? 'active-day' : ''}">${d[0]}</div>
     `).join('');
+
+    const departureDisplay = train.departureTime || '—';
+    const arrivalDisplay = train.arrivalTime || '—';
+    const durationDisplay = train.duration || '—';
 
     return `
       <div class="train-result-card" id="train-card-${train.trainId}">
@@ -806,22 +888,23 @@ function renderSearchResults(results) {
 
         <div class="train-timing">
           <div class="time-station">
-            <div class="time-display">${getScheduleTime(train, 'departure')}</div>
+            <div class="time-display">${departureDisplay}</div>
             <div class="station-code">${fromStation?.stationCode || '?'}</div>
           </div>
           <div class="duration-section">
             <div class="duration-line">
               <div class="h-line"></div>
             </div>
-            <div class="duration-text">${getDuration(train)}</div>
+            <div class="duration-text">${durationDisplay}</div>
           </div>
           <div class="time-station">
-            <div class="time-display">${getScheduleTime(train, 'arrival')}</div>
+            <div class="time-display">${arrivalDisplay}</div>
             <div class="station-code">${toStation?.stationCode || '?'}</div>
           </div>
         </div>
 
         <div class="classes-row">${classChips || '<span style="color:var(--clr-text-3);font-size:13px;">No availability data</span>'}</div>
+        <div class="fallback-notice-msg" style="display:none; font-size:12px; color:var(--clr-accent-2); margin-top:8px; padding:6px 10px; background:rgba(255,184,0,0.1); border-radius:4px;"></div>
 
         <div class="train-card-footer">
           <div class="running-days">${dayBadges}</div>
@@ -834,14 +917,55 @@ function renderSearchResults(results) {
   }).join('');
 }
 
-window.selectClassForTrain = (trainId, classType, el) => {
+window.selectClassForTrain = async (trainId, classType, el) => {
   // Deselect all in this card
   const card = document.getElementById(`train-card-${trainId}`);
-  card.querySelectorAll('.class-chip').forEach(c => c.classList.remove('selected'));
+  if (card) {
+    card.querySelectorAll('.class-chip').forEach(c => c.classList.remove('selected'));
+  }
   el.classList.add('selected');
 
   State.bookingFlow.selectedTrain = State.bookingFlow.searchResults.find(t => t.trainId === trainId);
   State.bookingFlow.selectedClass = classType;
+
+  // Step 9: Call real getAvailability
+  const journeyDate = State.bookingFlow.searchParams?.date;
+  const quota = State.bookingFlow.searchParams?.quota || 'GENERAL';
+
+  try {
+    const availReply = await Service.getAvailability(trainId, journeyDate, classType, quota, 1);
+    if (availReply) {
+      const seats = availReply.availableSeats ?? 0;
+      const rac = availReply.racCount ?? 0;
+      const wl = availReply.waitingListCount ?? 0;
+
+      const availEl = el.querySelector('.class-avail');
+      if (availEl) {
+        let availClass = 'green', availText = `${seats} AVL`;
+        if (seats === 0 && rac > 0) { availClass = 'amber'; availText = `RAC ${rac}`; }
+        else if (seats === 0 && rac === 0) { availClass = 'red'; availText = `WL ${wl}`; }
+        availEl.className = `class-avail ${availClass}`;
+        availEl.textContent = availText;
+      }
+
+      if (availReply.fallbackOffered && availReply.fallbackNotice) {
+        showToast(availReply.fallbackNotice, 'info');
+        const noticeEl = card?.querySelector('.fallback-notice-msg');
+        if (noticeEl) {
+          noticeEl.textContent = availReply.fallbackNotice;
+          noticeEl.style.display = 'block';
+        }
+      } else {
+        const noticeEl = card?.querySelector('.fallback-notice-msg');
+        if (noticeEl) {
+          noticeEl.textContent = '';
+          noticeEl.style.display = 'none';
+        }
+      }
+    }
+  } catch (err) {
+    showToast(err?.message || 'Failed to check class availability.', 'error');
+  }
 };
 
 window.proceedWithTrain = async (trainId) => {
@@ -853,73 +977,105 @@ window.proceedWithTrain = async (trainId) => {
     State.bookingFlow.selectedClass = train.availability[0].classType;
   }
 
-  // Initiate seat hold
-  try {
-    showLoading('Holding seats...');
-    const hold = await Service.holdSeats({
-      trainId,
-      journeyDate: State.bookingFlow.searchParams.date,
-      boardingStationId: State.bookingFlow.searchParams.fromId,
-      destinationStationId: State.bookingFlow.searchParams.toId,
-      classType: State.bookingFlow.selectedClass,
-      quota: State.bookingFlow.searchParams.quota,
-      passengerCount: 1
-    });
-    State.bookingFlow.holdToken = hold.holdToken;
-    State.bookingFlow.holdExpiry = new Date(hold.expiresAt);
-    hideLoading();
-    goToStep(3);
-  } catch (err) {
-    hideLoading();
-    showToast('Failed to hold seats. Please try again.', 'error');
+  // Clear any existing hold token or timer from previous attempts
+  if (State.bookingFlow.holdTimerInterval) {
+    clearInterval(State.bookingFlow.holdTimerInterval);
+    State.bookingFlow.holdTimerInterval = null;
   }
+  State.bookingFlow.holdToken = null;
+  State.bookingFlow.holdExpiry = null;
+  State.bookingFlow.secondsRemaining = 0;
+  State.bookingFlow.pnr = null;
+
+  goToStep(3);
 };
 
 // Step 3 - Passenger Details
 function initPassengerStep() {
   const container = document.getElementById('saved-pax-list');
-  container.innerHTML = State.savedPassengers.map(p => `
-    <label class="saved-pax-item">
-      <input type="checkbox" class="pax-checkbox" value="${p.passengerId}" onchange="togglePassengerSelection(${p.passengerId}, this.checked)" />
-      <div class="pax-avatar-sm">${getInitials(p.name)}</div>
-      <div class="pax-name-info">
-        <div class="pax-name-sm">${p.name}</div>
-        <div class="pax-details-sm">${p.age} yrs | ${p.gender} | ${p.berthPreference} | ${p.concessionType !== 'NONE' ? p.concessionType : 'No concession'}</div>
-      </div>
-    </label>
-  `).join('');
+  if (container) {
+    if (!State.savedPassengers || State.savedPassengers.length === 0) {
+      container.innerHTML = '<div style="color:var(--clr-text-3);font-size:13px;padding:8px 0;">No saved passengers found. Use the "+ Add New" button above to add passengers for this trip.</div>';
+    } else {
+      container.innerHTML = State.savedPassengers.map(p => {
+        const isChecked = State.bookingFlow.selectedPassengers.some(sp => sp.passengerId === p.passengerId || (sp.name === p.name && sp.age === p.age));
+        return `
+          <label class="saved-pax-item">
+            <input type="checkbox" class="pax-checkbox" value="${p.passengerId}" ${isChecked ? 'checked' : ''} onchange="togglePassengerSelection(${p.passengerId}, this.checked)" />
+            <div class="pax-avatar-sm">${getInitials(p.name)}</div>
+            <div class="pax-name-info">
+              <div class="pax-name-sm">${p.name}</div>
+              <div class="pax-details-sm">${p.age} yrs | ${p.gender} | ${p.berthPreference || 'NO_BERTH'} | ${p.concessionType !== 'NONE' ? p.concessionType : 'No concession'}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+    }
+  }
+
+  // Toggle ladies fallback consent visibility if LADIES quota selected
+  const fallbackContainer = document.getElementById('fallback-consent-container');
+  if (fallbackContainer) {
+    const isLadies = (State.bookingFlow.searchParams?.quota === 'LADIES');
+    fallbackContainer.style.display = isLadies ? 'flex' : 'none';
+  }
 
   renderSelectedJourneyInfo();
-  startHoldTimer();
 }
 
 window.togglePassengerSelection = (passengerId, checked) => {
   if (checked) {
+    const maxPax = State.bookingFlow.searchParams?.quota === 'TATKAL' ? 4 : 6;
+    if (State.bookingFlow.selectedPassengers.length >= maxPax) {
+      showToast(`Maximum ${maxPax} passengers allowed per booking`, 'warning');
+      const chk = document.querySelector(`input.pax-checkbox[value="${passengerId}"]`);
+      if (chk) chk.checked = false;
+      return;
+    }
     const pax = State.savedPassengers.find(p => p.passengerId === passengerId);
     if (pax && !State.bookingFlow.selectedPassengers.find(p => p.passengerId === passengerId)) {
-      State.bookingFlow.selectedPassengers.push(pax);
+      State.bookingFlow.selectedPassengers.push({
+        passengerId: pax.passengerId,
+        name: pax.name,
+        age: Number(pax.age),
+        gender: pax.gender,
+        berthPreference: pax.berthPreference || 'NO_BERTH',
+        idProofType: pax.idProofType || 'AADHAAR',
+        idProofReference: pax.idProofReference || 'XXXX-XXXX-0000',
+        concessionType: pax.concessionType || 'NONE',
+        disabilityType: pax.disabilityType || 'NONE'
+      });
+      // Invalidate existing hold on passenger change so fresh hold is acquired for summary
+      State.bookingFlow.pnr = null;
     }
   } else {
     State.bookingFlow.selectedPassengers = State.bookingFlow.selectedPassengers.filter(p => p.passengerId !== passengerId);
+    State.bookingFlow.pnr = null;
   }
 };
 
 window.addPassengerRow = () => {
+  const maxPax = State.bookingFlow.searchParams?.quota === 'TATKAL' ? 4 : 6;
+  if (State.bookingFlow.selectedPassengers.length >= maxPax) {
+    showToast(`Maximum ${maxPax} passengers allowed per booking (${State.bookingFlow.searchParams?.quota || 'GENERAL'} quota)`, 'warning');
+    return;
+  }
+
   const container = document.getElementById('new-pax-forms');
   const formId = `new-pax-${Date.now()}`;
   container.insertAdjacentHTML('beforeend', `
-    <div class="saved-pax-item" id="${formId}" style="flex-direction:column;align-items:stretch;gap:12px;cursor:default;">
+    <div class="saved-pax-item" id="${formId}" style="flex-direction:column;align-items:stretch;gap:12px;cursor:default;margin-bottom:12px;">
       <div class="form-grid" style="margin:0;gap:12px;">
         <div class="form-group">
-          <label class="form-label">Name *</label>
-          <input type="text" class="form-input" id="${formId}-name" placeholder="Full Name" />
+          <label class="form-label">Full Name *</label>
+          <input type="text" class="form-input" id="${formId}-name" placeholder="As shown on ID proof" />
         </div>
         <div class="form-group">
           <label class="form-label">Age *</label>
-          <input type="number" class="form-input" id="${formId}-age" min="1" max="120" />
+          <input type="number" class="form-input" id="${formId}-age" min="1" max="120" placeholder="Years" />
         </div>
         <div class="form-group">
-          <label class="form-label">Gender</label>
+          <label class="form-label">Gender *</label>
           <select class="form-select" id="${formId}-gender">
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
@@ -929,16 +1085,55 @@ window.addPassengerRow = () => {
         <div class="form-group">
           <label class="form-label">Berth Preference</label>
           <select class="form-select" id="${formId}-berth">
+            <option value="NO_BERTH">No Preference</option>
             <option value="LOWER">Lower</option>
             <option value="MIDDLE">Middle</option>
             <option value="UPPER">Upper</option>
             <option value="SIDE_LOWER">Side Lower</option>
+            <option value="SIDE_UPPER">Side Upper</option>
+            <option value="WINDOW">Window</option>
+            <option value="AISLE">Aisle</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Proof Type *</label>
+          <select class="form-select" id="${formId}-id-type">
+            <option value="AADHAAR">Aadhaar Card</option>
+            <option value="PAN">PAN Card</option>
+            <option value="PASSPORT">Passport</option>
+            <option value="DRIVING_LICENSE">Driving License</option>
+            <option value="VOTER_ID">Voter ID</option>
+            <option value="GOVT_ID">Government ID</option>
+            <option value="SYNTHETIC_TEST_ID">Synthetic Test ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Reference / Number *</label>
+          <input type="text" class="form-input" id="${formId}-id-ref" placeholder="ID document number" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Concession Category</label>
+          <select class="form-select" id="${formId}-concession">
+            <option value="NONE">None</option>
+            <option value="SENIOR_CITIZEN">Senior Citizen</option>
+            <option value="STUDENT">Student</option>
+            <option value="DIVYAANG">Divyaang</option>
+            <option value="DEFENCE">Defence</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Disability Type (if Divyaang)</label>
+          <select class="form-select" id="${formId}-disability">
+            <option value="NONE">None</option>
+            <option value="ORTHOPEDIC">Orthopedic</option>
+            <option value="VISUAL">Visual</option>
+            <option value="HEARING">Hearing</option>
           </select>
         </div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button type="button" class="btn-danger" onclick="document.getElementById('${formId}').remove()" style="padding:6px 12px;font-size:12px;">Remove</button>
-        <button type="button" class="btn-primary" onclick="addNewPaxToSelection('${formId}')" style="padding:6px 14px;font-size:12px;">Add →</button>
+        <button type="button" class="btn-primary" onclick="addNewPaxToSelection('${formId}')" style="padding:6px 14px;font-size:12px;">Add Passenger →</button>
       </div>
     </div>
   `);
@@ -946,19 +1141,56 @@ window.addPassengerRow = () => {
 
 window.addNewPaxToSelection = (formId) => {
   const name = document.getElementById(`${formId}-name`)?.value?.trim();
-  const age = parseInt(document.getElementById(`${formId}-age`)?.value);
-  if (!name || !age) { showToast('Please fill name and age', 'warning'); return; }
+  const age = parseInt(document.getElementById(`${formId}-age`)?.value, 10);
+  const idRef = document.getElementById(`${formId}-id-ref`)?.value?.trim();
+
+  if (!name || name.length < 2) {
+    showToast('Please enter a valid passenger name (at least 2 characters)', 'warning');
+    return;
+  }
+  if (!age || isNaN(age) || age < 1 || age > 120) {
+    showToast('Please enter a valid passenger age between 1 and 120', 'warning');
+    return;
+  }
+  if (!idRef) {
+    showToast('Please enter an ID proof reference number', 'warning');
+    return;
+  }
+
+  const gender = document.getElementById(`${formId}-gender`)?.value || 'MALE';
+  const berthPreference = document.getElementById(`${formId}-berth`)?.value || 'NO_BERTH';
+  const idProofType = document.getElementById(`${formId}-id-type`)?.value || 'AADHAAR';
+  const concessionType = document.getElementById(`${formId}-concession`)?.value || 'NONE';
+  const disabilityType = document.getElementById(`${formId}-disability`)?.value || 'NONE';
+
+  if (concessionType === 'DIVYAANG' && disabilityType === 'NONE') {
+    showToast('Please select a specific disability type for Divyaang concession', 'warning');
+    return;
+  }
+
+  const maxPax = State.bookingFlow.searchParams?.quota === 'TATKAL' ? 4 : 6;
+  if (State.bookingFlow.selectedPassengers.length >= maxPax) {
+    showToast(`Maximum ${maxPax} passengers allowed per booking`, 'warning');
+    return;
+  }
 
   State.bookingFlow.selectedPassengers.push({
-    passengerId: null, name, age,
-    gender: document.getElementById(`${formId}-gender`)?.value || 'MALE',
-    berthPreference: document.getElementById(`${formId}-berth`)?.value || 'LOWER',
-    idProofType: 'AADHAAR', idProofReference: 'XXXX-XXXX-0000',
-    concessionType: 'NONE', disabilityType: 'NONE'
+    passengerId: null,
+    name,
+    age,
+    gender,
+    berthPreference,
+    idProofType,
+    idProofReference: idRef,
+    concessionType,
+    disabilityType
   });
 
-  document.getElementById(formId).remove();
-  showToast(`${name} added to booking`, 'success');
+  // Invalidate existing hold on passenger changes so fresh hold is acquired for summary
+  State.bookingFlow.pnr = null;
+
+  document.getElementById(formId)?.remove();
+  showToast(`${name} added to booking list (${State.bookingFlow.selectedPassengers.length}/${maxPax})`, 'success');
 };
 
 function renderSelectedJourneyInfo() {
@@ -994,77 +1226,108 @@ function renderSelectedJourneyInfo() {
       </div>
     </div>
   `;
-
-  const timerEl = document.getElementById('hold-timer');
-  if (timerEl) timerEl.classList.remove('hidden');
 }
 
-function startHoldTimer() {
-  if (State.bookingFlow.holdTimerInterval) clearInterval(State.bookingFlow.holdTimerInterval);
-  if (!State.bookingFlow.holdExpiry) return;
+function startHoldTimer(initialSeconds) {
+  if (State.bookingFlow.holdTimerInterval) {
+    clearInterval(State.bookingFlow.holdTimerInterval);
+    State.bookingFlow.holdTimerInterval = null;
+  }
 
-  const updateTimer = () => {
-    const now = new Date();
-    const diff = Math.max(0, State.bookingFlow.holdExpiry - now);
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    const text = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+  let remaining = typeof initialSeconds === 'number' ? initialSeconds : (State.bookingFlow.secondsRemaining || 0);
+  if (remaining <= 0) return;
+
+  const renderTimerText = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const text = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     ['hold-countdown', 'hold-countdown-4'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = text;
     });
-    if (diff === 0) {
-      clearInterval(State.bookingFlow.holdTimerInterval);
-      showToast('Seat hold expired. Please start over.', 'error');
-      goToStep(1);
-    }
+    const timerBox = document.getElementById('hold-timer');
+    if (timerBox) timerBox.classList.remove('hidden');
+    const timerBox4 = document.getElementById('hold-timer-4');
+    if (timerBox4) timerBox4.classList.remove('hidden');
   };
 
-  updateTimer();
-  State.bookingFlow.holdTimerInterval = setInterval(updateTimer, 1000);
+  renderTimerText(remaining);
+
+  State.bookingFlow.holdTimerInterval = setInterval(() => {
+    remaining -= 1;
+    State.bookingFlow.secondsRemaining = remaining;
+    if (remaining <= 0) {
+      clearInterval(State.bookingFlow.holdTimerInterval);
+      State.bookingFlow.holdTimerInterval = null;
+      renderTimerText(0);
+      showToast('Seat hold expired. Please reselect your journey and passengers.', 'error');
+      const payBtn = document.getElementById('pay-now-btn');
+      if (payBtn) payBtn.disabled = true;
+    } else {
+      renderTimerText(remaining);
+    }
+  }, 1000);
 }
 
 // Step 4 - Summary
-function initSummaryStep() {
+async function initSummaryStep() {
   const { selectedTrain, selectedClass, selectedPassengers, searchParams } = State.bookingFlow;
   if (!selectedTrain) return;
 
   const fromStation = State.stations.find(s => s.stationId === searchParams.fromId);
   const toStation = State.stations.find(s => s.stationId === searchParams.toId);
 
-  // Journey summary card
+  // Validate passenger requirements
+  if (!selectedPassengers || selectedPassengers.length === 0) {
+    showToast('Please select or add at least one passenger before proceeding', 'error');
+    goToStep(3);
+    return;
+  }
+
+  const maxPax = searchParams.quota === 'TATKAL' ? 4 : 6;
+  if (selectedPassengers.length > maxPax) {
+    showToast(`Maximum ${maxPax} passengers allowed per booking (${searchParams.quota || 'GENERAL'} quota)`, 'error');
+    goToStep(3);
+    return;
+  }
+
+  const hasAdult = selectedPassengers.some(p => Number(p.age) >= 18);
+  if (!hasAdult) {
+    showToast('At least one adult passenger (18 years or older) is required per booking', 'error');
+    goToStep(3);
+    return;
+  }
+
+  // Render static details first
   document.getElementById('summary-journey-card').innerHTML = `
     <div class="card-header"><h3>Journey Details</h3></div>
     <div class="train-timing" style="margin-bottom:0;">
       <div class="time-station">
-        <div class="time-display">${getScheduleTime(selectedTrain, 'departure')}</div>
+        <div class="time-display">${selectedTrain.departureTime || '—'}</div>
         <div class="station-code">${fromStation?.stationCode || '?'}</div>
         <div style="font-size:12px;color:var(--clr-text-2)">${fromStation?.stationName || ''}</div>
       </div>
       <div class="duration-section" style="flex:1;text-align:center;">
-        <div class="duration-text">${getDuration(selectedTrain)}</div>
+        <div class="duration-text">${selectedTrain.duration || '—'}</div>
         <div class="h-line" style="margin:6px 0;"></div>
         <div style="font-size:12px;color:var(--clr-text-3)">${selectedTrain.trainName} | ${selectedClass}</div>
       </div>
       <div class="time-station">
-        <div class="time-display">${getScheduleTime(selectedTrain, 'arrival')}</div>
+        <div class="time-display">${selectedTrain.arrivalTime || '—'}</div>
         <div class="station-code">${toStation?.stationCode || '?'}</div>
         <div style="font-size:12px;color:var(--clr-text-2)">${toStation?.stationName || ''}</div>
       </div>
     </div>
   `;
 
-  // Passengers card
-  const paxRows = selectedPassengers.length
-    ? selectedPassengers.map(p => `
-        <tr style="border-bottom:1px solid var(--clr-border);">
-          <td style="padding:10px 0;font-weight:600;">${p.name}</td>
-          <td style="padding:10px;color:var(--clr-text-2);">${p.age} / ${p.gender}</td>
-          <td style="padding:10px;color:var(--clr-text-2);">${p.berthPreference}</td>
-          <td style="padding:10px;color:var(--clr-accent);">${p.concessionType !== 'NONE' ? p.concessionType : '—'}</td>
-        </tr>
-      `).join('')
-    : `<tr><td colspan="4" style="padding:16px;color:var(--clr-text-3);text-align:center;">No passengers added. Please go back.</td></tr>`;
+  const paxRows = selectedPassengers.map(p => `
+    <tr style="border-bottom:1px solid var(--clr-border);">
+      <td style="padding:10px 0;font-weight:600;">${p.name}</td>
+      <td style="padding:10px;color:var(--clr-text-2);">${p.age} / ${p.gender}</td>
+      <td style="padding:10px;color:var(--clr-text-2);">${p.berthPreference || 'NO_BERTH'}</td>
+      <td style="padding:10px;color:var(--clr-accent);">${p.concessionType !== 'NONE' ? p.concessionType : '—'}</td>
+    </tr>
+  `).join('');
 
   document.getElementById('summary-passengers-card').innerHTML = `
     <div class="card-header"><h3>Passengers (${selectedPassengers.length})</h3></div>
@@ -1081,37 +1344,96 @@ function initSummaryStep() {
     </table>
   `;
 
-  // Fare breakdown
-  const route = selectedTrain.route || [];
-  const fromStop = route.find(stop => stop.stationId === searchParams.fromId);
-  const toStop = route.find(stop => stop.stationId === searchParams.toId);
-  const journeyDistance = fromStop && toStop ? Math.max(0, toStop.distanceFromOrigin - fromStop.distanceFromOrigin) : 0;
-  const classRatePerKm = { '1A': 3.04, '2A': 2.0, '3A': 1.34, SL: 0.48, CC: 1.58, EC: 2.77, '2S': 0.37 };
-  const baseFare = Math.round(journeyDistance * (classRatePerKm[selectedClass] || 1) * Math.max(1, selectedPassengers.length) * 100) / 100;
-  const reservationCharge = 80 * Math.max(1, selectedPassengers.length);
-  const tatkalCharge = searchParams.quota === 'TATKAL' ? 400 * Math.max(1, selectedPassengers.length) : 0;
-  const insurance = document.getElementById('pref-insurance')?.checked ? 1.5 * Math.max(1, selectedPassengers.length) : 0;
-  const gst = ['1A', '2A', '3A', 'CC', 'EC'].includes(selectedClass)
-    ? Math.round((baseFare + reservationCharge + tatkalCharge) * 0.05 * 100) / 100 : 0;
-  const concessionDiscount = selectedPassengers.reduce((acc, p) => {
-    if (p.concessionType === 'SENIOR_CITIZEN') return acc + baseFare * 0.40 / Math.max(1, selectedPassengers.length);
-    if (p.concessionType === 'STUDENT') return acc + baseFare * 0.25 / Math.max(1, selectedPassengers.length);
-    return acc;
-  }, 0);
-  const total = baseFare + reservationCharge + tatkalCharge + insurance + gst - concessionDiscount;
+  // If a booking hold has not yet been initiated for this passenger set, call real createBooking to hold seats
+  if (!State.bookingFlow.pnr) {
+    showLoading('Reserving seats & calculating authoritative fare...');
+    try {
+      const fallbackConsent = document.getElementById('pref-fallback-consent')?.checked || false;
+      const berthCondition = document.getElementById('pref-berth-condition')?.checked || false;
+      const autoUpgrade = document.getElementById('pref-auto-upgrade')?.checked || false;
+      const bookOnlyIfConfirmed = document.getElementById('pref-confirmed-only')?.checked || false;
+      const preferredCoach = document.getElementById('pref-coach')?.value?.trim() || null;
+      const travelInsurance = document.getElementById('pref-insurance')?.checked || false;
 
-  State.bookingFlow.totalFare = total;
-  State.bookingFlow.fareBreakdown = { baseFare, reservationCharge, tatkalCharge, insurance, gst, concessionDiscount };
+      const bookingPayload = {
+        trainId: selectedTrain.trainId,
+        journeyDate: searchParams.date,
+        boardingStationId: searchParams.fromId,
+        destinationStationId: searchParams.toId,
+        classType: selectedClass,
+        quota: searchParams.quota || 'GENERAL',
+        requestedQuota: searchParams.quota || 'GENERAL',
+        continueWithGeneralQuota: fallbackConsent,
+        passengers: selectedPassengers.map(p => ({
+          name: p.name,
+          age: Number(p.age),
+          gender: p.gender,
+          berthPreference: p.berthPreference || 'NO_BERTH',
+          idProofType: p.idProofType || 'AADHAAR',
+          idProofReference: p.idProofReference || 'XXXX-XXXX-0000',
+          concessionType: p.concessionType || 'NONE',
+          disabilityType: p.disabilityType || 'NONE'
+        })),
+        preferences: {
+          autoUpgrade,
+          bookOnlyIfConfirmed,
+          berthCondition,
+          preferredCoach,
+          travelInsurance
+        }
+      };
+
+      const bookingRes = await Service.createBooking(bookingPayload);
+      State.bookingFlow.pnr = bookingRes.pnr;
+      State.bookingFlow.bookingStatus = bookingRes.bookingStatus;
+      State.bookingFlow.projectedStatus = bookingRes.projectedStatus;
+      State.bookingFlow.totalFare = Number(bookingRes.totalFare);
+      State.bookingFlow.fareBreakdown = bookingRes.fareBreakdown || [];
+      State.bookingFlow.secondsRemaining = Number(bookingRes.secondsRemaining) || 600;
+
+      startHoldTimer(State.bookingFlow.secondsRemaining);
+      showToast(`Seats reserved on hold! PNR: ${bookingRes.pnr}`, 'info');
+    } catch (err) {
+      hideLoading();
+      showToast(err?.message || 'Failed to reserve seats. Please retry.', 'error');
+      goToStep(3);
+      return;
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // Render server-authoritative fare breakdown
+  renderServerFareBreakdown();
+}
+
+function renderServerFareBreakdown() {
+  const breakdownList = Array.isArray(State.bookingFlow.fareBreakdown) ? State.bookingFlow.fareBreakdown : [];
+  const total = State.bookingFlow.totalFare || 0;
+
+  let sumBase = 0, sumReservation = 0, sumSuperfast = 0, sumTatkal = 0, sumDynamic = 0, sumGst = 0, sumInsurance = 0, sumDiscount = 0;
+  breakdownList.forEach(item => {
+    sumBase += Number(item.baseFare) || 0;
+    sumReservation += Number(item.reservationCharge) || 0;
+    sumSuperfast += Number(item.superfastCharge) || 0;
+    sumTatkal += Number(item.tatkalCharge) || 0;
+    sumDynamic += Number(item.dynamicSurcharge) || 0;
+    sumGst += Number(item.gst) || 0;
+    sumInsurance += Number(item.insurance) || 0;
+    sumDiscount += Number(item.concessionDiscount) || 0;
+  });
 
   document.getElementById('fare-breakdown').innerHTML = `
-    <div class="fare-row"><span class="fare-label">Base Fare</span><span class="fare-amount">₹${baseFare.toFixed(2)}</span></div>
-    <div class="fare-row"><span class="fare-label">Reservation Charge</span><span class="fare-amount">₹${reservationCharge.toFixed(2)}</span></div>
-    ${tatkalCharge ? `<div class="fare-row"><span class="fare-label">Tatkal Surcharge</span><span class="fare-amount">₹${tatkalCharge.toFixed(2)}</span></div>` : ''}
-    ${insurance ? `<div class="fare-row"><span class="fare-label">Travel Insurance</span><span class="fare-amount">₹${insurance.toFixed(2)}</span></div>` : ''}
-    <div class="fare-row"><span class="fare-label">GST (5%)</span><span class="fare-amount">₹${gst.toFixed(2)}</span></div>
-    ${concessionDiscount ? `<div class="fare-row"><span class="fare-label">Concession Discount</span><span class="fare-amount fare-discount">-₹${concessionDiscount.toFixed(2)}</span></div>` : ''}
+    <div class="fare-row"><span class="fare-label">Base Fare</span><span class="fare-amount">₹${sumBase.toFixed(2)}</span></div>
+    <div class="fare-row"><span class="fare-label">Reservation Charge</span><span class="fare-amount">₹${sumReservation.toFixed(2)}</span></div>
+    ${sumSuperfast > 0 ? `<div class="fare-row"><span class="fare-label">Superfast Surcharge</span><span class="fare-amount">₹${sumSuperfast.toFixed(2)}</span></div>` : ''}
+    ${sumTatkal > 0 ? `<div class="fare-row"><span class="fare-label">Tatkal Charge</span><span class="fare-amount">₹${sumTatkal.toFixed(2)}</span></div>` : ''}
+    ${sumDynamic > 0 ? `<div class="fare-row"><span class="fare-label">Dynamic Surcharge</span><span class="fare-amount">₹${sumDynamic.toFixed(2)}</span></div>` : ''}
+    ${sumGst > 0 ? `<div class="fare-row"><span class="fare-label">GST</span><span class="fare-amount">₹${sumGst.toFixed(2)}</span></div>` : ''}
+    ${sumInsurance > 0 ? `<div class="fare-row"><span class="fare-label">Travel Insurance</span><span class="fare-amount">₹${sumInsurance.toFixed(2)}</span></div>` : ''}
+    ${sumDiscount > 0 ? `<div class="fare-row"><span class="fare-label">Concession Discount</span><span class="fare-amount fare-discount">-₹${sumDiscount.toFixed(2)}</span></div>` : ''}
     <div class="fare-total">
-      <span>Total Payable</span>
+      <span>Total Payable (Server Authoritative)</span>
       <span class="fare-total-amount">₹${total.toFixed(2)}</span>
     </div>
   `;
@@ -1119,98 +1441,167 @@ function initSummaryStep() {
   document.getElementById('payment-total-amount').textContent = `₹${total.toFixed(2)}`;
 }
 
-// Step 5 - Payment
+// Step 5 - Razorpay TEST Payment Gateway
 window.processPaymentFlow = async () => {
-  if (State.bookingFlow.selectedPassengers.length === 0) {
-    showToast('Please add at least one passenger', 'error');
-    goToStep(3);
+  const pnr = State.bookingFlow.pnr;
+  if (!pnr) {
+    showToast('No active seat hold found. Please return to summary to reserve your seats.', 'error');
+    goToStep(4);
     return;
   }
 
-  const payMode = document.querySelector('input[name="paymentMode"]:checked')?.value || 'UPI';
+  if (State.bookingFlow.secondsRemaining <= 0) {
+    showToast('Your seat hold timer has expired. Please restart the booking.', 'error');
+    goToStep(1);
+    return;
+  }
+
   const btn = document.getElementById('pay-now-btn');
-  btn.textContent = '⏳ Processing...';
+  btn.textContent = '⏳ Launching Gateway...';
   btn.disabled = true;
 
-  showLoading('Processing your payment securely...');
+  showLoading('Connecting to Razorpay gateway...');
 
   try {
-    // Create booking first
-    const booking = await Service.createBooking({
-      holdToken: State.bookingFlow.holdToken,
-      trainId: State.bookingFlow.selectedTrain?.trainId,
-      userId: State.user.userId,
-      journeyDate: State.bookingFlow.searchParams.date,
-      boardingStationId: State.bookingFlow.searchParams.fromId,
-      destinationStationId: State.bookingFlow.searchParams.toId,
-      classType: State.bookingFlow.selectedClass,
-      quota: State.bookingFlow.searchParams.quota,
-      passengers: State.bookingFlow.selectedPassengers,
-      preferences: {
-        autoUpgrade: document.getElementById('pref-auto-upgrade')?.checked || false,
-        bookOnlyIfConfirmed: document.getElementById('pref-confirmed-only')?.checked || false,
-        preferredCoach: document.getElementById('pref-coach')?.value || null,
-        travelInsurance: document.getElementById('pref-insurance')?.checked || false
-      },
-      totalFare: State.bookingFlow.totalFare,
-      fareBreakdown: State.bookingFlow.fareBreakdown
-    });
-
-    // Process payment
-    const payment = await Service.processPayment({
-      bookingId: booking.bookingId,
-      paymentMode: payMode,
-      amount: State.bookingFlow.totalFare
-    });
-
-    State.bookingFlow.pnr = payment.booking.pnr;
-    State.bookingFlow.bookingId = booking.bookingId;
-
+    // 1. Create real order on backend
+    const orderData = await Service.createRazorpayOrder(pnr);
     hideLoading();
-    renderConfirmationPage(payment);
-    goToStep(6);
-    clearInterval(State.bookingFlow.holdTimerInterval);
-    showToast('Booking confirmed successfully! 🎉', 'success');
 
-    // Reload bookings
-    Service.getUserBookings(State.user.userId).then(b => {
-      State.allBookings = b;
-      updateBookingBadge();
+    if (!orderData || !orderData.orderId || !orderData.keyId) {
+      throw new Error('Invalid gateway order response from server');
+    }
+
+    if (typeof window.Razorpay === 'undefined') {
+      throw new Error('Razorpay Checkout SDK is not loaded. Please verify internet connection.');
+    }
+
+    // 2. Open official Razorpay modal
+    const options = {
+      key: orderData.keyId,
+      amount: orderData.amount,
+      currency: orderData.currency || 'INR',
+      name: 'RailConnect Reservation',
+      description: `Payment for PNR ${pnr}`,
+      order_id: orderData.orderId,
+      prefill: {
+        name: State.user?.name || '',
+        email: State.user?.email || '',
+        contact: State.user?.phone || ''
+      },
+      theme: {
+        color: '#1a56db'
+      },
+      modal: {
+        ondismiss: function () {
+          btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Pay Securely Now';
+          btn.disabled = false;
+          showToast('Payment window closed. Your hold remains active until the timer expires.', 'warning');
+        }
+      },
+      handler: async function (response) {
+        showLoading('Verifying payment signature with server...');
+        try {
+          // 3. Server verification POST /api/payments/razorpay/verify
+          const verifyPayload = {
+            pnr,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature
+          };
+
+          const verifyRes = await Service.verifyRazorpayPayment(verifyPayload);
+          hideLoading();
+
+          // Check if server verified success or reported late hold expiry
+          if (verifyRes.success === false || verifyRes.error?.code === 'HOLD_EXPIRED') {
+            const refundMsg = verifyRes.error?.message || 'Payment arrived after seat hold expired. Full auto-refund issued.';
+            showToast(refundMsg, 'error');
+            if (State.bookingFlow.holdTimerInterval) clearInterval(State.bookingFlow.holdTimerInterval);
+            renderExpiredRefundNotice(verifyRes.data?.refund);
+            return;
+          }
+
+          // Successful payment confirmation
+          if (State.bookingFlow.holdTimerInterval) {
+            clearInterval(State.bookingFlow.holdTimerInterval);
+            State.bookingFlow.holdTimerInterval = null;
+          }
+
+          renderConfirmationPage(verifyRes.data);
+          goToStep(6);
+          showToast(`Payment verified! Booking confirmed with PNR ${pnr} 🎉`, 'success');
+
+          // Refresh My Bookings
+          Service.getUserBookings().then(b => {
+            State.allBookings = Array.isArray(b) ? b : [];
+            updateBookingBadge();
+          }).catch(() => {});
+
+        } catch (vErr) {
+          hideLoading();
+          showToast(vErr?.message || 'Payment verification failed on server.', 'error');
+          btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Pay Securely Now';
+          btn.disabled = false;
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (resp) {
+      hideLoading();
+      btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Pay Securely Now';
+      btn.disabled = false;
+      showToast(`Gateway error: ${resp.error?.description || 'Transaction declined'}`, 'error');
     });
+
+    rzp.open();
 
   } catch (err) {
     hideLoading();
-    Service.getUserBookings(State.user.userId).then(bookings => { State.allBookings = bookings; });
-    showToast('Payment failed. Please try again.', 'error');
-  } finally {
     btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Pay Securely Now';
     btn.disabled = false;
+    showToast(err?.message || 'Failed to initiate payment. Please try again.', 'error');
   }
 };
 
-function renderConfirmationPage(payment) {
+function renderExpiredRefundNotice(refund) {
+  const container = document.getElementById('payment-details-upi');
+  if (container) {
+    container.innerHTML = `
+      <div class="warning-box" style="margin-top:12px;background:rgba(239,68,68,0.1);border:1px solid var(--clr-danger);color:var(--clr-text-1);">
+        <strong>⚠️ Seat Hold Expired (HOLD_EXPIRED)</strong>
+        <p style="margin:6px 0 0 0;font-size:13px;">Your payment was captured after the seat hold duration lapsed. The railway booking could not be completed, and an automatic 100% gateway refund has been registered.</p>
+        ${refund ? `<div style="font-size:12px;margin-top:6px;color:var(--clr-text-2);">Refund ID: ${refund.refundId || 'Auto'} | Status: ${refund.status || 'PROCESSED'} | Amount: ₹${refund.amount || '—'}</div>` : ''}
+      </div>
+    `;
+  }
+}
+
+function renderConfirmationPage(confirmation) {
   const { selectedTrain, selectedClass, selectedPassengers, searchParams } = State.bookingFlow;
   const fromStation = State.stations.find(s => s.stationId === searchParams.fromId);
   const toStation = State.stations.find(s => s.stationId === searchParams.toId);
-  const pnr = payment.booking.pnr;
+  const pnr = confirmation?.pnr || State.bookingFlow.pnr;
+  const bookingStatus = confirmation?.bookingStatus || 'CONFIRMED';
+  const passengers = confirmation?.passengers || selectedPassengers;
 
   document.getElementById('e-ticket-card').innerHTML = `
     <div class="ticket-header">
-      <h3>🚆 E-Ticket | PNR</h3>
-      <div class="ticket-pnr">${pnr}</div>
+      <h3>🚆 Official E-Ticket</h3>
+      <div class="ticket-pnr">PNR: ${pnr}</div>
     </div>
     <div class="ticket-body">
       <div class="ticket-route">
         <div class="ticket-station">
-          <div class="tk-time">${getScheduleTime(selectedTrain, 'departure')}</div>
+          <div class="tk-time">${selectedTrain?.departureTime || '—'}</div>
           <div class="tk-code">${fromStation?.stationCode || '?'}</div>
           <div class="tk-name">${fromStation?.stationName || ''}</div>
         </div>
         <div class="ticket-arrow">
-          ──────── ${getDuration(selectedTrain)} ────────→
+          ──────── ${selectedTrain?.duration || '—'} ────────→
         </div>
         <div class="ticket-station">
-          <div class="tk-time">${getScheduleTime(selectedTrain, 'arrival')}</div>
+          <div class="tk-time">${selectedTrain?.arrivalTime || '—'}</div>
           <div class="tk-code">${toStation?.stationCode || '?'}</div>
           <div class="tk-name">${toStation?.stationName || ''}</div>
         </div>
@@ -1218,7 +1609,7 @@ function renderConfirmationPage(payment) {
       <div class="ticket-meta">
         <div class="ticket-meta-item">
           <div class="tmeta-label">Train</div>
-          <div class="tmeta-value">${selectedTrain?.trainNumber}</div>
+          <div class="tmeta-value">${selectedTrain?.trainNumber} - ${selectedTrain?.trainName}</div>
         </div>
         <div class="ticket-meta-item">
           <div class="tmeta-label">Date</div>
@@ -1229,26 +1620,26 @@ function renderConfirmationPage(payment) {
           <div class="tmeta-value">${selectedClass}</div>
         </div>
         <div class="ticket-meta-item">
-          <div class="tmeta-label">Status</div>
-          <div class="tmeta-value" style="color:var(--clr-accent)">${payment.booking.bookingStatus.replace(/_/g, ' ')}</div>
+          <div class="tmeta-label">Booking Status</div>
+          <div class="tmeta-value" style="color:var(--clr-accent)">${bookingStatus.replace(/_/g, ' ')}</div>
         </div>
         <div class="ticket-meta-item">
           <div class="tmeta-label">Quota</div>
           <div class="tmeta-value">${searchParams.quota}</div>
         </div>
         <div class="ticket-meta-item">
-          <div class="tmeta-label">Fare Paid</div>
-          <div class="tmeta-value" style="color:var(--clr-primary)">₹${State.bookingFlow.totalFare.toFixed(2)}</div>
+          <div class="tmeta-label">Total Fare Paid</div>
+          <div class="tmeta-value" style="color:var(--clr-primary)">₹${Number(State.bookingFlow.totalFare).toFixed(2)}</div>
         </div>
       </div>
     </div>
     <div class="ticket-footer">
       <div class="ticket-passengers">
-        ${(payment.booking.passengers || selectedPassengers).map((p, i) => `
+        ${passengers.map((p, i) => `
           <div class="ticket-pax-row">
-            <span class="ticket-pax-name">${p.name || selectedPassengers[i]?.name || '—'}</span>
+            <span class="ticket-pax-name">${p.name || selectedPassengers[i]?.name || 'Passenger ' + (i + 1)}</span>
             <span class="ticket-pax-berth">
-              ${p.passengerStatus ? p.passengerStatus.replace(/_/g, ' ') : ''}${p.coachNumber ? ` · Coach ${p.coachNumber}` : ''} ${p.seatNumber ? `· Seat ${p.seatNumber}` : ''} ${p.berthType ? `· ${p.berthType}` : ''}
+              ${p.status ? p.status.replace(/_/g, ' ') : ''} ${p.coachNumber ? `· Coach ${p.coachNumber}` : ''} ${p.seatNumber ? `· Seat ${p.seatNumber}` : ''} ${p.berthType ? `· ${p.berthType}` : ''} ${p.queuePosition ? `· Position #${p.queuePosition}` : ''}
             </span>
           </div>
         `).join('')}
@@ -1290,13 +1681,16 @@ function renderFilteredBookings(bookings) {
   container.innerHTML = bookings.map(b => {
     const canCancel = ['CONFIRMED', 'RAC', 'WAITING_LIST'].includes(b.bookingStatus);
     const canTDR = b.bookingStatus === 'CONFIRMED';
+    const trainDisplayName = b.trainName || (b.trainNumber ? `Train ${b.trainNumber}` : (b.train?.trainName || 'Train'));
+    const paxCountText = b.passengerCount ? ` · ${b.passengerCount} passenger${b.passengerCount > 1 ? 's' : ''}` : '';
+    const fareDisplay = b.totalFare != null ? `₹${Number(b.totalFare).toFixed(2)}` : '—';
 
     return `
       <div class="booking-full-card">
         <div class="bfc-header">
           <div>
             <div class="bfc-pnr">PNR: ${b.pnr}</div>
-            <div style="font-size:12px;color:var(--clr-text-3);margin-top:2px;">Booking ID: #${b.bookingId}</div>
+            <div style="font-size:12px;color:var(--clr-text-3);margin-top:2px;">Booked on ${formatDate(b.createdAt?.split('T')[0])}${paxCountText}</div>
           </div>
           <span class="status-badge ${b.bookingStatus}">${b.bookingStatus.replace(/_/g, ' ')}</span>
         </div>
@@ -1313,18 +1707,18 @@ function renderFilteredBookings(bookings) {
             </div>
           </div>
           <div class="bfc-mid" style="text-align:center;">
-            <div class="bfc-train-name">🚂 ${b.train?.trainName || 'N/A'}</div>
+            <div class="bfc-train-name">🚂 ${trainDisplayName}</div>
             <div class="bfc-date">📅 ${formatDate(b.journeyDate)}</div>
             <div class="bfc-class">Class: ${b.classType} | ${b.quota}</div>
           </div>
           <div style="text-align:right;">
             <div class="bfc-fare-label">Total Fare</div>
-            <div class="bfc-fare">₹${b.totalFare?.toFixed(2)}</div>
+            <div class="bfc-fare">${fareDisplay}</div>
           </div>
         </div>
         <div class="bfc-footer">
           <button class="btn-secondary-sm" onclick="viewPNRDetails('${b.pnr}')">View Details</button>
-          ${canCancel ? `<button class="btn-secondary-sm" style="color:var(--clr-danger);" onclick="openCancelModal('${b.pnr}', '${b.bookingId}')">Cancel</button>` : ''}
+          ${canCancel ? `<button class="btn-secondary-sm" style="color:var(--clr-danger);" onclick="openCancelModal('${b.pnr}')">Cancel</button>` : ''}
           ${canTDR ? `<button class="btn-secondary-sm" onclick="openTDRPrefill('${b.pnr}')">File TDR</button>` : ''}
         </div>
       </div>
@@ -1365,20 +1759,28 @@ window.searchPNR = async () => {
       return;
     }
 
-    const paxRows = result.passengers?.map(p => `
-      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--clr-border);">
-        <div>
-          <div style="font-weight:600;">${p.passengerInfo?.name || p.name || 'Passenger'}</div>
-          <div style="font-size:12px;color:var(--clr-text-2);">${p.passengerInfo?.age || p.age || '—'} yrs | ${p.passengerInfo?.gender || p.gender || '—'}</div>
-        </div>
-        <div style="text-align:right;">
-          <span class="status-badge ${p.passengerStatus}">${p.passengerStatus.replace('_', ' ')}</span>
-          <div style="font-size:12px;color:var(--clr-text-2);margin-top:4px;">
-            ${p.coachNumber ? `${p.coachNumber} / ${p.seatNumber} / ${p.berthType}` : 'Seat not yet assigned'}
+    const trainDisplayName = result.trainName || (result.trainNumber ? `Train ${result.trainNumber}` : (result.train?.trainName || 'Train'));
+    const paxRows = result.passengers?.map(p => {
+      const pStatus = p.status || p.passengerStatus || 'UNKNOWN';
+      const seatInfo = (p.coachNumber && p.seatNumber)
+        ? `${p.coachNumber} / Seat ${p.seatNumber}${p.berthType ? ` (${p.berthType})` : ''}`
+        : (p.queuePosition ? `Position #${p.queuePosition}` : 'Seat not yet assigned');
+
+      return `
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--clr-border);">
+          <div>
+            <div style="font-weight:600;">${p.name || p.passengerInfo?.name || 'Passenger'}</div>
+            <div style="font-size:12px;color:var(--clr-text-2);">${p.age != null ? p.age : (p.passengerInfo?.age || '—')} yrs | ${p.gender || p.passengerInfo?.gender || '—'}</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="status-badge ${pStatus}">${pStatus.replace(/_/g, ' ')}</span>
+            <div style="font-size:12px;color:var(--clr-text-2);margin-top:4px;">
+              ${seatInfo}
+            </div>
           </div>
         </div>
-      </div>
-    `).join('') || '';
+      `;
+    }).join('') || '<div style="color:var(--clr-text-3);padding:10px 0;">No passenger details available.</div>';
 
     container.innerHTML = `
       <div class="booking-full-card">
@@ -1402,23 +1804,36 @@ window.searchPNR = async () => {
             </div>
           </div>
           <div class="bfc-mid">
-            <div class="bfc-train-name">🚂 ${result.train?.trainName || 'N/A'}</div>
+            <div class="bfc-train-name">🚂 ${trainDisplayName}</div>
             <div class="bfc-date">📅 ${formatDate(result.journeyDate)} | ${result.classType} | ${result.quota}</div>
           </div>
           <div style="text-align:right;">
             <div class="bfc-fare-label">Total Fare</div>
-            <div class="bfc-fare">₹${result.totalFare?.toFixed(2) || '—'}</div>
+            <div class="bfc-fare">${result.totalFare != null ? `₹${Number(result.totalFare).toFixed(2)}` : '—'}</div>
           </div>
         </div>
         <div style="padding:16px 20px;border-top:1px solid var(--clr-border);">
-          <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Passengers</h4>
+          <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Passengers (${result.passengerCount || result.passengers?.length || 0})</h4>
           ${paxRows}
         </div>
       </div>
     `;
   } catch (err) {
     hideLoading();
-    showToast('Failed to fetch PNR details', 'error');
+    const container = document.getElementById('pnr-result');
+    if (container) {
+      container.classList.remove('hidden');
+      const errorMsg = (err?.status === 404 || err?.code === 'NOT_FOUND')
+        ? `No booking found for PNR: ${pnr}`
+        : (err?.message || 'Failed to fetch PNR details');
+      container.innerHTML = `
+        <div class="card" style="text-align:center;padding:40px;">
+          <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+          <h3 style="margin-bottom:8px;">PNR Enquiry</h3>
+          <p style="color:var(--clr-text-2);">${errorMsg}</p>
+        </div>`;
+    }
+    showToast(err?.message || 'Failed to fetch PNR details', 'error');
   }
 };
 
@@ -1444,7 +1859,11 @@ window.updateProfile = async (e) => {
     sessionStorage.setItem('railconnect_user', JSON.stringify(State.user));
   } catch (error) {
     hideLoading();
-    showToast('Could not save profile changes.', 'error');
+    if (error?.code === 'NOT_AVAILABLE') {
+      showToast(error.message, 'error');
+    } else {
+      showToast('Could not save profile changes.', 'error');
+    }
     return;
   }
   hideLoading();
@@ -1556,75 +1975,108 @@ window.savePassenger = async (e) => {
     renderPassengersPage();
     closeModal('modal-add-passenger');
     e.target.reset();
-  } catch (error) { showToast('Could not save passenger details.', 'error'); }
+  } catch (error) {
+    if (error?.code === 'NOT_AVAILABLE') {
+      showToast(error.message, 'error');
+    } else {
+      showToast('Could not save passenger details.', 'error');
+    }
+  }
 };
 
 window.deletePassenger = async (id) => {
-  await Service.deletePassenger(id);
-  State.savedPassengers = State.savedPassengers.filter(p => p.passengerId !== id);
-  renderPassengersPage();
-  showToast('Passenger removed', 'success');
+  try {
+    await Service.deletePassenger(id);
+    State.savedPassengers = State.savedPassengers.filter(p => p.passengerId !== id);
+    renderPassengersPage();
+    showToast('Passenger removed', 'success');
+  } catch (error) {
+    if (error?.code === 'NOT_AVAILABLE') {
+      showToast(error.message, 'error');
+    } else {
+      showToast('Could not remove passenger.', 'error');
+    }
+  }
 };
+
+// ════════════════════════════════════════════════════════════════ TDR
 
 // ════════════════════════════════════════════════════════════════ TDR
 
 async function renderTDRPage() {
   const container = document.getElementById('tdr-list');
   try {
-    const tdrs = await Service.getUserTDRs(State.user.userId);
+    const tdrs = await Service.getUserTDRs();
 
-    if (!tdrs.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No TDR requests</div><div class="empty-sub">File a TDR if you couldn't travel due to delays or cancellations</div></div>`;
+    if (!Array.isArray(tdrs) || !tdrs.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No TDR requests</div><div class="empty-sub">File a Ticket Deposit Receipt if you couldn't travel due to railway delays, diversions, or short terminations</div></div>`;
       return;
     }
 
     container.innerHTML = tdrs.map(t => `
       <div class="tdr-card">
         <div>
-          <div class="tdr-pnr">PNR: ${t.pnr}</div>
-          <div class="tdr-reason">${t.reason.replace(/_/g, ' ')}</div>
-          <div class="tdr-date">Filed: ${formatDate(t.submittedAt?.split('T')[0])}</div>
+          <div class="tdr-pnr">PNR: ${t.pnr} ${t.passengerNo ? `· Pax #${t.passengerNo}` : ''}</div>
+          <div class="tdr-reason">${(t.reason || '').replace(/_/g, ' ')}</div>
+          <div class="tdr-date">Filed: ${formatDate(t.filedAt ? t.filedAt.split('T')[0] : '')}</div>
+          ${t.remarks ? `<div style="font-size:12px;color:var(--clr-text-3);margin-top:4px;">${t.remarks}</div>` : ''}
         </div>
         <div style="text-align:right;">
-          <span class="status-badge ${t.status}">${t.status.replace('_', ' ')}</span>
+          <span class="status-badge ${t.status}">${(t.status || 'FILED').replace(/_/g, ' ')}</span>
           ${t.refundAmount ? `
-            <div class="tdr-refund" style="margin-top:8px;">₹${t.refundAmount.toFixed(2)}</div>
+            <div class="tdr-refund" style="margin-top:8px;">₹${Number(t.refundAmount).toFixed(2)}</div>
             <div class="tdr-refund-label">Refund Amount</div>
           ` : '<div style="font-size:12px;color:var(--clr-text-3);margin-top:8px;">Under Review</div>'}
         </div>
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load TDR data</div></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load TDR data</div><div class="empty-sub">${err?.message || 'Please refresh'}</div></div>`;
   }
 }
 
 window.openFileTDRModal = () => openModal('modal-file-tdr');
 window.openTDRPrefill = (pnr) => {
-  document.getElementById('tdr-pnr').value = pnr;
+  const pnrInput = document.getElementById('tdr-pnr');
+  if (pnrInput) pnrInput.value = pnr;
   openModal('modal-file-tdr');
 };
 
 window.submitTDR = async (e) => {
   e.preventDefault();
-  const pnr = document.getElementById('tdr-pnr').value.trim();
-  const reason = document.getElementById('tdr-reason').value;
+  const pnr = document.getElementById('tdr-pnr')?.value?.trim();
+  const reason = document.getElementById('tdr-reason')?.value;
+  const paxInput = document.getElementById('tdr-passengers')?.value?.trim() || '1';
+  const evidenceReference = document.getElementById('tdr-evidence')?.value?.trim() || null;
 
-  if (!pnr || !reason) { showToast('Please fill all fields', 'error'); return; }
+  if (!pnr || !reason) {
+    showToast('PNR and reason are required', 'error');
+    return;
+  }
 
-  showLoading('Filing TDR...');
+  // Parse comma-separated passenger numbers
+  const passengerNos = paxInput.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+  if (passengerNos.length === 0) passengerNos.push(1);
+
+  showLoading('Submitting TDR request...');
   try {
-    const booking = State.allBookings.find(item => item.pnr === pnr);
-    if (!booking) throw new Error('BOOKING_NOT_FOUND');
-    const result = await Service.fileTDR({ bookingId: booking.bookingId, pnr, reason });
+    const payload = {
+      pnr,
+      reason,
+      passengerNos,
+      evidenceReference
+    };
+
+    const result = await Service.fileTDR(payload);
     hideLoading();
     closeModal('modal-file-tdr');
-    showToast(`TDR filed successfully! ID: ${result.tdrId}`, 'success');
+    const refDisplay = result.tdrRefNo || (result.tdrRefNos ? result.tdrRefNos.join(', ') : 'Filed');
+    showToast(`TDR filed successfully! Reference: ${refDisplay}`, 'success');
     renderTDRPage();
     e.target.reset();
   } catch (err) {
     hideLoading();
-    showToast('Failed to file TDR', 'error');
+    showToast(err?.message || 'Failed to file TDR', 'error');
   }
 };
 
@@ -1735,45 +2187,125 @@ window.markAllRead = async () => {
 // ════════════════════════════════════════════════════════════════ CANCEL BOOKING
 
 let pendingCancelPNR = null;
+let currentRefundEstimate = null;
 
-window.openCancelModal = (pnr, bookingId) => {
+window.openCancelModal = async (pnr) => {
   pendingCancelPNR = pnr;
   const booking = State.allBookings.find(b => b.pnr === pnr);
-  if (!booking) return;
+
+  const trainDisplayName = booking?.trainName || (booking?.trainNumber ? `Train ${booking.trainNumber}` : (booking?.train?.trainName || 'Train'));
+  const journeyDateStr = booking?.journeyDate ? formatDate(booking.journeyDate) : '—';
 
   document.getElementById('cancel-booking-info').innerHTML = `
     <div style="padding:12px;background:var(--clr-surface-2);border-radius:var(--radius-md);margin-bottom:12px;">
       <div style="font-weight:700;margin-bottom:4px;">PNR: ${pnr}</div>
-      <div style="font-size:13px;color:var(--clr-text-2);">${booking.train?.trainName || 'N/A'} | ${formatDate(booking.journeyDate)}</div>
+      <div style="font-size:13px;color:var(--clr-text-2);">${trainDisplayName} | ${journeyDateStr}</div>
     </div>
   `;
 
-  const charge = Math.min(120, Number(booking.totalFare) || 0);
-  document.getElementById('cancel-charge').textContent = `₹${charge.toFixed(2)}`;
-  document.getElementById('cancel-refund').textContent = `₹${Math.max(0, (Number(booking.totalFare) || 0) - charge).toFixed(2)}`;
+  document.getElementById('cancel-charge').textContent = 'Calculating...';
+  document.getElementById('cancel-refund').textContent = 'Calculating...';
+  const paxContainer = document.getElementById('cancel-passengers-container');
+  if (paxContainer) {
+    paxContainer.innerHTML = '<div style="font-size:12px;color:var(--clr-text-3);">Fetching authoritative refund estimate from server...</div>';
+  }
+
+  const confirmBtn = document.getElementById('btn-confirm-cancel');
+  if (confirmBtn) confirmBtn.disabled = true;
 
   openModal('modal-cancel-booking');
+
+  try {
+    // 1. Fetch real server refund estimate
+    const estimate = await Service.getRefundEstimate(pnr);
+    currentRefundEstimate = estimate;
+
+    document.getElementById('cancel-charge').textContent = `₹${Number(estimate.totalCancellationCharge).toFixed(2)}`;
+    document.getElementById('cancel-refund').textContent = `₹${Number(estimate.totalRefundAmount).toFixed(2)}`;
+
+    // Render individual passenger selection
+    if (paxContainer && Array.isArray(estimate.passengers) && estimate.passengers.length > 0) {
+      paxContainer.innerHTML = `
+        <div style="margin-top:8px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--clr-text-2);">Select Passengers to Cancel:</div>
+          ${estimate.passengers.map(p => `
+            <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--clr-border);font-size:13px;cursor:pointer;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" class="cancel-pax-chk" value="${p.passengerNo}" checked onchange="recalculateSelectedCancellationRefund()" />
+                <span><strong>#${p.passengerNo}</strong> ${p.name}</span>
+              </div>
+              <span style="color:var(--clr-text-3);">Refund: ₹${Number(p.refundAmount).toFixed(2)}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    } else if (paxContainer) {
+      paxContainer.innerHTML = '';
+    }
+
+    if (confirmBtn) confirmBtn.disabled = false;
+  } catch (err) {
+    document.getElementById('cancel-charge').textContent = '—';
+    document.getElementById('cancel-refund').textContent = '—';
+    if (paxContainer) {
+      paxContainer.innerHTML = `<div style="font-size:12px;color:var(--clr-danger);">${err?.message || 'Failed to estimate refund'}</div>`;
+    }
+    showToast(err?.message || 'Could not fetch refund estimate', 'error');
+  }
+};
+
+window.recalculateSelectedCancellationRefund = async () => {
+  if (!pendingCancelPNR || !currentRefundEstimate) return;
+  const checkboxes = Array.from(document.querySelectorAll('.cancel-pax-chk:checked'));
+  const selectedNos = checkboxes.map(cb => parseInt(cb.value, 10));
+
+  if (selectedNos.length === 0) {
+    document.getElementById('cancel-charge').textContent = '₹0.00';
+    document.getElementById('cancel-refund').textContent = '₹0.00';
+    const confirmBtn = document.getElementById('btn-confirm-cancel');
+    if (confirmBtn) confirmBtn.disabled = true;
+    return;
+  }
+
+  try {
+    const freshEstimate = await Service.getRefundEstimate(pendingCancelPNR, selectedNos);
+    document.getElementById('cancel-charge').textContent = `₹${Number(freshEstimate.totalCancellationCharge).toFixed(2)}`;
+    document.getElementById('cancel-refund').textContent = `₹${Number(freshEstimate.totalRefundAmount).toFixed(2)}`;
+    const confirmBtn = document.getElementById('btn-confirm-cancel');
+    if (confirmBtn) confirmBtn.disabled = false;
+  } catch (err) {
+    showToast('Failed to update refund estimate for selection', 'warning');
+  }
 };
 
 window.confirmCancellation = async () => {
   if (!pendingCancelPNR) return;
-  showLoading('Processing cancellation...');
+
+  const checkboxes = Array.from(document.querySelectorAll('.cancel-pax-chk:checked'));
+  const selectedNos = checkboxes.length > 0 ? checkboxes.map(cb => parseInt(cb.value, 10)) : null;
+
+  const confirmBtn = document.getElementById('btn-confirm-cancel');
+  if (confirmBtn) confirmBtn.disabled = true;
+
+  showLoading('Processing cancellation with railway server...');
   try {
-    const result = await Service.cancelBooking(pendingCancelPNR);
+    const result = await Service.cancelBooking(pendingCancelPNR, selectedNos);
     hideLoading();
     closeModal('modal-cancel-booking');
-    showToast(`Cancellation processed! Refund: ₹${result.refundAmount}`, 'success');
+    showToast(`Cancellation successful! Refund of ₹${Number(result.refundAmount).toFixed(2)} processed.`, 'success');
 
-    // Update local state
-    const cancelledPNR = pendingCancelPNR;
-    const booking = State.allBookings.find(b => b.pnr === cancelledPNR);
-    if (booking) booking.bookingStatus = 'CANCELLED';
+    // Reload bookings to reflect updated statuses
+    const updatedBookings = await Service.getUserBookings();
+    State.allBookings = Array.isArray(updatedBookings) ? updatedBookings : [];
     pendingCancelPNR = null;
+    currentRefundEstimate = null;
+
     renderBookingsPage();
     updateBookingBadge();
   } catch (err) {
     hideLoading();
-    showToast('Cancellation failed. Please try again.', 'error');
+    if (confirmBtn) confirmBtn.disabled = false;
+    showToast(err?.message || 'Cancellation failed. Please try again.', 'error');
   }
 };
 
