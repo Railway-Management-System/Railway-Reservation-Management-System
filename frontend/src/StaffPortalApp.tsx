@@ -9,12 +9,14 @@ import { FinesPage } from './pages/FinesPage';
 import { OperationsPage } from './pages/OperationsPage';
 import { CrowdCleanPage } from './pages/CrowdCleanPage';
 import { EmergencyPage } from './pages/EmergencyPage';
+import { CounterBookingPage } from './pages/CounterBookingPage';
+import { MaintenanceTasksPage } from './pages/MaintenanceTasksPage';
 import { useStaff } from './context/StaffContext';
 import { authService } from './admin/services/authService';
 import {
   Search, Train, Clock, ChevronDown, LogOut, RotateCcw,
   LayoutDashboard, Users, Armchair, FileText, AlertOctagon,
-  Sparkles, Home, User, Badge, ArrowRight,
+  Sparkles, Home, User, Badge, ArrowRight, Ticket, Wrench
 } from 'lucide-react';
 
 /* ─── Nav data ──────────────────────────────────────────────────────────── */
@@ -38,14 +40,16 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'manifest',  label: 'Passenger Chart',  description: 'Manifest list, boarding status and ID verification', icon: Users,   badgeKey: 'unverified' },
       { id: 'scanner',   label: 'PNR & ID Scanner', description: 'Scan PNR barcodes, validate tickets and ID proofs',   icon: Search },
       { id: 'vacancies', label: 'Vacancies & RAC',  description: 'Empty berths, RAC queue and upgrade promotions',       icon: Armchair, badgeKey: 'vacancies' },
+      { id: 'counter',   label: 'Counter Booking',  description: 'Station walk-in ticket booking & cash collection',   icon: Ticket },
     ],
   },
   {
-    title: 'Enforcement & Dispatch',
+    title: 'Enforcement & Maintenance',
     items: [
       { id: 'fines',       label: 'On-Spot Penalties', description: 'Issue challans for ticketless or irregular travel',   icon: FileText, badgeKey: 'fines' },
       { id: 'operations',  label: 'Delays & Platform', description: 'Log train delays, platform changes and announcements', icon: Clock },
       { id: 'crowd_clean', label: 'Crowd & Hygiene',   description: 'Crowd density reports and cleanliness monitoring',    icon: Sparkles },
+      { id: 'maintenance', label: 'Maintenance Tasks', description: 'Coach mechanical inspection & job order dispatch',    icon: Wrench },
     ],
   },
   {
@@ -445,6 +449,8 @@ export const StaffPortalApp: React.FC = () => {
         {activeTab === 'operations'  && <OperationsPage />}
         {activeTab === 'crowd_clean' && <CrowdCleanPage />}
         {activeTab === 'emergency'   && <EmergencyPage />}
+        {activeTab === 'counter'     && <CounterBookingPage />}
+        {activeTab === 'maintenance' && <MaintenanceTasksPage />}
       </main>
 
       <ReceiptModal />

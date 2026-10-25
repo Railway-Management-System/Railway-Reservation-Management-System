@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Staff,
   Station,
@@ -14,6 +14,11 @@ import {
   BoardingStatus,
   VerificationStatus
 } from '../types';
+import {
+  staffApiService,
+  StaffAssignment,
+  ChartPassenger
+} from '../services/staffApiService';
 
 const STORAGE_KEY = 'RRMS_STAFF_REACT_STATE_V1';
 
@@ -536,16 +541,34 @@ interface StaffContextType {
   activeStaff: Staff;
   activeTrain: Train | undefined;
   activeSchedule: Schedule | undefined;
+  currentAssignment: StaffAssignment | null;
+  serverChart: ChartPassenger[];
+  chartStatus: { loading: boolean; error: string | null; prepared: boolean };
   switchStaff: (staffId: number) => void;
-  markPassengerBoarding: (manifestId: number, status: BoardingStatus, verifyStatus?: VerificationStatus, notes?: string) => void;
+  refreshAssignmentAndChart: () => Promise<void>;
+  markPassengerBoarding: (manifestId: number, status: BoardingStatus, verifyStatus?: VerificationStatus, notes?: string) => Promise<void>;
+  verifyPassenger: (pnr: string, passengerNo: number, result: 'VALID' | 'INVALID' | 'MISMATCH', remarks?: string) => Promise<{ success: boolean; message: string; verifyId?: number }>;
+  boardPassengerApi: (pnr: string, passengerNo: number) => Promise<{ success: boolean; message: string }>;
+  noShowPassengerApi: (pnr: string, passengerNo: number) => Promise<{ success: boolean; message: string }>;
   promoteRacPassenger: (manifestId: number, vacancyId: number) => ManifestPassenger | null;
-  issueFine: (fine: Omit<Fine, 'fineId' | 'receiptNumber' | 'issuedAt'>) => Fine;
-  updateTrainDelay: (delayMinutes: number, status: Schedule['status'], platform?: number) => void;
-  addCrowdReport: (report: Omit<CrowdReport, 'crowdReportId' | 'recordedAt'>) => void;
-  addCleanlinessReport: (report: Omit<CleanlinessReport, 'reportId' | 'createdAt' | 'status'>) => void;
+  issueFine: (fine: Omit<Fine, 'fineId' | 'receiptNumber' | 'issuedAt'>) => Promise<Fine>;
+  updateTrainDelay: (delayMinutes: number, status: Schedule['status'], platform?: number) => Promise<void>;
+  addCrowdReport: (report: Omit<CrowdReport, 'crowdReportId' | 'recordedAt'>) => Promise<void>;
+  addCleanlinessReport: (report: Omit<CleanlinessReport, 'reportId' | 'createdAt' | 'status'>) => Promise<void>;
   resolveCleanlinessReport: (reportId: number) => void;
-  reportIncident: (incident: Omit<Incident, 'incidentId' | 'createdAt' | 'status'>) => void;
+  reportIncident: (incident: Omit<Incident, 'incidentId' | 'createdAt' | 'status'>) => Promise<void>;
   resolveIncident: (incidentId: number) => void;
+  createMaintenanceTask: (task: {
+    coachId?: number;
+    platformId?: number;
+    stationId?: number;
+    type?: string;
+    title: string;
+    description: string;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  }) => Promise<{ success: boolean; message: string; maintId?: number }>;
+  updateMaintenanceStatus: (maintId: number, status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED', completionRemarks?: string) => Promise<{ success: boolean; message: string }>;
+  createCounterBooking: (payload: any) => Promise<any>;
   resetData: () => void;
   selectedReceiptFine: Fine | null;
   setSelectedReceiptFine: (fine: Fine | null) => void;
@@ -566,6 +589,13 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [activeStaffId, setActiveStaffId] = useState<number>(1);
+  const [currentAssignment, setCurrentAssignment] = useState<StaffAssignment | null>(null);
+  const [serverChart, setServerChart] = useState<ChartPassenger[]>([]);
+  const [chartStatus, setChartStatus] = useState<{ loading: boolean; error: string | null; prepared: boolean }>({
+    loading: false,
+    error: null,
+    prepared: false
+  });
   const [selectedReceiptFine, setSelectedReceiptFine] = useState<Fine | null>(null);
   const [toasts, setToasts] = useState<Array<{ id: number; msg: string; type: 'success' | 'error' | 'info' }>>([]);
 
@@ -582,8 +612,83 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(prev => [...prev, { id, msg, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3500);
+    }, 4000);
   };
+
+  // Load real assignment & chart on mount and whenever active staff changes
+  const refreshAssignmentAndChart = useCallback(async () => {
+    try {
+      const assignment = await staffApiService.getCurrentAssignment();
+      if (assignment) {
+        setCurrentAssignment(assignment);
+
+        // If this assignment specifies a scheduleId, fetch the real chart
+        if (assignment.scheduleId) {
+          setChartStatus({ loading: true, error: null, prepared: false });
+          try {
+            const chartList = await staffApiService.getScheduleChart(assignment.scheduleId);
+            if (chartList && Array.isArray(chartList)) {
+              setServerChart(chartList);
+              setChartStatus({ loading: false, error: null, prepared: true });
+
+              // Map chartList rows to manifest passengers in state if available
+              if (chartList.length > 0) {
+                const mappedPassengers: ManifestPassenger[] = chartList.map((c, idx) => ({
+                  manifestId: c.snapshotId || (idx + 1000),
+                  bookingId: 1000 + idx,
+                  pnr: c.pnr,
+                  trainId: assignment.scheduleId || 101,
+                  journeyDate: new Date().toISOString().split('T')[0],
+                  boardingStationId: c.fromStationId || 1,
+                  destinationStationId: c.toStationId || 2,
+                  passengerId: c.passengerNo || (idx + 1),
+                  name: c.passengerName || 'Passenger',
+                  age: 30,
+                  gender: 'MALE',
+                  idProofType: 'GOVT_ID',
+                  idProofReference: c.pnr ? `PNR-${c.pnr}` : 'VERIFIED',
+                  coachNumber: c.coachNo || null,
+                  seatNumber: c.seatNo || null,
+                  berthType: c.berthType || null,
+                  classType: '3A',
+                  quota: 'GN',
+                  bookingStatus: (c.status as any) || 'CONFIRMED',
+                  boardingStatus: 'NOT_VERIFIED',
+                  verificationStatus: 'UNCHECKED',
+                  verificationNotes: '',
+                  verifiedAt: null
+                }));
+
+                setData(prev => {
+                  const existingPnrs = new Set(prev.manifest.map(m => m.pnr));
+                  const newFromChart = mappedPassengers.filter(m => !existingPnrs.has(m.pnr));
+                  return {
+                    ...prev,
+                    manifest: [...newFromChart, ...prev.manifest]
+                  };
+                });
+              }
+            } else {
+              setServerChart([]);
+              setChartStatus({ loading: false, error: null, prepared: false });
+            }
+          } catch (chartErr: any) {
+            setChartStatus({
+              loading: false,
+              error: chartErr.message || 'Chart has not been prepared yet',
+              prepared: false
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('Could not load current staff assignment from API:', err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAssignmentAndChart();
+  }, [refreshAssignmentAndChart, activeStaffId]);
 
   const activeStaff = data.staffList.find(s => s.staffId === activeStaffId) || data.staffList[0];
   const activeTrain = data.trains.find(t => t.trainId === activeStaff.assignedTrainId);
@@ -595,7 +700,84 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (s) showToast(`Switched active profile to ${s.name}`, 'info');
   };
 
-  const markPassengerBoarding = (manifestId: number, status: BoardingStatus, verifyStatus?: VerificationStatus, notes?: string) => {
+  // ─── Real Ticket Verification API Call ────────────────────────────────────
+  const verifyPassenger = async (
+    pnr: string,
+    passengerNo: number,
+    result: 'VALID' | 'INVALID' | 'MISMATCH',
+    remarks?: string
+  ): Promise<{ success: boolean; message: string; verifyId?: number }> => {
+    try {
+      const res = await staffApiService.verifyTicket({
+        pnr,
+        passengerNo,
+        idChecked: true,
+        concessionChecked: true,
+        result,
+        remarks: remarks || `Verification recorded by TC ${activeStaff.name}`
+      });
+      showToast(`Verification stamped: ${result} (ID: ${res.verifyId})`, 'success');
+      return { success: true, message: 'Ticket verification recorded successfully', verifyId: res.verifyId };
+    } catch (err: any) {
+      showToast(`Verification API error: ${err.message}`, 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  // ─── Real Boarding API Call ───────────────────────────────────────────────
+  const boardPassengerApi = async (pnr: string, passengerNo: number): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await staffApiService.boardPassenger(pnr, passengerNo);
+      showToast(`Boarding confirmed: PNR ${pnr} Pax #${passengerNo} (${res.status})`, 'success');
+      return { success: true, message: `Status: ${res.status}` };
+    } catch (err: any) {
+      showToast(`Boarding failed: ${err.message}`, 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  // ─── Real No-Show API Call ────────────────────────────────────────────────
+  const noShowPassengerApi = async (pnr: string, passengerNo: number): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await staffApiService.markNoShow(pnr, passengerNo);
+      showToast(`No-show marked: PNR ${pnr} Pax #${passengerNo}. Seat released! (${res.status})`, 'error');
+      return { success: true, message: `Status: ${res.status}` };
+    } catch (err: any) {
+      showToast(`No-show failed: ${err.message}`, 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  // Dual Action: Calls real API if passenger has PNR and passengerNo, then updates state
+  const markPassengerBoarding = async (
+    manifestId: number,
+    status: BoardingStatus,
+    verifyStatus?: VerificationStatus,
+    notes?: string
+  ) => {
+    const targetPassenger = data.manifest.find(p => p.manifestId === manifestId);
+
+    if (targetPassenger) {
+      const pnr = targetPassenger.pnr;
+      const passengerNo = targetPassenger.passengerId || 1;
+
+      if (verifyStatus && (verifyStatus === 'VALID' || verifyStatus === 'INVALID' || verifyStatus === 'MISMATCH')) {
+        await verifyPassenger(pnr, passengerNo, verifyStatus, notes);
+      }
+
+      if (status === 'BOARDED') {
+        const boardRes = await boardPassengerApi(pnr, passengerNo);
+        if (!boardRes.success) {
+          return; // Do NOT update state if server refused boarding
+        }
+      } else if (status === 'NO_SHOW') {
+        const noShowRes = await noShowPassengerApi(pnr, passengerNo);
+        if (!noShowRes.success) {
+          return; // Do NOT update state if server refused no-show
+        }
+      }
+    }
+
     setData(prev => {
       const nextManifest = prev.manifest.map(p => {
         if (p.manifestId === manifestId) {
@@ -611,9 +793,12 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       let nextVacancies = [...prev.vacancies];
-      const targetPassenger = prev.manifest.find(p => p.manifestId === manifestId);
       if (status === 'NO_SHOW' && targetPassenger && targetPassenger.coachNumber && targetPassenger.seatNumber) {
-        const exists = nextVacancies.some(v => v.trainId === targetPassenger.trainId && v.coachNumber === targetPassenger.coachNumber && v.seatNumber === targetPassenger.seatNumber);
+        const exists = nextVacancies.some(
+          v => v.trainId === targetPassenger.trainId &&
+               v.coachNumber === targetPassenger.coachNumber &&
+               v.seatNumber === targetPassenger.seatNumber
+        );
         if (!exists) {
           nextVacancies.unshift({
             vacancyId: Date.now(),
@@ -634,12 +819,6 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         vacancies: nextVacancies
       };
     });
-
-    if (status === 'BOARDED') {
-      showToast('Passenger marked as BOARDED', 'success');
-    } else if (status === 'NO_SHOW') {
-      showToast('Passenger marked as NO-SHOW. Seat released to vacancy pool!', 'error');
-    }
   };
 
   const promoteRacPassenger = (manifestId: number, vacancyId: number) => {
@@ -677,10 +856,40 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return updatedPassenger;
   };
 
-  const issueFine = (fineInput: Omit<Fine, 'fineId' | 'receiptNumber' | 'issuedAt'>) => {
-    const receiptNumber = `FINE-${new Date().getFullYear()}-${fineInput.trainId || 'STN'}-${Math.floor(100 + Math.random() * 900)}`;
+  // ─── Real Fine API Call ───────────────────────────────────────────────────
+  const issueFine = async (fineInput: Omit<Fine, 'fineId' | 'receiptNumber' | 'issuedAt'>): Promise<Fine> => {
+    let serverFineId: number | undefined;
+
+    // Map reason to allowed backend reason
+    const allowedReasons: Record<string, 'TICKETLESS_TRAVEL' | 'UNAUTHORIZED_CLASS' | 'SMOKING_NUISANCE' | 'UNBOOKED_LUGGAGE'> = {
+      TICKETLESS_TRAVEL: 'TICKETLESS_TRAVEL',
+      TRAVELLING_IN_HIGHER_CLASS_WITHOUT_UPGRADE: 'UNAUTHORIZED_CLASS',
+      UNBOOKED_EXCESS_LUGGAGE: 'UNBOOKED_LUGGAGE',
+      SMOKING_NUISANCE: 'SMOKING_NUISANCE',
+      IRREGULAR_TICKET: 'TICKETLESS_TRAVEL'
+    };
+    const mappedReason = allowedReasons[fineInput.reason] || 'TICKETLESS_TRAVEL';
+
+    try {
+      const res = await staffApiService.issueFine({
+        passengerName: fineInput.passengerName,
+        idProofReference: fineInput.idProofReference,
+        trainId: fineInput.trainId,
+        reason: mappedReason,
+        amount: fineInput.amount,
+        paymentStatus: fineInput.paymentStatus
+      });
+      if (res && res.fineId) {
+        serverFineId = res.fineId;
+      }
+    } catch (err: any) {
+      showToast(`Warning: Fine server persistence failed (${err.message}). Recording locally.`, 'error');
+    }
+
+    const fineId = serverFineId || Date.now();
+    const receiptNumber = `FINE-${new Date().getFullYear()}-${fineInput.trainId || 'STN'}-${fineId}`;
     const newFine: Fine = {
-      fineId: Date.now(),
+      fineId,
       receiptNumber,
       issuedAt: new Date().toISOString(),
       ...fineInput
@@ -696,7 +905,20 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newFine;
   };
 
-  const updateTrainDelay = (delayMinutes: number, status: Schedule['status'], platform?: number) => {
+  // ─── Real Train Delay API Call ────────────────────────────────────────────
+  const updateTrainDelay = async (delayMinutes: number, status: Schedule['status'], platform?: number) => {
+    const scheduleId = currentAssignment?.scheduleId || activeSchedule?.scheduleId || 1001;
+
+    try {
+      await staffApiService.logDelay({
+        scheduleId,
+        delayMinutes
+      });
+      showToast(`Server updated: Schedule #${scheduleId} delay set to ${delayMinutes} min`, 'success');
+    } catch (err: any) {
+      showToast(`Delay server update: ${err.message}`, 'info');
+    }
+
     const trainId = activeStaff.assignedTrainId || 101;
     setData(prev => {
       const nextSchedules = prev.schedules.map(s => {
@@ -712,12 +934,27 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return { ...prev, schedules: nextSchedules };
     });
-    showToast(`Operational status broadcast: ${status} (${delayMinutes} min delay)`, 'success');
   };
 
-  const addCrowdReport = (reportInput: Omit<CrowdReport, 'crowdReportId' | 'recordedAt'>) => {
+  // ─── Real Crowd Report API Call ───────────────────────────────────────────
+  const addCrowdReport = async (reportInput: Omit<CrowdReport, 'crowdReportId' | 'recordedAt'>) => {
+    let serverReportId: number | undefined;
+
+    try {
+      const res = await staffApiService.reportCrowd({
+        stationId: reportInput.stationId,
+        platformNo: reportInput.platformNumber,
+        crowdLevel: reportInput.crowdLevel,
+        headCount: reportInput.headCount
+      });
+      if (res && res.crowdReportId) serverReportId = res.crowdReportId;
+      showToast('Platform crowd assessment recorded on server!', 'success');
+    } catch (err: any) {
+      showToast(`Crowd API notification: ${err.message}`, 'info');
+    }
+
     const report: CrowdReport = {
-      crowdReportId: Date.now(),
+      crowdReportId: serverReportId || Date.now(),
       recordedAt: new Date().toISOString(),
       ...reportInput
     };
@@ -725,12 +962,39 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...prev,
       crowdReports: [report, ...prev.crowdReports]
     }));
-    showToast('Platform crowd assessment recorded!', 'success');
   };
 
-  const addCleanlinessReport = (cleanInput: Omit<CleanlinessReport, 'reportId' | 'createdAt' | 'status'>) => {
+  // ─── Real Cleanliness Report API Call ─────────────────────────────────────
+  const addCleanlinessReport = async (cleanInput: Omit<CleanlinessReport, 'reportId' | 'createdAt' | 'status'>) => {
+    let serverCleanId: number | undefined;
+
+    const allowedCleanlinessIssues: Record<string, 'TOILET_DIRTY' | 'LITTER' | 'WATER_SHORTAGE' | 'LINEN_SOILED' | 'PESTS' | 'SPILLAGE'> = {
+      TOILET_DIRTY: 'TOILET_DIRTY',
+      LITTER: 'LITTER',
+      WATER_SHORTAGE: 'WATER_SHORTAGE',
+      LINEN_SOILED: 'LINEN_SOILED',
+      PESTS: 'PESTS',
+      SPILLAGE: 'SPILLAGE'
+    };
+    const mappedIssue = allowedCleanlinessIssues[cleanInput.issueType] || 'TOILET_DIRTY';
+
+    try {
+      const res = await staffApiService.reportCleanliness({
+        trainId: cleanInput.trainId || null,
+        coachId: cleanInput.coachId || null,
+        stationId: cleanInput.stationId || null,
+        platformNo: cleanInput.platformNumber || null,
+        issueType: mappedIssue,
+        description: cleanInput.description
+      });
+      if (res && res.reportId) serverCleanId = res.reportId;
+      showToast('Housekeeping ticket dispatched on server!', 'success');
+    } catch (err: any) {
+      showToast(`Cleanliness API notice: ${err.message}`, 'info');
+    }
+
     const report: CleanlinessReport = {
-      reportId: Date.now(),
+      reportId: serverCleanId || Date.now(),
       createdAt: new Date().toISOString(),
       status: 'PENDING',
       ...cleanInput
@@ -739,7 +1003,6 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...prev,
       cleanlinessReports: [report, ...prev.cleanlinessReports]
     }));
-    showToast('Housekeeping ticket dispatched!', 'success');
   };
 
   const resolveCleanlinessReport = (reportId: number) => {
@@ -750,9 +1013,25 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Housekeeping ticket #${reportId} resolved.`, 'success');
   };
 
-  const reportIncident = (incInput: Omit<Incident, 'incidentId' | 'createdAt' | 'status'>) => {
+  // ─── Real Incident SOS API Call ───────────────────────────────────────────
+  const reportIncident = async (incInput: Omit<Incident, 'incidentId' | 'createdAt' | 'status'>) => {
+    let serverIncId: number | undefined;
+
+    try {
+      const res = await staffApiService.reportIncident({
+        scheduleId: currentAssignment?.scheduleId || null,
+        stationId: incInput.stationId || null,
+        type: incInput.type,
+        severity: incInput.severity
+      });
+      if (res && res.incidentId) serverIncId = res.incidentId;
+      showToast('EMERGENCY SOS ALERT TRANSMITTED to Control Office!', 'error');
+    } catch (err: any) {
+      showToast(`SOS dispatch warning: ${err.message}`, 'error');
+    }
+
     const inc: Incident = {
-      incidentId: Date.now(),
+      incidentId: serverIncId || Date.now(),
       createdAt: new Date().toISOString(),
       status: 'ACKNOWLEDGED',
       ...incInput
@@ -761,7 +1040,6 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...prev,
       incidents: [inc, ...prev.incidents]
     }));
-    showToast('EMERGENCY SOS ALERT TRANSMITTED to Control Office!', 'error');
   };
 
   const resolveIncident = (incidentId: number) => {
@@ -772,9 +1050,62 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Incident #${incidentId} resolved.`, 'success');
   };
 
+  // ─── Maintenance Tasks API Integration ────────────────────────────────────
+  const createMaintenanceTask = async (task: {
+    coachId?: number;
+    platformId?: number;
+    stationId?: number;
+    type?: string;
+    title: string;
+    description: string;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  }): Promise<{ success: boolean; message: string; maintId?: number }> => {
+    try {
+      const res = await staffApiService.createMaintenanceTask({
+        coachId: task.coachId,
+        platformId: task.platformId,
+        type: task.type || task.title,
+        description: task.description
+      });
+      showToast(`Maintenance task created: #${res.maintId}`, 'success');
+      return { success: true, message: res.message || 'Task created', maintId: res.maintId };
+    } catch (err: any) {
+      showToast(`Maintenance error: ${err.message}`, 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  const updateMaintenanceStatus = async (
+    maintId: number,
+    status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
+    completionRemarks?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await staffApiService.updateMaintenanceTaskStatus(maintId, status, completionRemarks);
+      showToast(`Maintenance #${maintId} updated to ${status}`, 'success');
+      return { success: true, message: res.message || 'Status updated' };
+    } catch (err: any) {
+      showToast(`Maintenance status error: ${err.message}`, 'error');
+      return { success: false, message: err.message };
+    }
+  };
+
+  // ─── Counter Booking API Integration ──────────────────────────────────────
+  const createCounterBooking = async (payload: any): Promise<any> => {
+    try {
+      const res = await staffApiService.createCounterBooking(payload);
+      showToast(`Counter ticket generated! PNR: ${res.booking?.pnr || 'SUCCESS'}`, 'success');
+      return res;
+    } catch (err: any) {
+      showToast(`Counter booking failed: ${err.message}`, 'error');
+      throw err;
+    }
+  };
+
   const resetData = () => {
     setData(INITIAL_DATA);
-    showToast('All mock data state reset to defaults.', 'info');
+    refreshAssignmentAndChart();
+    showToast('All state refreshed from server and defaults.', 'info');
   };
 
   return (
@@ -785,8 +1116,15 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         activeStaff,
         activeTrain,
         activeSchedule,
+        currentAssignment,
+        serverChart,
+        chartStatus,
         switchStaff,
+        refreshAssignmentAndChart,
         markPassengerBoarding,
+        verifyPassenger,
+        boardPassengerApi,
+        noShowPassengerApi,
         promoteRacPassenger,
         issueFine,
         updateTrainDelay,
@@ -795,6 +1133,9 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resolveCleanlinessReport,
         reportIncident,
         resolveIncident,
+        createMaintenanceTask,
+        updateMaintenanceStatus,
+        createCounterBooking,
         resetData,
         selectedReceiptFine,
         setSelectedReceiptFine,

@@ -10,12 +10,20 @@ export const OperationsPage: React.FC = () => {
   const [status, setStatus] = useState<Schedule['status']>(activeSchedule?.status || 'ON_TIME');
   const [platform, setPlatform] = useState(activeSchedule?.platformNumber || 1);
 
+  const [updating, setUpdating] = useState(false);
+
   const trainId = activeStaff.assignedTrainId || 101;
   const routes = data.routes.filter(r => r.trainId === trainId);
 
-  const handleUpdate = (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateTrainDelay(delayMinutes, status, platform);
+    if (updating) return;
+    setUpdating(true);
+    try {
+      await updateTrainDelay(delayMinutes, status, platform);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -72,9 +80,10 @@ export const OperationsPage: React.FC = () => {
           <div className="sm:col-span-3 flex justify-end pt-2">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-semibold shadow-xs transition-all"
+              disabled={updating}
+              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs transition-all"
             >
-              Broadcast Operational Update
+              {updating ? 'Broadcasting Update...' : 'Broadcast Operational Update'}
             </button>
           </div>
         </form>

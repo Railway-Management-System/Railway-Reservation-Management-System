@@ -22,26 +22,32 @@ export const FinesPage: React.FC<FinesPageProps> = ({
   const [reason, setReason] = useState(prefillReason);
   const [amount, setAmount] = useState<number>(550);
   const [paymentStatus, setPaymentStatus] = useState<'PAID' | 'UNPAID'>('PAID');
+  const [submitting, setSubmitting] = useState(false);
 
   const totalCollected = data.fines.reduce((acc, f) => acc + (f.paymentStatus === 'PAID' ? Number(f.amount) : 0), 0);
   const totalUnpaid = data.fines.reduce((acc, f) => acc + (f.paymentStatus === 'UNPAID' ? Number(f.amount) : 0), 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passengerName.trim() || !idProofReference.trim()) return;
+    if (!passengerName.trim() || !idProofReference.trim() || submitting) return;
 
-    issueFine({
-      staffId: activeStaff.staffId,
-      trainId: activeStaff.assignedTrainId || 101,
-      passengerName: passengerName.trim(),
-      idProofReference: idProofReference.trim(),
-      reason,
-      amount,
-      paymentStatus
-    });
+    setSubmitting(true);
+    try {
+      await issueFine({
+        staffId: activeStaff.staffId,
+        trainId: activeStaff.assignedTrainId || 101,
+        passengerName: passengerName.trim(),
+        idProofReference: idProofReference.trim(),
+        reason,
+        amount,
+        paymentStatus
+      });
 
-    setPassengerName('');
-    setIdProofReference('');
+      setPassengerName('');
+      setIdProofReference('');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -148,10 +154,11 @@ export const FinesPage: React.FC<FinesPageProps> = ({
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-2 transition-all"
+              disabled={submitting}
+              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-2 transition-all"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Issue Official Challan</span>
+              <span>{submitting ? 'Issuing Official Challan...' : 'Issue Official Challan'}</span>
             </button>
           </div>
         </form>

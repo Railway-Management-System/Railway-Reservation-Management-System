@@ -10,22 +10,28 @@ export const EmergencyPage: React.FC = () => {
   const [type, setType] = useState('MEDICAL_EMERGENCY');
   const [severity, setSeverity] = useState<Incident['severity']>('HIGH');
   const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
+    if (!description.trim() || submitting) return;
 
-    reportIncident({
-      reportedBy: activeStaff.staffId,
-      type,
-      severity,
-      locationType: activeStaff.assignedTrainId ? 'TRAIN' : 'STATION',
-      stationId: activeStaff.assignedStationId,
-      trainId: activeStaff.assignedTrainId,
-      description: description.trim()
-    });
+    setSubmitting(true);
+    try {
+      await reportIncident({
+        reportedBy: activeStaff.staffId,
+        type,
+        severity,
+        locationType: activeStaff.assignedTrainId ? 'TRAIN' : 'STATION',
+        stationId: activeStaff.assignedStationId,
+        trainId: activeStaff.assignedTrainId,
+        description: description.trim()
+      });
 
-    setDescription('');
+      setDescription('');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -89,10 +95,11 @@ export const EmergencyPage: React.FC = () => {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-2 transition-all"
+              disabled={submitting}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-2 transition-all"
             >
               <AlertOctagon className="w-4 h-4" />
-              <span>Transmit Critical SOS Alert</span>
+              <span>{submitting ? 'Transmitting Alert...' : 'Transmit Critical SOS Alert'}</span>
             </button>
           </div>
         </form>
