@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_CONFIG } from '../../config/api.config';
 import { grievanceService } from '../../services/grievanceService';
 import { userService } from '../../services/userService';
 import { Grievance } from '../../types/grievance';
@@ -24,12 +25,12 @@ export const GrievancesPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [gList, uList] = await Promise.all([
-        grievanceService.getGrievances(),
-        userService.getUsers(),
-      ]);
+      const gList = await grievanceService.getGrievances();
       setGrievances(gList);
-      setUsers(uList);
+      if (API_CONFIG.USE_MOCK) {
+        const uList = await userService.getUsers();
+        setUsers(uList);
+      }
     } catch (err) {
       console.error('Failed to load grievances:', err);
     } finally {
@@ -43,11 +44,13 @@ export const GrievancesPage: React.FC = () => {
 
   const userMap = new Map(users.map((u) => [u.userId, u]));
 
+
   const handleOpenResponseModal = (g: Grievance) => {
     setActiveGrievance(g);
     setResponseText(g.response || '');
-    setStatusSelection(g.status === 'SUBMITTED' ? 'IN_PROGRESS' : g.status);
+    setStatusSelection(g.status === 'SUBMITTED' ? 'IN_PROGRESS' : (g.status as GrievanceStatus));
   };
+
 
   const handleResponseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

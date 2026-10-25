@@ -10,10 +10,18 @@ export const staffService = {
       await simulateLatency();
       return mockStore.getStaff();
     }
-    return httpRequest<Staff[]>('/api/admin/staff');
+    const data = await httpRequest<any[]>('/api/admin/staff');
+    return data.map((item) => ({
+      ...item,
+      employeeId: item.employeeNo || item.employeeId,
+      employeeNo: item.employeeNo || item.employeeId,
+    }));
   },
 
   async createStaff(payload: CreateStaffPayload): Promise<Staff> {
+    const employeeNo = payload.employeeNo || payload.employeeId || `EMP-${Date.now().toString().slice(-4)}`;
+    const password = payload.password || 'StaffPassword123!';
+
     if (API_CONFIG.USE_MOCK) {
       await simulateLatency();
       const users = mockStore.getUsers();
@@ -36,7 +44,8 @@ export const staffService = {
       const newStaff: Staff = {
         staffId: newStaffId,
         userId: newUserId,
-        employeeId: payload.employeeId,
+        employeeId: employeeNo,
+        employeeNo,
         name: payload.name,
         designation: payload.designation,
         assignedStationId: payload.assignedStationId ?? null,
@@ -56,10 +65,22 @@ export const staffService = {
       return newStaff;
     }
 
-    return httpRequest<Staff>('/api/admin/staff', {
+    const data = await httpRequest<any>('/api/admin/staff', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        employeeNo,
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        designation: payload.designation,
+        password,
+      }),
     });
+
+    return {
+      ...data,
+      employeeId: data.employeeNo || data.employeeId,
+    };
   },
 
   async updateStaff(staffId: number, payload: UpdateStaffPayload): Promise<Staff> {
@@ -94,9 +115,22 @@ export const staffService = {
       return updated;
     }
 
-    return httpRequest<Staff>(`/api/admin/staff/${staffId}`, {
+    // Backend route is PUT /api/admin/staff/:staffId/status with body: { status }
+    const status = payload.status === 'ON_LEAVE' ? 'ON_LEAVE' : (payload.status === 'OFF_DUTY' ? 'SUSPENDED' : 'ACTIVE');
+    const data = await httpRequest<any>(`/api/admin/staff/${staffId}/status`, {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ status }),
     });
+
+    return {
+      staffId,
+      userId: data.userId || 0,
+      employeeId: data.employeeNo,
+      employeeNo: data.employeeNo,
+      name: data.name || '',
+      designation: data.designation || '',
+      status: data.status,
+    };
   },
 };
+

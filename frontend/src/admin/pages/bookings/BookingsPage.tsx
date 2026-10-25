@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { bookingService } from '../../services/bookingService';
 import { trainService } from '../../services/trainService';
+import { API_CONFIG } from '../../config/api.config';
 import { Booking, BookingDetail } from '../../types/booking';
 import { Train } from '../../types/train';
 import { BookingStatus,  } from '../../constants/enums';
@@ -439,23 +440,31 @@ export const BookingsPage: React.FC = () => {
                 Close Drawer
               </button>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleOpenOverride}
-                  className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5"
-                >
-                  <Edit className="w-3.5 h-3.5 text-orange-600" />
-                  <span>Administrative Override</span>
-                </button>
-                {bookingDetail.bookingStatus !== 'CANCELLED' && (
-                  <button
-                    type="button"
-                    onClick={() => setIsCancelConfirmOpen(true)}
-                    className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5"
-                  >
-                    <Ban className="w-3.5 h-3.5" />
-                    <span>Cancel Ticket & Refund</span>
-                  </button>
+                {API_CONFIG.USE_MOCK ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleOpenOverride}
+                      className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Edit className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Administrative Override</span>
+                    </button>
+                    {bookingDetail.bookingStatus !== 'CANCELLED' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCancelConfirmOpen(true)}
+                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        <span>Cancel Ticket & Refund</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">
+                    This feature is not available yet.
+                  </span>
                 )}
               </div>
             </div>

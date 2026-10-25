@@ -45,11 +45,10 @@ export const TdrPage: React.FC = () => {
 
   const handleAdjudicateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adjudicatingClaim) return;
-    setIsSubmitting(true);
+    const refNo = adjudicatingClaim.tdrRefNo || String(adjudicatingClaim.tdrId);
     try {
       await tdrService.adjudicateTdr(
-        adjudicatingClaim.tdrId,
+        refNo,
         decision,
         decision === 'APPROVED' ? Number(refundAmountInput) : null
       );
@@ -64,10 +63,14 @@ export const TdrPage: React.FC = () => {
 
   const columns: Column<TdrClaim>[] = [
     {
-      header: 'TDR ID',
-      accessorKey: 'tdrId',
+      header: 'TDR Ref #',
+      accessorKey: 'tdrRefNo',
       sortable: true,
-      cell: (row) => <span className="font-mono font-bold text-slate-900">#{row.tdrId}</span>,
+      cell: (row) => (
+        <span className="font-mono font-bold text-slate-900 text-xs">
+          {row.tdrRefNo || (row.tdrId ? `#${row.tdrId}` : '—')}
+        </span>
+      ),
     },
     {
       header: 'PNR Code',
@@ -86,15 +89,16 @@ export const TdrPage: React.FC = () => {
       cell: (row) => (
         <div>
           <span className="font-semibold text-slate-900 text-xs">{row.reason}</span>
-          <div className="text-meta font-mono">Booking #{row.bookingId}</div>
+          {row.passengerNo && <div className="text-meta font-mono">Pax #{row.passengerNo}</div>}
+          {row.bookingId && <div className="text-meta font-mono">Booking #{row.bookingId}</div>}
         </div>
       ),
     },
     {
-      header: 'Submitted At',
+      header: 'Filed At',
       accessorKey: 'submittedAt',
       sortable: true,
-      cell: (row) => <span className="text-xs text-slate-500">{formatDateTime(row.submittedAt)}</span>,
+      cell: (row) => <span className="text-xs text-slate-500 font-mono">{row.filedAt || row.submittedAt || '—'}</span>,
     },
     {
       header: 'Adjudication Status',
@@ -106,7 +110,7 @@ export const TdrPage: React.FC = () => {
       header: 'Refund Amount',
       cell: (row) => (
         <span className="font-mono font-bold text-slate-900 text-xs">
-          {row.refundAmount ? formatCurrency(row.refundAmount) : '—'}
+          {row.refundAmount !== null && row.refundAmount !== undefined ? formatCurrency(row.refundAmount) : '—'}
         </span>
       ),
     },
@@ -134,6 +138,7 @@ export const TdrPage: React.FC = () => {
       ),
     },
   ];
+
 
   return (
     <div className="space-y-6">
