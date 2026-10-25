@@ -327,7 +327,42 @@ async function runTests() {
     // TEST 9: SEEDED BOOKING SKIPPED (pay_test_... Gateway ID)
     // -------------------------------------------------------------------------
     console.log('\n--- TEST 9: Seeded Booking Cancellation (pay_test_... Gateway SKIPPED) ---');
-    // Find an active confirmed seeded booking > 24h away
+
+    // Dynamically pick one seeded run with confirmed pay_test_ booking and advance its journey_date
+    // to a future date (> 8h away) so cancellation deadline check passes without hard-coded ID.
+    const [candRuns] = await pool.query(
+      `SELECT ts.schedule_id, ts.train_id
+       FROM TRAIN_SCHEDULE ts
+       JOIN BOOKING b ON ts.schedule_id = b.schedule_id
+       JOIN PAYMENT p ON b.pnr = p.pnr
+       WHERE b.status = 'CONFIRMED'
+         AND p.gateway_payment_id LIKE 'pay_test_%'
+         AND ts.chart_prepared_at IS NULL
+         AND ts.train_id != 129
+       ORDER BY ts.schedule_id ASC
+       LIMIT 10`
+    );
+
+    let shiftedSchedId = null;
+    for (const cand of candRuns) {
+      for (let offset = 5; offset <= 14; offset++) {
+        const [existing] = await pool.query(
+          'SELECT schedule_id FROM TRAIN_SCHEDULE WHERE train_id = ? AND journey_date = DATE_ADD(CURDATE(), INTERVAL ? DAY)',
+          [cand.train_id, offset]
+        );
+        if (existing.length === 0) {
+          await pool.query(
+            'UPDATE TRAIN_SCHEDULE SET journey_date = DATE_ADD(CURDATE(), INTERVAL ? DAY) WHERE schedule_id = ?',
+            [offset, cand.schedule_id]
+          );
+          shiftedSchedId = cand.schedule_id;
+          break;
+        }
+      }
+      if (shiftedSchedId) break;
+    }
+
+    // Find an active confirmed seeded booking (> 8h away)
     const [seededRows] = await pool.query(
       `SELECT b.pnr, p.gateway_payment_id
        FROM BOOKING b

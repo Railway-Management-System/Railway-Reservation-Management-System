@@ -66,6 +66,31 @@ function assert(condition, message) {
   console.log(`  PASS: ${message}`);
 }
 
+async function pollNotifications(token, predicate, timeoutMs = 3000, intervalMs = 200) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const res = await request('GET', '/api/notifications', null, token);
+    if (res.status === 200 && Array.isArray(res.data.data)) {
+      const match = res.data.data.find(predicate);
+      if (match) return match;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  const finalRes = await request('GET', '/api/notifications', null, token);
+  return finalRes.status === 200 && Array.isArray(finalRes.data.data)
+    ? finalRes.data.data.find(predicate)
+    : null;
+}
+
+async function assertNoNotification(token, predicate, waitMs = 1000) {
+  await new Promise((r) => setTimeout(r, waitMs));
+  const res = await request('GET', '/api/notifications', null, token);
+  if (res.status === 200 && Array.isArray(res.data.data)) {
+    return res.data.data.filter(predicate);
+  }
+  return [];
+}
+
 async function runTests() {
   const safetyTimeout = setTimeout(() => {
     console.error('\n[FATAL ERROR]: Safety timeout of 120 seconds reached. Test suite test-d2 timed out!');
@@ -187,6 +212,10 @@ async function runTests() {
     const orderId1 = orderRes1.data.data.orderId;
     console.log(`  [INFO] Real Razorpay Order created: ${orderId1}, Amount: ${expectedPaise} paise`);
 
+    // Check d: After POST /api/payments/razorpay/order only (before verify), NO BOOKING_CONFIRMATION notification exists for that PNR
+    const orderOnlyNtfs = await assertNoNotification(token1, (n) => n.type === 'BOOKING_CONFIRMATION' && n.referenceId === pnr1, 1000);
+    assert(orderOnlyNtfs.length === 0, 'No BOOKING_CONFIRMATION notification exists after order creation only (before verify)');
+
     // -------------------------------------------------------------------------
     // TEST 3: VALID SIGNATURE [SIMULATED] (POST /api/payments/razorpay/verify)
     // -------------------------------------------------------------------------
@@ -230,6 +259,14 @@ async function runTests() {
     // Verify verification logged in MongoDB
     const verifyDoc1 = await db.collection('raw_gateway_replies').findOne({ pnr: pnr1, type: 'verify_success' });
     assert(verifyDoc1 !== null, 'Verification reply stored in MongoDB collection raw_gateway_replies');
+
+    // Check c: After successful POST /api/payments/razorpay/verify, exactly ONE BOOKING_CONFIRMATION notification exists for that PNR and referenceId equals PNR
+    const verifyNtf = await pollNotifications(token1, (n) => n.type === 'BOOKING_CONFIRMATION' && n.referenceId === pnr1, 3000);
+    assert(verifyNtf !== null && verifyNtf !== undefined, 'BOOKING_CONFIRMATION notification exists for PNR after verify');
+    assert(verifyNtf.referenceId === pnr1, 'BOOKING_CONFIRMATION notification referenceId equals PNR');
+    const allNtfRes1 = await request('GET', '/api/notifications', null, token1);
+    const bookingNtfList = allNtfRes1.data.data.filter((n) => n.type === 'BOOKING_CONFIRMATION' && n.referenceId === pnr1);
+    assert(bookingNtfList.length === 1, 'Exactly ONE BOOKING_CONFIRMATION notification exists for PNR');
 
     // -------------------------------------------------------------------------
     // TEST 4: WRONG SIGNATURE REJECTED (POST /api/payments/razorpay/verify)
@@ -380,6 +417,10 @@ async function runTests() {
     if (refundDoc.type === 'refund_failure') {
       console.log('  [INFO] Captured exact Razorpay refund API reply for simulated payment:', JSON.stringify(refundDoc.reply));
     }
+
+    // Check e: After a LATE payment (HOLD_EXPIRED), NO BOOKING_CONFIRMATION notification exists for that PNR
+    const lateNtfs = await assertNoNotification(token1, (n) => n.type === 'BOOKING_CONFIRMATION' && n.referenceId === pnr3, 1000);
+    assert(lateNtfs.length === 0, 'No BOOKING_CONFIRMATION notification exists after late payment (HOLD_EXPIRED)');
 
     // -------------------------------------------------------------------------
     // TEST 8: EXPIRED HOLD RELEASED BY TIMER PROCEDURE
