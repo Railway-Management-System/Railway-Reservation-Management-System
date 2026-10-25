@@ -27,9 +27,15 @@ import { PageHeader } from '../../components/PageHeader';
 import { formatCurrency, formatDateTime, formatDate,  } from '../../utils/format';
 import { ADMIN_ROUTES } from '../../constants/routes';
 
+import { API_CONFIG } from '../../config/api.config';
+import { grievanceService } from '../../services/grievanceService';
+import { tdrService } from '../../services/tdrService';
+import { staffService } from '../../services/staffService';
+
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [activeStaffCount, setActiveStaffCount] = useState<number | null>(null);
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [recentAuditLogs, setRecentAuditLogs] = useState<AuditLog[]>([]);
   const [delayedSchedules, setDelayedSchedules] = useState<Schedule[]>([]);
@@ -38,23 +44,57 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [kpis, bookings, logs, schedules, trains] = await Promise.all([
-          reportService.getDashboardMetrics(),
-          bookingService.getBookings(),
-          auditLogService.getAuditLogs(),
-          scheduleService.getSchedules(),
-          trainService.getTrains(),
-        ]);
+        if (API_CONFIG.USE_MOCK) {
+          const [kpis, bookings, logs, schedules, trains] = await Promise.all([
+            reportService.getDashboardMetrics(),
+            bookingService.getBookings(),
+            auditLogService.getAuditLogs(),
+            scheduleService.getSchedules(),
+            trainService.getTrains(),
+          ]);
 
-        setMetrics(kpis);
-        setRecentBookings(bookings.slice(0, 5));
-        setRecentAuditLogs(logs.slice(0, 5));
-        setDelayedSchedules(schedules.filter((s) => s.status === 'DELAYED').slice(0, 4));
-        setTrainsMap(new Map(trains.map((t) => [t.trainId, t])));
+          setMetrics(kpis);
+          setRecentBookings(bookings.slice(0, 5));
+          setRecentAuditLogs(logs.slice(0, 5));
+          setDelayedSchedules(schedules.filter((s) => s.status === 'DELAYED').slice(0, 4));
+          setTrainsMap(new Map(trains.map((t) => [t.trainId, t])));
+        } else {
+          // Real mode: fetch live data from genuinely supported endpoints
+          const [trains, complaints, tdrs, logs, staff] = await Promise.all([
+            trainService.getTrains().catch(() => []),
+            grievanceService.getGrievances().catch(() => []),
+            tdrService.getTdrClaims().catch(() => []),
+            auditLogService.getAuditLogs().catch(() => []),
+            staffService.getStaff().catch(() => []),
+          ]);
+
+          const activeTrains = trains.filter((t) => t.status === 'ACTIVE').length;
+          const openGrievances = complaints.filter(
+            (c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS' || c.status === 'SUBMITTED'
+          ).length;
+          const pendingTdrs = tdrs.filter(
+            (t: any) => t.status === 'FILED' || t.status === 'UNDER_REVIEW'
+          ).length;
+          const activeStaff = staff.filter((s: any) => s.status === 'ACTIVE').length;
+
+          setActiveStaffCount(activeStaff);
+          setTrainsMap(new Map(trains.map((t: any) => [t.trainId, t] as const)));
+          setRecentAuditLogs(logs.slice(0, 5));
+
+          setMetrics({
+            totalBookings: 0,
+            totalRevenue: 0,
+            totalCancellations: 0,
+            activeTrainsCount: activeTrains,
+            openGrievancesCount: openGrievances,
+            pendingTdrCount: pendingTdrs,
+            openIncidentsCount: 0,
+            delayedTrainsCount: 0,
+          });
+        }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
-      } finally {
-              }
+      }
     }
     loadDashboard();
   }, []);
@@ -87,34 +127,32 @@ export const DashboardPage: React.FC = () => {
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Ticket Revenue"
-          value={metrics ? formatCurrency(metrics.totalRevenue) : '—'}
-          icon={DollarSign}
-          color="emerald"
-          change="+8.4% this week"
-          isPositive={true}
-          subtitle="Cleared passenger gateway settlements"
-        />
-        <StatCard
-          title="Active System Bookings"
-          value={metrics ? metrics.totalBookings : '—'}
-          icon={Ticket}
-          color="orange"
-          subtitle="Tracked reservations across all trains"
-        />
-        <StatCard
-          title="Active Train Services"
+          title="Active Train Fleet"
           value={metrics ? metrics.activeTrainsCount : '—'}
           icon={Train}
           color="blue"
-          subtitle="Scheduled operational rakes"
+          subtitle="Operational active rakes"
         />
         <StatCard
-          title="Delayed Train Runs"
-          value={metrics ? metrics.delayedTrainsCount : '—'}
-          icon={Clock}
-          color="amber"
-          subtitle="Live operational delay flags"
+          title="Active Staff Personnel"
+          value={API_CONFIG.USE_MOCK ? 28 : (activeStaffCount ?? '—')}
+          icon={ShieldAlert}
+          color="emerald"
+          subtitle="Duty-ready railway personnel"
+        />
+        <StatCard
+          title="Total Ticket Revenue"
+          value={API_CONFIG.USE_MOCK && metrics ? formatCurrency(metrics.totalRevenue) : 'This feature is not available yet.'}
+          icon={DollarSign}
+          color="emerald"
+          subtitle={API_CONFIG.USE_MOCK ? "Cleared passenger gateway settlements" : "Aggregate reporting endpoint pending"}
+        />
+        <StatCard
+          title="Active System Bookings"
+          value={API_CONFIG.USE_MOCK && metrics ? metrics.totalBookings : 'This feature is not available yet.'}
+          icon={Ticket}
+          color="orange"
+          subtitle={API_CONFIG.USE_MOCK ? "Tracked reservations across all trains" : "Global booking count endpoint pending"}
         />
       </div>
 

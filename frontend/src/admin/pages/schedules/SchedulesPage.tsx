@@ -41,6 +41,14 @@ export const SchedulesPage: React.FC = () => {
   const [deletingSchedule, setDeletingSchedule] = useState<Schedule | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Chart Preparation State
+  const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [targetScheduleId, setTargetScheduleId] = useState<number | string>('');
+  const [isPreparingChart, setIsPreparingChart] = useState(false);
+  const [chartResult, setChartResult] = useState<any | null>(null);
+  const [chartError, setChartError] = useState<string | null>(null);
+
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -195,6 +203,22 @@ export const SchedulesPage: React.FC = () => {
     },
   ];
 
+  const handlePrepareChart = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetScheduleId) return;
+    setIsPreparingChart(true);
+    setChartResult(null);
+    setChartError(null);
+    try {
+      const res = await scheduleService.prepareChart(Number(targetScheduleId));
+      setChartResult(res);
+    } catch (err: any) {
+      setChartError(err.message || 'Failed to prepare reservation chart.');
+    } finally {
+      setIsPreparingChart(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -202,6 +226,16 @@ export const SchedulesPage: React.FC = () => {
         description="Maintain calendar train runs, monitor running statuses (ON_TIME / DELAYED / CANCELLED), and apply operational delay updates."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setChartModalOpen(true);
+                setChartResult(null);
+                setChartError(null);
+              }}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
+            >
+              <span>Prepare Chart</span>
+            </button>
             <select
               value={selectedTrainId}
               onChange={(e) => setSelectedTrainId(e.target.value)}
@@ -234,6 +268,7 @@ export const SchedulesPage: React.FC = () => {
           </div>
         }
       />
+
 
       <DataTable
         data={schedules}
@@ -407,6 +442,81 @@ export const SchedulesPage: React.FC = () => {
         onConfirm={handleDelete}
         onCancel={() => setDeletingSchedule(null)}
       />
+
+      {/* Prepare Chart Modal */}
+      <Modal
+        isOpen={chartModalOpen}
+        onClose={() => setChartModalOpen(false)}
+        title="Execute Chart Preparation"
+        maxWidth="md"
+      >
+        <form onSubmit={handlePrepareChart} className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Execute final chart preparation for a train run (Contract 7.2). This allocates confirmed berths to RAC and Waitlisted passengers according to reservation priority rules.
+          </p>
+
+          <div>
+            <label className="form-label">
+              Schedule ID (scheduleId) *
+            </label>
+            <input
+              type="number"
+              required
+              min={1}
+              value={targetScheduleId}
+              onChange={(e) => setTargetScheduleId(e.target.value)}
+              placeholder="e.g. 101"
+              className="form-input mono"
+            />
+          </div>
+
+          {chartError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+              {chartError}
+            </div>
+          )}
+
+          {chartResult && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-1">
+              <div className="font-bold text-emerald-800">
+                Chart Status: {chartResult.status} {chartResult.alreadyPrepared ? '(Already Prepared)' : ''}
+              </div>
+              <div className="text-emerald-700">
+                Confirmed Berths: <span className="font-bold">{chartResult.totalConfirmed ?? '—'}</span>
+              </div>
+              <div className="text-emerald-700">
+                RAC Promoted: <span className="font-bold">{chartResult.totalRacPromoted ?? 0}</span>
+              </div>
+              <div className="text-emerald-700">
+                WL Promoted: <span className="font-bold">{chartResult.totalWaitlistedPromoted ?? 0}</span>
+              </div>
+              {chartResult.preparedAt && (
+                <div className="text-slate-500 text-[11px] font-mono">
+                  Prepared At: {chartResult.preparedAt}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="form-section-divider flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setChartModalOpen(false)}
+              className="btn-ghost"
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              disabled={isPreparingChart || !targetScheduleId}
+              className="btn-secondary"
+            >
+              {isPreparingChart ? 'Executing...' : 'Prepare Chart'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
+

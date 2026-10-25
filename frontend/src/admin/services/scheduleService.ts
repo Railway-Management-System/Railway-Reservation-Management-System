@@ -106,4 +106,34 @@ export const scheduleService = {
       method: 'DELETE',
     });
   },
+
+  async prepareChart(scheduleId: number): Promise<{
+    scheduleId: number;
+    status: string;
+    totalWaitlistedPromoted?: number;
+    totalRacPromoted?: number;
+    totalConfirmed?: number;
+    preparedAt?: string;
+    alreadyPrepared?: boolean;
+    passengers?: any[];
+  }> {
+    if (API_CONFIG.USE_MOCK) {
+      await simulateLatency();
+      return {
+        scheduleId,
+        status: 'CHART_PREPARED',
+        totalWaitlistedPromoted: 2,
+        totalRacPromoted: 4,
+        totalConfirmed: 120,
+        preparedAt: '2026-10-25 22:00:00',
+        alreadyPrepared: false,
+      };
+    }
+
+    return httpRequest<any>(`/api/admin/schedules/${scheduleId}/chart-preparation`, {
+      method: 'POST',
+    });
+  },
 };
+
+

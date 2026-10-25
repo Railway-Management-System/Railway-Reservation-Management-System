@@ -10,29 +10,36 @@ export const tdrService = {
       await simulateLatency();
       const list = mockStore.getTdr();
       const filtered = status ? list.filter((t) => t.status === status) : list;
-      return [...filtered].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      return [...filtered].sort((a, b) => ((b.filedAt || b.submittedAt || '')).localeCompare(a.filedAt || a.submittedAt || ''));
     }
 
-    const query = status ? `?status=${status}` : '';
-    return httpRequest<TdrClaim[]>(`/api/admin/tdr${query}`);
+    const query = status && (status as string) !== 'ALL' ? `?status=${status}` : '';
+    const data = await httpRequest<any[]>(`/api/admin/tdr${query}`);
+    return data.map((item) => ({
+      ...item,
+      tdrRefNo: item.tdrRefNo || `TDR-${item.tdrId}`,
+      submittedAt: item.filedAt || item.submittedAt,
+    }));
   },
 
   async adjudicateTdr(
-    tdrId: number,
+    tdrRefNo: string,
     status: TdrStatus,
-    refundAmount?: number | null
-  ): Promise<TdrClaim> {
+    refundAmount?: number | null,
+    remarks?: string | null
+  ): Promise<any> {
     if (API_CONFIG.USE_MOCK) {
       await simulateLatency();
       const list = mockStore.getTdr();
-      const idx = list.findIndex((t) => t.tdrId === tdrId);
-      if (idx === -1) throw new Error(`TDR claim with ID ${tdrId} not found.`);
+      const idx = list.findIndex((t) => (t.tdrRefNo === tdrRefNo || String(t.tdrId) === tdrRefNo));
+      if (idx === -1) throw new Error(`TDR claim with ID ${tdrRefNo} not found.`);
 
       const prev = { ...list[idx] };
       const updated: TdrClaim = {
         ...prev,
         status,
         refundAmount: refundAmount !== undefined ? refundAmount : prev.refundAmount,
+        remarks: remarks || prev.remarks,
       };
 
       list[idx] = updated;
@@ -42,7 +49,7 @@ export const tdrService = {
         userId: 7,
         action: status === 'APPROVED' ? 'APPROVE_TDR' : 'REJECT_TDR',
         entityType: 'TDR',
-        entityId: tdrId.toString(),
+        entityId: tdrRefNo,
         oldValue: { status: prev.status, refundAmount: prev.refundAmount },
         newValue: { status, refundAmount },
       });
@@ -50,9 +57,20 @@ export const tdrService = {
       return updated;
     }
 
-    return httpRequest<TdrClaim>(`/api/admin/tdr/${tdrId}`, {
+    return httpRequest<{
+      tdrRefNo: string;
+      status: string;
+      refundAmount: number;
+      refund: any;
+      gatewayRefund?: string;
+    }>(`/api/admin/tdr/${encodeURIComponent(tdrRefNo)}`, {
       method: 'PUT',
-      body: JSON.stringify({ status, refundAmount }),
+      body: JSON.stringify({
+        status,
+        ...(status === 'APPROVED' && refundAmount !== undefined && refundAmount !== null ? { refundAmount: Number(refundAmount) } : {}),
+        remarks: remarks || null
+      }),
     });
   },
 };
+

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { API_CONFIG } from '../../config/api.config';
 import { platformService } from '../../services/platformService';
 import { stationService } from '../../services/stationService';
 import { Platform, Station } from '../../types/station';
@@ -225,15 +226,27 @@ export const PlatformsPage: React.FC = () => {
                 </option>
               ))}
             </select>
-            <button
-              onClick={handleOpenCreate}
-              className="btn-secondary"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Platform</span>
-            </button>
+            {API_CONFIG.USE_MOCK ? (
+              <button
+                onClick={handleOpenCreate}
+                className="btn-secondary"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Platform</span>
+              </button>
+            ) : (
+              <button
+                disabled
+                title="This feature is not available yet."
+                className="btn-secondary opacity-50 cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                <span>This feature is not available yet.</span>
+              </button>
+            )}
           </div>
         }
+
       />
 
       <DataTable

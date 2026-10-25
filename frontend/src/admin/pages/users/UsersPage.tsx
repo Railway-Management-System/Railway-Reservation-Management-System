@@ -103,32 +103,17 @@ export const UsersPage: React.FC = () => {
           >
             <Eye className="w-4 h-4" />
           </button>
-          {row.accountStatus === 'ACTIVE' ? (
-            <button
-              onClick={() => {
-                setStatusActionUser(row);
-                setStatusActionTarget('SUSPENDED');
-              }}
-              className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors flex items-center gap-1"
-            >
-              <UserX className="w-3.5 h-3.5" />
-              <span>Suspend</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setStatusActionUser(row);
-                setStatusActionTarget('ACTIVE');
-              }}
-              className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors flex items-center gap-1"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Activate</span>
-            </button>
-          )}
+          <button
+            disabled
+            title="This feature is not available yet."
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed"
+          >
+            <span>This feature is not available yet.</span>
+          </button>
         </div>
       ),
     },
+
   ];
 
   return (

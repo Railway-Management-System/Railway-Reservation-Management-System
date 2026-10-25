@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Edit2 } from 'lucide-react';
 import { quotaService } from '../../services/quotaService';
+import { API_CONFIG } from '../../config/api.config';
 import { QuotaRule } from '../../types/quota';
 import { DataTable, Column } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
@@ -94,13 +95,19 @@ export const QuotasPage: React.FC = () => {
       header: 'Actions',
       align: 'right',
       cell: (row) => (
-        <button
-          onClick={() => handleOpenEdit(row)}
-          className="btn-icon"
-          title="Edit Quota Percentage"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
+        API_CONFIG.USE_MOCK ? (
+          <button
+            onClick={() => handleOpenEdit(row)}
+            className="btn-icon"
+            title="Edit Quota Percentage"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+        ) : (
+          <span className="text-xs text-slate-400 italic" title="Quota allocation updates require database schema reconfiguration">
+            This feature is not available yet.
+          </span>
+        )
       ),
     },
   ];
