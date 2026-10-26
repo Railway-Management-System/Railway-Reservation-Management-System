@@ -1,10 +1,15 @@
 export interface AuditLog {
-  auditId: number;
+  logId?: number;
+  auditId?: number;
   userId: number;
   action: string;
-  entityType: string;
-  entityId: string;
+  tableName?: string;
+  entityType?: string;
+  recordId?: string;
+  entityId?: string;
   oldValue: unknown;
   newValue: unknown;
-  createdAt: string;
+  loggedAt?: string;
+  createdAt?: string;
 }
+

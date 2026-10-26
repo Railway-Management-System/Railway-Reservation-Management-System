@@ -1,7 +1,16 @@
-import { GrievanceCategory, GrievanceStatus } from '../constants/enums';
+export type GrievanceCategory =
+  | 'TRAIN_CLEANLINESS'
+  | 'REFUND'
+  | 'STAFF_BEHAVIOR'
+  | 'FOOD_QUALITY'
+  | 'PUNCTUALITY'
+  | 'OTHER'
+  | string;
+
+export type GrievanceStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED' | 'SUBMITTED' | string;
 
 export interface Grievance {
-  grievanceId: number;
+  grievanceId: string | number;
   userId: number;
   category: GrievanceCategory;
   subject: string;
@@ -10,3 +19,4 @@ export interface Grievance {
   response: string | null;
   createdAt: string;
 }
+

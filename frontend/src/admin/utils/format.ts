@@ -19,35 +19,14 @@ export function formatCurrency(amount: number | null | undefined): string {
 
 export function formatDateTime(isoString: string | null | undefined): string {
   if (!isoString) return '—';
-  try {
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return isoString;
-    return new Intl.DateTimeFormat('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(d);
-  } catch {
-    return isoString;
-  }
+  // Preserve raw India-local datetime string without appending Z or timezone shifting
+  return isoString;
 }
 
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '—';
-  try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return new Intl.DateTimeFormat('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(d);
-  } catch {
-    return dateString;
-  }
+  // Preserve raw India-local date string YYYY-MM-DD
+  return dateString;
 }
 
 export function formatDelay(minutes: number): string {

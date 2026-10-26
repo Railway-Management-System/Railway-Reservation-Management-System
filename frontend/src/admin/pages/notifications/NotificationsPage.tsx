@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Send } from 'lucide-react';
+import { API_CONFIG } from '../../config/api.config';
 import { notificationService } from '../../services/notificationService';
 import { Notification, BroadcastNotificationPayload } from '../../types/notification';
 import { DataTable, Column } from '../../components/DataTable';
@@ -154,15 +155,27 @@ export const NotificationsPage: React.FC = () => {
               <option value="UNREAD">Unread Only</option>
               <option value="READ">Read Only</option>
             </select>
-            <button
-              onClick={() => setBroadcastModalOpen(true)}
-              className="btn-secondary"
-            >
-              <Send className="w-4 h-4" />
-              <span>Broadcast Alert</span>
-            </button>
+            {API_CONFIG.USE_MOCK ? (
+              <button
+                onClick={() => setBroadcastModalOpen(true)}
+                className="btn-secondary"
+              >
+                <Send className="w-4 h-4" />
+                <span>Broadcast Alert</span>
+              </button>
+            ) : (
+              <button
+                disabled
+                title="This feature is not available yet."
+                className="btn-secondary opacity-50 cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+                <span>This feature is not available yet.</span>
+              </button>
+            )}
           </div>
         }
+
       />
 
       <DataTable

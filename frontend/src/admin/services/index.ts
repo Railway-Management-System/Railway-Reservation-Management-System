@@ -19,3 +19,8 @@ export * from './fineService';
 export * from './incidentService';
 export * from './grievanceService';
 export * from './groundReportService';
+export * from './settingService';
+export * from './concessionRuleService';
+export * from './refundRuleService';
+
+

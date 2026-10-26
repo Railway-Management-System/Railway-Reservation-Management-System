@@ -13,11 +13,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AdminAuthUser | null>(null);
+  const [user, setUser] = useState<AdminAuthUser | null>(() => authService.getCurrentUser());
   const [loading, setLoading] = useState(false);
 
-  // Note: sessions are NOT auto-restored on mount.
-  // Users must explicitly log in via the login() call on the HomePage.
+  React.useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+    };
+    window.addEventListener('admin:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('admin:unauthorized', handleUnauthorized);
+    };
+  }, []);
 
   const login = async (email: string, password: string): Promise<AdminAuthUser> => {
     const authUser = await authService.adminLogin(email, password);
@@ -29,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authService.logout();
     setUser(null);
   };
+
 
   return (
     <AuthContext.Provider

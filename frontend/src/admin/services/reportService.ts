@@ -239,4 +239,15 @@ export const reportService = {
 
     return httpRequest<GrievanceMetricsItem[]>('/api/admin/reports/complaints');
   },
+
+  async getAnalyticalReport<T = any>(reportKey: string): Promise<{
+    reportId: number;
+    reportKey: string;
+    reportType: string;
+    generatedAt: string;
+    rowCount: number;
+    rows: T[];
+  }> {
+    return httpRequest(`/api/admin/reports/${reportKey}`);
+  },
 };

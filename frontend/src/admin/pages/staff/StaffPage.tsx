@@ -241,6 +241,18 @@ export const StaffPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="form-label">Initial Access Password *</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={newStaff.password || ''}
+                onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                className="form-input font-mono"
+                placeholder="At least 6 characters"
+              />
+            </div>
+            <div>
               <label className="form-label">Designation *</label>
               <select
                 value={newStaff.designation}
@@ -253,7 +265,10 @@ export const StaffPage: React.FC = () => {
                 <option value="Platform Duty Officer">Platform Duty Officer</option>
               </select>
             </div>
-            <div>
+          </div>
+
+          <div>
+
               <label className="form-label">Assigned Base Station</label>
               <select
                 value={newStaff.assignedStationId || ''}
@@ -273,9 +288,9 @@ export const StaffPage: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="form-section-divider flex items-center justify-end gap-2.5">
+            <div className="form-section-divider flex items-center justify-end gap-2.5">
+
             <button
               type="button"
               onClick={() => setCreateModalOpen(false)}

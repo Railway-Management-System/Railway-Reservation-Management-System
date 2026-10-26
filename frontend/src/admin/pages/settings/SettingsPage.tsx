@@ -111,6 +111,9 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* System Settings & Business Parameters (Contract 7.1) */}
+      <SystemSettingsSection />
+
       {/* Password Change Security Card */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
         <div className="flex items-center gap-3 mb-4">
@@ -186,3 +189,137 @@ export const SettingsPage: React.FC = () => {
     </div>
   );
 };
+
+const SystemSettingsSection: React.FC = () => {
+  const [settings, setSettings] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [editingKey, setEditingKey] = React.useState<string | null>(null);
+  const [editValue, setEditValue] = React.useState('');
+  const [saveLoading, setSaveLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    try {
+      const data = await import('../../services/settingService').then((m) => m.settingService.getSettings());
+      setSettings(data);
+    } catch (err: any) {
+      console.error('Failed to load settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const handleSave = async (key: string) => {
+    setSaveLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const service = await import('../../services/settingService').then((m) => m.settingService);
+      await service.updateSetting(key, editValue);
+      setSuccessMessage(`Setting ${key} updated successfully.`);
+      setEditingKey(null);
+      await loadSettings();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to update setting.');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900">System Operating Parameters (SETTING)</h3>
+          <p className="text-xs text-slate-500">Live operational rules, holding timers, clerkage fees, and quota limits.</p>
+        </div>
+        <button
+          onClick={loadSettings}
+          className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {successMessage && (
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+          {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
+          {errorMessage}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-8 text-center text-xs text-slate-400">Loading system parameters...</div>
+      ) : (
+        <div className="divide-y divide-slate-100 text-xs">
+          {settings.map((s) => (
+            <div key={s.settingKey} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="max-w-md">
+                <span className="font-mono font-bold text-slate-800">{s.settingKey}</span>
+                <p className="text-slate-500 text-[11px] mt-0.5">{s.description || 'System configuration parameter'}</p>
+                {s.updatedAt && (
+                  <span className="text-[10px] text-slate-400 font-mono">Updated: {s.updatedAt}</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {editingKey === s.settingKey ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="px-2.5 py-1 text-xs border border-orange-500 rounded font-mono focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleSave(s.settingKey)}
+                      disabled={saveLoading}
+                      className="px-2.5 py-1 bg-orange-600 text-white rounded font-semibold text-xs hover:bg-orange-700"
+                    >
+                      {saveLoading ? '...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingKey(null)}
+                      className="px-2 py-1 text-slate-500 hover:bg-slate-100 rounded text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold px-2.5 py-1 rounded bg-slate-100 text-slate-800">
+                      {s.settingValue}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingKey(s.settingKey);
+                        setEditValue(s.settingValue);
+                        setErrorMessage(null);
+                        setSuccessMessage(null);
+                      }}
+                      className="text-xs text-orange-600 hover:text-orange-700 font-semibold"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+

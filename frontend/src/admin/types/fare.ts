@@ -2,13 +2,18 @@ import { ClassType } from '../constants/enums';
 
 export interface FareRule {
   fareId: number;
-  classType: ClassType;
-  baseRatePerKm: number;
-  reservationCharge: number;
-  tatkalCharge: number;
-  gstPercentage: number;
-  insurancePremium: number;
+  classId?: number;
+  minDistanceKm?: number;
+  maxDistanceKm?: number;
+  ratePerKm?: number;
+  classType?: ClassType;
+  baseRatePerKm?: number;
+  reservationCharge?: number;
+  tatkalCharge?: number;
+  gstPercentage?: number;
+  insurancePremium?: number;
 }
+
 
 export interface FareCalculationInput {
   distanceKm: number;
