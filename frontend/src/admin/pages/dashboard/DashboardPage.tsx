@@ -40,9 +40,11 @@ export const DashboardPage: React.FC = () => {
   const [recentAuditLogs, setRecentAuditLogs] = useState<AuditLog[]>([]);
   const [delayedSchedules, setDelayedSchedules] = useState<Schedule[]>([]);
   const [trainsMap, setTrainsMap] = useState<Map<number, TrainType>>(new Map());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
     async function loadDashboard() {
+      setIsLoading(true);
       try {
         if (API_CONFIG.USE_MOCK) {
           const [kpis, bookings, logs, schedules, trains] = await Promise.all([
@@ -59,13 +61,15 @@ export const DashboardPage: React.FC = () => {
           setDelayedSchedules(schedules.filter((s) => s.status === 'DELAYED').slice(0, 4));
           setTrainsMap(new Map(trains.map((t) => [t.trainId, t])));
         } else {
-          // Real mode: fetch live data from genuinely supported endpoints
-          const [trains, complaints, tdrs, logs, staff] = await Promise.all([
+          // Real mode: fetch live data from genuinely supported endpoints and reports
+          const [trains, complaints, tdrs, logs, staff, classRevReport, quotaReport] = await Promise.all([
             trainService.getTrains().catch(() => []),
             grievanceService.getGrievances().catch(() => []),
             tdrService.getTdrClaims().catch(() => []),
             auditLogService.getAuditLogs().catch(() => []),
             staffService.getStaff().catch(() => []),
+            reportService.getAnalyticalReport('class-revenue').catch(() => null),
+            reportService.getAnalyticalReport('quota-utilization').catch(() => null),
           ]);
 
           const activeTrains = trains.filter((t) => t.status === 'ACTIVE').length;
@@ -77,13 +81,31 @@ export const DashboardPage: React.FC = () => {
           ).length;
           const activeStaff = staff.filter((s: any) => s.status === 'ACTIVE').length;
 
+          // Compute authoritative total revenue from class-revenue report rows
+          let totalRevenue = 0;
+          if (classRevReport && Array.isArray(classRevReport.rows)) {
+            totalRevenue = classRevReport.rows.reduce(
+              (acc: number, r: any) => acc + (parseFloat(r.class_revenue) || 0),
+              0
+            );
+          }
+
+          // Compute authoritative total bookings from quota-utilization report rows
+          let totalBookings = 0;
+          if (quotaReport && Array.isArray(quotaReport.rows)) {
+            totalBookings = quotaReport.rows.reduce(
+              (acc: number, r: any) => acc + (parseInt(r.total_bookings, 10) || 0),
+              0
+            );
+          }
+
           setActiveStaffCount(activeStaff);
           setTrainsMap(new Map(trains.map((t: any) => [t.trainId, t] as const)));
           setRecentAuditLogs(logs.slice(0, 5));
 
           setMetrics({
-            totalBookings: 0,
-            totalRevenue: 0,
+            totalBookings,
+            totalRevenue,
             totalCancellations: 0,
             activeTrainsCount: activeTrains,
             openGrievancesCount: openGrievances,
@@ -94,6 +116,8 @@ export const DashboardPage: React.FC = () => {
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
+      } finally {
+        setIsLoading(false);
       }
     }
     loadDashboard();
@@ -128,31 +152,43 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Train Fleet"
-          value={metrics ? metrics.activeTrainsCount : '—'}
+          value={isLoading ? 'Loading...' : (metrics ? metrics.activeTrainsCount : '—')}
           icon={Train}
           color="blue"
           subtitle="Operational active rakes"
         />
         <StatCard
           title="Active Staff Personnel"
-          value={API_CONFIG.USE_MOCK ? 28 : (activeStaffCount ?? '—')}
+          value={isLoading ? 'Loading...' : (API_CONFIG.USE_MOCK ? 28 : (activeStaffCount ?? '—'))}
           icon={ShieldAlert}
           color="emerald"
           subtitle="Duty-ready railway personnel"
         />
         <StatCard
           title="Total Ticket Revenue"
-          value={API_CONFIG.USE_MOCK && metrics ? formatCurrency(metrics.totalRevenue) : 'This feature is not available yet.'}
+          value={
+            isLoading
+              ? 'Loading...'
+              : metrics && metrics.totalRevenue > 0
+              ? formatCurrency(metrics.totalRevenue)
+              : 'This feature is not available yet.'
+          }
           icon={DollarSign}
           color="emerald"
-          subtitle={API_CONFIG.USE_MOCK ? "Cleared passenger gateway settlements" : "Aggregate reporting endpoint pending"}
+          subtitle="Authoritative audited passenger fare receipts"
         />
         <StatCard
           title="Active System Bookings"
-          value={API_CONFIG.USE_MOCK && metrics ? metrics.totalBookings : 'This feature is not available yet.'}
+          value={
+            isLoading
+              ? 'Loading...'
+              : metrics && metrics.totalBookings > 0
+              ? metrics.totalBookings.toLocaleString('en-IN')
+              : 'This feature is not available yet.'
+          }
           icon={Ticket}
           color="orange"
-          subtitle={API_CONFIG.USE_MOCK ? "Tracked reservations across all trains" : "Global booking count endpoint pending"}
+          subtitle="Total reservations across railway quotas"
         />
       </div>
 
@@ -227,26 +263,39 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {recentBookings.map((b) => {
-                const train = trainsMap.get(b.trainId);
-                return (
-                  <div key={b.pnr} className="py-3.5 flex items-center justify-between hover:bg-slate-50/60 px-2 rounded-xl transition-colors">
-                    <div>
-                      <div className="flex items-center gap-2.5">
-                        <span className="font-bold text-[#16243b] text-sm tracking-tight">PNR {b.pnr}</span>
-                        <StatusBadge status={b.bookingStatus} size="sm" />
+              {isLoading ? (
+                <div className="py-10 text-center text-xs text-slate-400 font-medium">
+                  Loading recent transactions...
+                </div>
+              ) : recentBookings.length === 0 ? (
+                <div className="py-10 text-center space-y-1">
+                  <p className="text-xs font-semibold text-slate-600">No recent reservation records available.</p>
+                  <p className="text-[11px] text-slate-400">
+                    Active passenger bookings and ticket audits can be inspected via Global PNR Lookup.
+                  </p>
+                </div>
+              ) : (
+                recentBookings.map((b) => {
+                  const train = trainsMap.get(b.trainId);
+                  return (
+                    <div key={b.pnr} className="py-3.5 flex items-center justify-between hover:bg-slate-50/60 px-2 rounded-xl transition-colors">
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-bold text-[#16243b] text-sm tracking-tight">PNR {b.pnr}</span>
+                          <StatusBadge status={b.bookingStatus} size="sm" />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 font-medium">
+                          {train ? `${train.trainNumber} - ${train.trainName}` : `Train #${b.trainId}`} · Class {b.classType} ({b.quota})
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 font-medium">
-                        {train ? `${train.trainNumber} - ${train.trainName}` : `Train #${b.trainId}`} · Class {b.classType} ({b.quota})
-                      </p>
+                      <div className="text-right">
+                        <div className="font-extrabold text-[#16243b] text-sm">{formatCurrency(b.totalFare)}</div>
+                        <div className="text-[11px] text-slate-400 font-medium mt-0.5">{formatDate(b.journeyDate)}</div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-extrabold text-[#16243b] text-sm">{formatCurrency(b.totalFare)}</div>
-                      <div className="text-[11px] text-slate-400 font-medium mt-0.5">{formatDate(b.journeyDate)}</div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
