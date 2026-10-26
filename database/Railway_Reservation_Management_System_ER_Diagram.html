@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Railway Reservation & Management System — Canonical ER Diagram (MySQL 8.0 & MongoDB)</title>
+<style>
+:root {
+  box-sizing: border-box;
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #cbd5e1;
+  --line: #475569;
+  --hl-box: #fef08a;
+  --badge-pk-bg: #f59e0b;
+  --badge-pk-text: #ffffff;
+  --badge-fk-bg: #0284c7;
+  --badge-fk-text: #ffffff;
+  --badge-pfk-bg: #6366f1;
+  --badge-pfk-text: #ffffff;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #090d16;
+    --panel: #111827;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --line: #94a3b8;
+    --hl-box: #854d0e;
+    --badge-pk-bg: #d97706;
+    --badge-pk-text: #ffffff;
+    --badge-fk-bg: #0369a1;
+    --badge-fk-text: #ffffff;
+    --badge-pfk-bg: #4f46e5;
+    --badge-pfk-text: #ffffff;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #090d16;
+  --panel: #111827;
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --line: #94a3b8;
+  --hl-box: #854d0e;
+  --badge-pk-bg: #d97706;
+  --badge-pk-text: #ffffff;
+  --badge-fk-bg: #0369a1;
+  --badge-fk-text: #ffffff;
+  --badge-pfk-bg: #4f46e5;
+  --badge-pfk-text: #ffffff;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+}
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #cbd5e1;
+  --line: #475569;
+  --hl-box: #fef08a;
+  --badge-pk-bg: #f59e0b;
+  --badge-pk-text: #ffffff;
+  --badge-fk-bg: #0284c7;
+  --badge-fk-text: #ffffff;
+  --badge-pfk-bg: #6366f1;
+  --badge-pfk-text: #ffffff;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+header {
+  padding: 16px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: #10b981;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+.subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 6px 0 0 0;
+}
+
+.controls-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+button {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+button:hover {
+  background: var(--border);
+}
+button.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.search-box input {
+  padding: 6px 14px;
+  padding-left: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  width: 220px;
+}
+.search-box svg {
+  position: absolute;
+  left: 9px;
+  width: 15px;
+  height: 15px;
+  fill: var(--text-muted);
+}
+
+#canvas-container {
+  overflow: auto;
+  padding: 24px 0 80px 0;
+  display: flex;
+  justify-content: center;
+}
+
+svg#er-svg {
+  display: block;
+  font-family: inherit;
+  transition: width 0.1s ease;
+  user-select: none;
+}
+
+/* SVG Elements Styling */
+.table-node {
+  cursor: pointer;
+}
+.table-node:hover rect.table-body {
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+}
+.table-title {
+  fill: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.table-count {
+  fill: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  font-weight: 500;
+}
+.attr-text {
+  font-size: 12px;
+  fill: var(--text);
+}
+.attr-pk {
+  font-weight: 700;
+}
+.attr-type {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.ln {
+  stroke: var(--line);
+  stroke-width: 1.8;
+  fill: none;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+.ln.highlighted {
+  stroke: #ef4444 !important;
+  stroke-width: 3.5 !important;
+}
+
+.cardinality-text {
+  fill: #e11d48;
+  font-size: 12px;
+  font-weight: 800;
+}
+.link-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Sidebar Drawer for Entity Details */
+#detail-drawer {
+  position: fixed;
+  right: -420px;
+  top: 0;
+  width: 400px;
+  height: 100vh;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  z-index: 200;
+  transition: right 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+#detail-drawer.open {
+  right: 0;
+}
+.drawer-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.drawer-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+.drawer-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.attr-list-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.attr-list-item:last-child {
+  border-bottom: none;
+}
+
+/* Tooltip */
+#tooltip {
+  position: fixed;
+  display: none;
+  padding: 6px 12px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 300;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div>
+      <h1>
+        Railway Reservation & Management System
+        <span class="tag">CANONICAL ER DIAGRAM</span>
+      </h1>
+      <p class="subtitle">
+        Fully synchronized with MySQL 8.0 schema (37 normalized 3NF tables), MongoDB NoSQL cluster (5 collections), seed datasets, triggers, stored procedures, and business rules.
+      </p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button onclick="toggleTheme()" id="theme-btn">🌓 Toggle Theme</button>
+      <button onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
+  </div>
+</header>
+
+<div class="controls-bar">
+  <div class="btn-group">
+    <button onclick="zoom(-0.1)" title="Zoom Out">−</button>
+    <button onclick="zoom(0.1)" title="Zoom In">+</button>
+    <button onclick="fitWidth()" title="Fit to browser window width">Fit Width</button>
+    <button onclick="resetZoom()" title="Reset to 100%">100%</button>
+  </div>
+
+  <span style="font-size:12px; font-weight:700; color:var(--text-muted); margin-left:8px;">JUMP TO SUBSYSTEM:</span>
+  <div class="btn-group">
+    <button onclick="jumpTo(1)" style="border-left:3px solid #2563eb">1. User & Bookings</button>
+    <button onclick="jumpTo(2)" style="border-left:3px solid #059669">2. Infrastructure</button>
+    <button onclick="jumpTo(3)" style="border-left:3px solid #ea580c">3. Staff Operations</button>
+    <button onclick="jumpTo(4)" style="border-left:3px solid #7c3aed">4. Admin & Rules</button>
+    <button onclick="jumpTo(5)" style="border-left:3px solid #16a34a">5. MongoDB NoSQL</button>
+  </div>
+
+  <div class="search-box">
+    <svg viewBox="0 0 24 24"><path d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"/></svg>
+    <input type="text" id="searchInput" placeholder="Search entity or attribute..." oninput="handleSearch(this.value)">
+  </div>
+</div>
+
+<div id="canvas-container">
+  <svg id="er-svg" viewBox="0 0 2360 7400" width="1680"></svg>
+</div>
+
+<div id="detail-drawer">
+  <div class="drawer-header">
+    <h3 class="drawer-title" id="drawer-entity-name">Table Details</h3>
+    <button class="close-btn" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawer-content"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// Canvas Layout Geometry
+const W = 310;         // Table box width
+const RH = 26;        // Row height per attribute
+const HH = 44;        // Table header height
+const Y0 = [0, 20, 2060, 3720, 5200, 6260]; // 1-indexed section start Y
+const PH = [0, 2000, 1620, 1440, 1020, 1080]; // Section heights
+
+const sections = [{"id":1,"title":"USER, BOOKING & RESERVATION SUBSYSTEM","color":"#2563eb","subtitle":"Passenger accounts • Seat holds • PNR booking lifecycle • Composite passenger reservations • Payment & Razorpay settlement • Cancellation • TDR claims & refunds"},{"id":2,"title":"RAILWAY INFRASTRUCTURE & INVENTORY SUBSYSTEM","color":"#059669","subtitle":"Stations • Platforms • Trains • Ordered route stops • Dated schedules & timetable • Seat classes & multipliers • Coach composition • Physical berths • Slabs & inventory counters"},{"id":3,"title":"STAFF OPERATIONS & FIELD VERIFICATION SUBSYSTEM","color":"#ea580c","subtitle":"Staff personnel • Shift assignments • Ticket verification & TT checking • Penalty enforcement • Rolling stock/platform maintenance • Operational incidents • Crowd & cleanliness reports"},{"id":4,"title":"ADMINISTRATION & SYSTEM GOVERNANCE SUBSYSTEM","color":"#7c3aed","subtitle":"Administrative personnel • Operational reports • Automated system audit logs (trigger-filled) • Global configuration settings & business rules"},{"id":5,"title":"MONGODB NoSQL DISTRIBUTED CLUSTER","color":"#16a34a","subtitle":"Real-time GPS/delay tracking • Asynchronous passenger notifications • Grievances & OBHS complaints • User session/audit activity logs • Raw Razorpay webhooks & refund idempotency"}];
+const entities = {"USER_ACCOUNT":{"sec":1,"x":440,"y":120,"title":"USER_ACCOUNT","count":"50,008 rows","attrs":["#user_id INT","full_name VARCHAR(128)","email VARCHAR(191) [UQ]","phone VARCHAR(32) [UQ]","password_hash VARCHAR(255)","role ENUM(PASSENGER,STAFF,ADMIN)","account_status ENUM(ACTIVE,INACTIVE...)","aadhaar_verified TINYINT(1)","created_at DATETIME"]},"SAVED_PASSENGER":{"sec":1,"x":1360,"y":120,"title":"SAVED_PASSENGER","count":"75,000 rows","attrs":["#passenger_id INT","@user_id INT [FK -> USER_ACCOUNT]","name VARCHAR(128)","age INT [0-125]","gender ENUM(MALE,FEMALE,OTHER)","id_proof_type ENUM(AADHAAR,PAN,PASSPORT...)","id_proof_reference VARCHAR(64)","disability_type ENUM(NONE,ORTHO,VISUAL...)","berth_preference ENUM(LOWER,UPPER...)"]},"SEAT_HOLD":{"sec":1,"x":40,"y":460,"title":"SEAT_HOLD","count":"Temporary 10-min tokens","attrs":["#token VARCHAR(64)","@user_id INT [FK -> USER_ACCOUNT]","@schedule_id INT [FK -> TRAIN_SCHEDULE]","@class_id INT [FK -> SEAT_CLASS]","quota ENUM(GENERAL,LADIES,TATKAL...)","seat_count INT","expires_at DATETIME"]},"BOOKING":{"sec":1,"x":880,"y":460,"title":"BOOKING","count":"16,376 bookings (PNRs)","attrs":["#pnr VARCHAR(10)","@user_id INT [FK -> USER_ACCOUNT]","@schedule_id INT [FK -> TRAIN_SCHEDULE]","@class_id INT [FK -> SEAT_CLASS]","@from_stop_id INT [FK -> ROUTE_STOP]","@to_stop_id INT [FK -> ROUTE_STOP]","channel ENUM(ONLINE,COUNTER)","@booked_by_staff_id INT [FK -> STAFF, NULL]","quota ENUM(GENERAL,LADIES,TATKAL...)","requested_quota ENUM(GENERAL...)","berth_condition TINYINT(1)","total_fare DECIMAL(10,2)","status ENUM(CONFIRMED,RAC,WL...)","created_at DATETIME"]},"PASSENGER_BOOKING":{"sec":1,"x":1400,"y":460,"title":"PASSENGER_BOOKING","count":"30,852 passengers","attrs":["$pnr VARCHAR(10) [PFK -> BOOKING]","#passenger_no INT [1-6 per PNR]","@saved_passenger_id INT [FK, NULLABLE]","name VARCHAR(128)","age INT","gender ENUM(MALE,FEMALE,OTHER)","concession_type ENUM(NONE,DIVYAANG...)","concession_proof_type ENUM(...) [NULL]","concession_proof_ref VARCHAR(64) [NULL]","base_fare DECIMAL(10,2)","concession_discount DECIMAL(10,2)","reservation_charge DECIMAL(10,2)","superfast_charge DECIMAL(10,2)","tatkal_charge DECIMAL(10,2)","dynamic_surcharge DECIMAL(10,2)","gst DECIMAL(10,2)","insurance DECIMAL(10,2)","total_fare DECIMAL(10,2)"]},"RESERVATION":{"sec":1,"x":1900,"y":460,"title":"RESERVATION","count":"30,852 allocations","attrs":["#res_id INT","@pnr VARCHAR(10) [FK -> PASSENGER_BOOKING]","@passenger_no INT [FK -> PASSENGER_BOOKING]","@schedule_id INT [FK -> TRAIN_SCHEDULE]","@seat_id INT [FK -> SEAT, NULLABLE]","status ENUM(CONFIRMED,RAC,WL,BOARDED...)","queue_position VARCHAR(16) [NULL]"]},"PAYMENT":{"sec":1,"x":500,"y":1080,"title":"PAYMENT","count":"16,375 payments","attrs":["#payment_id INT","@pnr VARCHAR(10) [FK -> BOOKING]","amount DECIMAL(10,2)","method ENUM(CARD,UPI,NET_BANKING,CASH)","status ENUM(PENDING,SUCCESS,FAILED)","gateway_payment_id VARCHAR(64) [UQ]","paid_at DATETIME"]},"CANCELLATION":{"sec":1,"x":920,"y":1080,"title":"CANCELLATION","count":"435 records","attrs":["#cancel_id INT","@pnr VARCHAR(10) [FK -> BOOKING]","passenger_no INT [NULL=Whole PNR]","reason VARCHAR(128)","charge DECIMAL(10,2)","cancelled_at DATETIME"]},"REFUND":{"sec":1,"x":710,"y":1420,"title":"REFUND","count":"436 disbursements","attrs":["#refund_id INT","@cancel_id INT [FK -> CANCELLATION, NULL]","@tdr_ref_no VARCHAR(32) [FK -> TDR, NULL]","@payment_id INT [FK -> PAYMENT]","amount DECIMAL(10,2)","reason ENUM(CANCELLATION,TDR,WL_PURGE...)","status ENUM(PENDING,PROCESSED,FAILED)"]},"TDR_FILING":{"sec":1,"x":1340,"y":1080,"title":"TDR_FILING","count":"Online TDR claims","attrs":["#tdr_ref_no VARCHAR(32)","@pnr VARCHAR(10) [FK -> BOOKING]","passenger_no INT [NULL=Whole PNR]","reason ENUM(DELAY>3HR,DIVERTED...)","filed_at DATETIME","status ENUM(FILED,UNDER_REVIEW,APPROVED...)","evidence_ref VARCHAR(128) [NULL]","refund_amount DECIMAL(10,2) [NULL]","@reviewed_by INT [FK -> ADMIN, NULL]","reviewed_at DATETIME [NULL]","remarks TEXT [NULL]"]},"TDR_RULE":{"sec":1,"x":1840,"y":1080,"title":"TDR_RULE","count":"6 standard refund rules","attrs":["#rule_id INT","reason_code ENUM(...) [UQ]","description VARCHAR(255)","deadline_hours INT","requires_verification TINYINT(1)","refund_pct DECIMAL(5,2)"]},"CONCESSION_RULE":{"sec":1,"x":1840,"y":120,"title":"CONCESSION_RULE","count":"13 concession rules","attrs":["#rule_id INT","concession_type ENUM(DIVYAANG,SR_CITIZEN)","@class_id INT [FK -> SEAT_CLASS]","train_group VARCHAR(32)","discount_pct DECIMAL(5,2)","proof_types JSON","is_active TINYINT(1)"]},"REFUND_RULE":{"sec":1,"x":40,"y":1420,"title":"REFUND_RULE","count":"4 cancellation slabs","attrs":["#rule_id INT","min_hours INT","max_hours INT [NULL]","deduction_pct DECIMAL(5,2)","flat_min_charge DECIMAL(8,2)","clerkage DECIMAL(8,2)"]},"CHART_SNAPSHOT":{"sec":1,"x":1840,"y":1420,"title":"CHART_SNAPSHOT","count":"734 frozen manifest entries","attrs":["#snapshot_id INT","@schedule_id INT [FK -> TRAIN_SCHEDULE]","pnr VARCHAR(10)","passenger_no INT","coach_no VARCHAR(10)","seat_no INT","berth_type VARCHAR(20)","status ENUM(CONFIRMED,RAC,WL...)","@from_station_id INT [FK -> STATION]","@to_station_id INT [FK -> STATION]","concession_flag TINYINT(1)","generated_at DATETIME"]},"g1_schedule":{"sec":1,"x":40,"y":790,"title":"TRAIN_SCHEDULE","ghost":true,"targetSec":"Section 2","attrs":["#schedule_id INT"]},"g1_seatclass":{"sec":1,"x":40,"y":120,"title":"SEAT_CLASS","ghost":true,"targetSec":"Section 2","attrs":["#class_id INT"]},"g1_from_stop":{"sec":1,"x":740,"y":120,"title":"ROUTE_STOP (Origin)","ghost":true,"targetSec":"Section 2","attrs":["#stop_id INT"]},"g1_to_stop":{"sec":1,"x":1050,"y":120,"title":"ROUTE_STOP (Destination)","ghost":true,"targetSec":"Section 2","attrs":["#stop_id INT"]},"g1_seat":{"sec":1,"x":1900,"y":880,"title":"SEAT","ghost":true,"targetSec":"Section 2","attrs":["#seat_id INT"]},"g1_staff":{"sec":1,"x":440,"y":790,"title":"STAFF (Counter Booking)","ghost":true,"targetSec":"Section 3","attrs":["#staff_id INT"]},"g1_admin":{"sec":1,"x":1340,"y":1480,"title":"ADMIN (Reviewer)","ghost":true,"targetSec":"Section 4","attrs":["#admin_id INT"]},"g1_station":{"sec":1,"x":1460,"y":1600,"title":"STATION (Boarding/Alighting)","ghost":true,"targetSec":"Section 2","attrs":["#station_id INT"]},"STATION":{"sec":2,"x":40,"y":130,"title":"STATION","count":"158 stations","attrs":["#station_id INT","station_code VARCHAR(10) [UQ]","station_name VARCHAR(100)","display_name VARCHAR(120)","city VARCHAR(80)","state VARCHAR(80)","platform_count INT [CHECK>=1]"]},"PLATFORM":{"sec":2,"x":40,"y":480,"title":"PLATFORM","count":"888 physical platforms","attrs":["#platform_id INT","@station_id INT [FK -> STATION]","platform_no INT [CHECK>=1]"]},"TRAIN":{"sec":2,"x":500,"y":130,"title":"TRAIN","count":"60 passenger trains","attrs":["#train_id INT","train_number VARCHAR(10) [UQ]","short_name VARCHAR(50)","display_name VARCHAR(150)","train_type ENUM(RAJDHANI,SHATABDI...)","@source_station_id INT [FK -> STATION]","@destination_station_id INT [FK -> STATION]","running_days JSON","status ENUM(ACTIVE,CANCELLED...)"]},"ROUTE_STOP":{"sec":2,"x":960,"y":130,"title":"ROUTE_STOP","count":"536 ordered stops","attrs":["#stop_id INT","@train_id INT [FK -> TRAIN]","@station_id INT [FK -> STATION]","stop_sequence INT [1,2,3...]","arrival_time TIME","departure_time TIME","day_offset INT [0,1,2]","distance_from_origin INT","platform_number INT"]},"TRAIN_SCHEDULE":{"sec":2,"x":500,"y":550,"title":"TRAIN_SCHEDULE","count":"350 dated train runs","attrs":["#schedule_id INT","@train_id INT [FK -> TRAIN]","journey_date DATE","departure_time TIME","delay_minutes INT [DEF 0]","chart_prepared_at DATETIME [NULL]","status ENUM(ON_TIME,DELAYED,CANCELLED...)"]},"SEAT_CLASS":{"sec":2,"x":1420,"y":130,"title":"SEAT_CLASS","count":"7 travel classes (1A,2A,3A...)","attrs":["#class_id INT","class_code VARCHAR(10) [UQ]","class_name VARCHAR(50)","coach_type ENUM(AC,NON_AC)","has_berths TINYINT(1) [DEF 1]","base_multiplier DECIMAL(5,2)"]},"FARE":{"sec":2,"x":1880,"y":130,"title":"FARE","count":"28 distance slab rates","attrs":["#fare_id INT","@class_id INT [FK -> SEAT_CLASS]","min_distance_km INT","max_distance_km INT","rate_per_km DECIMAL(6,2)"]},"COACH":{"sec":2,"x":1420,"y":520,"title":"COACH","count":"828 coaches attached to trains","attrs":["#coach_id INT","@train_id INT [FK -> TRAIN]","@class_id INT [FK -> SEAT_CLASS]","coach_code VARCHAR(10) [e.g. B1,A1]","sequence_number INT","total_seats INT"]},"SEAT":{"sec":2,"x":1880,"y":520,"title":"SEAT","count":"51,960 physical seats","attrs":["#seat_id INT","@coach_id INT [FK -> COACH]","seat_number INT","berth_type ENUM(LOWER,MIDDLE,UPPER...)"]},"SCHEDULE_CLASS_INVENTORY":{"sec":2,"x":960,"y":640,"title":"SCHEDULE_CLASS_INVENTORY","count":"1,015 run-class inventories","attrs":["#inventory_id INT","@schedule_id INT [FK -> TRAIN_SCHEDULE]","@class_id INT [FK -> SEAT_CLASS]","total_seats INT","available_seats INT","rac_capacity INT","rac_count INT","wl_capacity INT","wl_count INT"]},"RUN_COACH_STATUS":{"sec":2,"x":1420,"y":920,"title":"RUN_COACH_STATUS","count":"4,818 coach operational statuses","attrs":["#status_id INT","@schedule_id INT [FK -> TRAIN_SCHEDULE]","@coach_id INT [FK -> COACH]","status ENUM(IN_SERVICE,OUT_OF_SERVICE)"]},"g2_station_source":{"sec":2,"x":40,"y":880,"title":"STATION (Source)","ghost":true,"targetSec":"above","attrs":["#station_id INT"]},"g2_station_dest":{"sec":2,"x":500,"y":950,"title":"STATION (Destination)","ghost":true,"targetSec":"above","attrs":["#station_id INT"]},"STAFF":{"sec":3,"x":40,"y":130,"title":"STAFF","count":"Operational railway staff","attrs":["#staff_id INT","@user_id INT [FK -> USER_ACCOUNT, UQ]","employee_no VARCHAR(32) [UQ]","designation VARCHAR(64)","status ENUM(ACTIVE,ON_LEAVE,SUSPENDED)"]},"STAFF_ASSIGNMENT":{"sec":3,"x":480,"y":130,"title":"STAFF_ASSIGNMENT","count":"Rosters & duty shifts","attrs":["#assign_id INT","@staff_id INT [FK -> STAFF]","@schedule_id INT [FK -> TRAIN_SCHEDULE, NULL]","@station_id INT [FK -> STATION]","duty_type ENUM(TRAIN,STATION,COUNTER...)","shift_start DATETIME","shift_end DATETIME"]},"TICKET_VERIFICATION":{"sec":3,"x":960,"y":130,"title":"TICKET_VERIFICATION","count":"On-board TTE ticket checks","attrs":["#verify_id INT","@staff_id INT [FK -> STAFF]","@pnr VARCHAR(10) [FK -> BOOKING]","passenger_no INT","id_proof_match ENUM(VALID,INVALID...)","concession_match ENUM(VALID,INVALID...)","result ENUM(VALID,INVALID,MISMATCH)","remarks VARCHAR(255) [NULL]","verified_at DATETIME"]},"FINE":{"sec":3,"x":1440,"y":130,"title":"FINE","count":"Penalty & challan receipts","attrs":["#fine_id INT","@verify_id INT [FK -> TICKET_VERIFICATION, NULL]","@staff_id INT [FK -> STAFF]","passenger_name VARCHAR(128)","id_proof_reference VARCHAR(64)","@train_id INT [FK -> TRAIN]","amount DECIMAL(10,2)","reason ENUM(TICKETLESS,UNAUTH_CLASS...)","payment_status ENUM(PAID,UNPAID)","issued_at DATETIME"]},"MAINTENANCE":{"sec":3,"x":40,"y":530,"title":"MAINTENANCE","count":"Coach & platform work orders","attrs":["#maint_id INT","@staff_id INT [FK -> STAFF]","@coach_id INT [FK -> COACH, NULL]","@platform_id INT [FK -> PLATFORM, NULL]","type ENUM(CLEANING,REPAIR,AC_SERVICE...)","status ENUM(OPEN,IN_PROGRESS,COMPLETED...)","created_at DATETIME","completed_at DATETIME [NULL]"]},"INCIDENT":{"sec":3,"x":480,"y":530,"title":"INCIDENT","count":"Field safety/delay incidents","attrs":["#incident_id INT","@staff_id INT [FK -> STAFF]","@station_id INT [FK -> STATION, NULL]","@schedule_id INT [FK -> TRAIN_SCHEDULE, NULL]","type VARCHAR(64)","severity ENUM(LOW,MEDIUM,HIGH,CRITICAL)","status ENUM(REPORTED,ACKNOWLEDGED,RESOLVED)","reported_at DATETIME"]},"CROWD_REPORT":{"sec":3,"x":960,"y":530,"title":"CROWD_REPORT","count":"Platform density scans","attrs":["#crowd_report_id INT","@station_id INT [FK -> STATION]","platform_no INT","crowd_level ENUM(LOW,MODERATE,HIGH,OVERCROWDED)","head_count INT [DEF 0]","@staff_id INT [FK -> STAFF]","recorded_at DATETIME"]},"CLEANLINESS_REPORT":{"sec":3,"x":1440,"y":530,"title":"CLEANLINESS_REPORT","count":"Sanitation & housekeeping audits","attrs":["#cleanliness_report_id INT","@staff_id INT [FK -> STAFF]","@train_id INT [FK -> TRAIN, NULL]","@coach_id INT [FK -> COACH, NULL]","@station_id INT [FK -> STATION, NULL]","platform_no INT [NULL]","issue_type ENUM(TOILET_DIRTY,LITTER,WATER...)","description TEXT","status ENUM(REPORTED,IN_PROGRESS,RESOLVED)","recorded_at DATETIME"]},"g3_user":{"sec":3,"x":40,"y":920,"title":"USER_ACCOUNT (Staff Login)","ghost":true,"targetSec":"Section 1","attrs":["#user_id INT"]},"g3_train":{"sec":3,"x":1900,"y":130,"title":"TRAIN (Fine / Cleanliness)","ghost":true,"targetSec":"Section 2","attrs":["#train_id INT"]},"g3_pnr":{"sec":3,"x":960,"y":920,"title":"BOOKING (Verified PNR)","ghost":true,"targetSec":"Section 1","attrs":["#pnr VARCHAR(10)"]},"g3_station":{"sec":3,"x":480,"y":920,"title":"STATION (Duty/Incident/Crowd)","ghost":true,"targetSec":"Section 2","attrs":["#station_id INT"]},"g3_sched":{"sec":3,"x":1440,"y":920,"title":"TRAIN_SCHEDULE (Incident/Duty)","ghost":true,"targetSec":"Section 2","attrs":["#schedule_id INT"]},"g3_coach":{"sec":3,"x":1900,"y":530,"title":"COACH (Maintenance/Cleanliness)","ghost":true,"targetSec":"Section 2","attrs":["#coach_id INT"]},"g3_platform":{"sec":3,"x":40,"y":1100,"title":"PLATFORM (Maintenance)","ghost":true,"targetSec":"Section 2","attrs":["#platform_id INT"]},"ADMIN":{"sec":4,"x":440,"y":140,"title":"ADMIN","count":"System Administrators","attrs":["#admin_id INT","@user_id INT [FK -> USER_ACCOUNT, UQ]","employee_no VARCHAR(32) [UQ]","access_level ENUM(SUPER_ADMIN,SYSTEM,OPERATIONS)"]},"REPORT":{"sec":4,"x":440,"y":450,"title":"REPORT","count":"Operational audit reports","attrs":["#report_id INT","@admin_id INT [FK -> ADMIN]","report_type VARCHAR(64)","generated_at DATETIME"]},"AUDIT_LOG":{"sec":4,"x":960,"y":140,"title":"AUDIT_LOG","count":"Trigger-logged changes","attrs":["#log_id INT [AUTO_INCREMENT]","@user_id INT [FK -> USER_ACCOUNT, NULL]","action VARCHAR(64)","table_name VARCHAR(64)","record_id VARCHAR(64)","old_value JSON [NULL]","new_value JSON [NULL]","logged_at DATETIME [DEF NOW()]"]},"SETTING":{"sec":4,"x":960,"y":450,"title":"SETTING","count":"13 global settings (limits, fees)","attrs":["#setting_key VARCHAR(64)","setting_value VARCHAR(255)","description VARCHAR(255) [NULL]","updated_at DATETIME [ON UPDATE NOW()]"]},"g4_user_admin":{"sec":4,"x":40,"y":140,"title":"USER_ACCOUNT (Admin Account)","ghost":true,"targetSec":"Section 1","attrs":["#user_id INT"]},"g4_user_audit":{"sec":4,"x":1440,"y":140,"title":"USER_ACCOUNT (Actor)","ghost":true,"targetSec":"Section 1","attrs":["#user_id INT"]},"live_train_status":{"sec":5,"x":40,"y":130,"title":"live_train_status (Collection)","count":"High-frequency GPS & delay","attrs":["#_id String [e.g. lts_1001]","@schedule_id Number [Ref -> TRAIN_SCHEDULE]","@train_id Number [Ref -> TRAIN]","@station_id Number [Ref -> STATION]","journey_date String [YYYY-MM-DD]","delay_min Number","status String [ON_TIME, DELAYED]","current_platform Number","updated_at Date"]},"notifications":{"sec":5,"x":480,"y":130,"title":"notifications (Collection)","count":"In-app user & push alerts","attrs":["#_id String [e.g. ntf_1001]","@user_id Number [Ref -> USER_ACCOUNT]","type String [CONFIRM,DELAY,EMERGENCY]","title String","message String","@reference_id String [Ref -> BOOKING.pnr]","is_read Boolean [DEF false]","sent_at Date"]},"complaints":{"sec":5,"x":940,"y":130,"title":"complaints (Collection)","count":"Passenger grievances & OBHS","attrs":["#_id String [e.g. cmp_901]","@user_id Number [Ref -> USER_ACCOUNT]","type String [CLEANLINESS,REFUND,FOOD...]","subject String","message String","rating Number [1-5]","status String [OPEN,IN_PROGRESS,RESOLVED]","response String [Admin reply, NULL]","extra_fields Object {subject,response}","created_at Date","updated_at Date"]},"activity_logs":{"sec":5,"x":1400,"y":130,"title":"activity_logs (Collection)","count":"Fast fire-and-forget audit trail","attrs":["#_id String [e.g. act_1001]","@user_id Number [Ref -> USER_ACCOUNT]","event String [LOGIN,DUTY_START...]","ip String","user_agent String","table_name String [Affected MySQL table, NULL]","record_id String [Record PK, NULL]","old_value Object/Any [NULL]","new_value Object/Any [NULL]","meta Object {duty_type,train_id...}","at Date"]},"raw_gateway_replies":{"sec":5,"x":1860,"y":130,"title":"raw_gateway_replies (Collection)","count":"Razorpay webhook & refund idempotency","attrs":["#_id String [e.g. rgr_1001]","@gateway_payment_id String [Ref -> PAYMENT]","@pnr String [Ref -> BOOKING.pnr]","@refundIds Array<Number> [Ref -> REFUND]","payload Object {order_id,amount,method}","reply Object [Raw gateway API reply]","amount Number [paise]","reason String [CANCELLATION,PURGE...]","type String [refund_success/failure]","received_at Date"]},"g5_schedule":{"sec":5,"x":40,"y":580,"title":"TRAIN_SCHEDULE (MySQL)","ghost":true,"targetSec":"Section 2","attrs":["#schedule_id INT"]},"g5_user":{"sec":5,"x":700,"y":580,"title":"USER_ACCOUNT (MySQL)","ghost":true,"targetSec":"Section 1","attrs":["#user_id INT"]},"g5_payment":{"sec":5,"x":1860,"y":580,"title":"PAYMENT / REFUND (MySQL)","ghost":true,"targetSec":"Section 1","attrs":["#payment_id INT"]}};
+const links = [["USER_ACCOUNT","BOOKING","1","0M","places"],["USER_ACCOUNT","SAVED_PASSENGER","1","0M","manages roster of"],["USER_ACCOUNT","SEAT_HOLD","1","01","holds temporarily"],["BOOKING","PASSENGER_BOOKING","1","M","comprises (1..6)"],["BOOKING","PAYMENT","1","0M","settled by"],["BOOKING","CANCELLATION","1","0M","cancelled via"],["BOOKING","TDR_FILING","1","0M","disputed via"],["PASSENGER_BOOKING","RESERVATION","1","01","allocates seat/queue"],["SAVED_PASSENGER","PASSENGER_BOOKING","01","0M","populates profile"],["CONCESSION_RULE","PASSENGER_BOOKING","01","0M","applies concession rate"],["CANCELLATION","REFUND","1","01","initiates refund"],["TDR_FILING","REFUND","01","01","approved refund"],["PAYMENT","REFUND","1","0M","refunded through"],["TDR_RULE","TDR_FILING","1","0M","governs eligibility"],["REFUND_RULE","CANCELLATION","1","0M","calculates fee slabs"],["g1_schedule","BOOKING","1","0M","train run"],["g1_schedule","SEAT_HOLD","1","0M","run hold"],["g1_schedule","RESERVATION","1","0M","allocates on"],["g1_schedule","CHART_SNAPSHOT","1","0M","freezes manifest"],["g1_seatclass","BOOKING","1","0M","travel class"],["g1_seatclass","SEAT_HOLD","1","0M","class held"],["g1_seatclass","CONCESSION_RULE","1","0M","class rule"],["g1_from_stop","BOOKING","1","0M","Origin / Boarding"],["g1_to_stop","BOOKING","1","0M","Destination / Deboarding"],["g1_seat","RESERVATION","01","0M","assigned physical berth"],["g1_staff","BOOKING","01","0M","booked by staff"],["g1_admin","TDR_FILING","01","0M","reviewed by"],["g1_station","CHART_SNAPSHOT","1","0M","from/to stations"],["STATION","PLATFORM","1","M","has physical platforms"],["TRAIN","STATION","0M","1","source station"],["TRAIN","ROUTE_STOP","1","M","ordered timetable stops"],["STATION","ROUTE_STOP","1","0M","train halt station"],["TRAIN","TRAIN_SCHEDULE","1","0M","scheduled departures"],["TRAIN","COACH","1","M","consists of rake of coaches"],["SEAT_CLASS","COACH","1","0M","coach layout spec"],["COACH","SEAT","1","M","contains physical berths"],["SEAT_CLASS","FARE","1","0M","slab pricing matrix"],["SEAT_CLASS","SCHEDULE_CLASS_INVENTORY","1","0M","quota stock counts"],["TRAIN_SCHEDULE","SCHEDULE_CLASS_INVENTORY","1","0M","capacity & WL ledger"],["TRAIN_SCHEDULE","RUN_COACH_STATUS","1","0M","rake coach health"],["COACH","RUN_COACH_STATUS","1","0M","operational readiness"],["g2_station_source","TRAIN","1","0M","origin terminus"],["g2_station_dest","TRAIN","1","0M","destination terminus"],["STAFF","STAFF_ASSIGNMENT","1","0M","scheduled duty shifts"],["STAFF","TICKET_VERIFICATION","1","0M","conducts verification"],["TICKET_VERIFICATION","FINE","01","0M","violations penalised"],["STAFF","FINE","1","0M","issues penalty"],["STAFF","MAINTENANCE","1","0M","carries out task"],["STAFF","INCIDENT","1","0M","files safety incident"],["STAFF","CROWD_REPORT","1","0M","submits crowd log"],["STAFF","CLEANLINESS_REPORT","1","0M","submits sanitation log"],["g3_user","STAFF","1","1","staff user account"],["g3_pnr","TICKET_VERIFICATION","1","0M","inspects ticket"],["g3_train","FINE","1","0M","penalty on train"],["g3_train","CLEANLINESS_REPORT","01","0M","train sanitation"],["g3_coach","MAINTENANCE","01","0M","coach work order"],["g3_platform","MAINTENANCE","01","0M","platform work order"],["g3_station","STAFF_ASSIGNMENT","1","0M","station posting"],["g3_station","CROWD_REPORT","1","0M","platform density"],["g3_station","INCIDENT","01","0M","station incident"],["g3_sched","STAFF_ASSIGNMENT","01","0M","on-train run assignment"],["g3_sched","INCIDENT","01","0M","train run incident"],["g4_user_admin","ADMIN","1","1","admin user account"],["ADMIN","REPORT","1","0M","generates summary"],["g4_user_audit","AUDIT_LOG","01","0M","audit log generator"],["ADMIN","SETTING","1","0M","manages configuration"],["g5_schedule","live_train_status","1","01","real-time telemetry"],["g5_user","notifications","1","0M","passenger alerts"],["g5_user","complaints","1","0M","grievances filed"],["g5_user","activity_logs","1","0M","activity records"],["g5_payment","raw_gateway_replies","1","0M","gateway webhook sync"]];
+
+// Precalculate Heights and Coordinates
+Object.keys(entities).forEach(k => {
+  const ent = entities[k];
+  ent.key = k;
+  ent.absY = ent.y + Y0[ent.sec];
+  ent.h = HH + RH * ent.attrs.length + 10;
+});
+
+// Helper for Crow's Foot Cardinality Markers
+function makeSymbol(x, y, dx, dy, type) {
+  const px = -dy, py = dx;
+  const pt = (d, l) => [x + dx * d + px * l, y + dy * d + py * l];
+  const ln = (a, b) => '<line class="ln" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
+  const bar = d => ln(pt(d, -8), pt(d, 8));
+  const circ = d => {
+    const c = pt(d, 0);
+    return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="5" fill="var(--card)" stroke="var(--line)" stroke-width="2"/>';
+  };
+  const crow = () => ln(pt(16, 0), pt(0, -9)) + ln(pt(16, 0), pt(0, 9));
+
+  if (type === '1') return bar(10) + bar(18);
+  if (type === '01') return bar(10) + circ(25);
+  if (type === 'M') return crow() + bar(22);
+  if (type === '0M') return crow() + circ(28);
+  return '';
+}
+
+// Draw Connecting Lines
+function renderLink(aKey, bKey, cardA, cardB, label) {
+  const A = entities[aKey];
+  const B = entities[bKey];
+  if (!A || !B) return '';
+
+  const overlap = (p1, p2, q1, q2) => (Math.max(p1, q1) + Math.min(p2, q2)) / 2;
+  let pA, pB, dA, dB, isHorizontal;
+
+  // Determine whether to connect horizontally or vertically
+  if (A.x + W <= B.x || B.x + W <= A.x) {
+    // Horizontal connection
+    const midY = overlap(A.absY, A.absY + A.h, B.absY, B.absY + B.h);
+    const rightward = A.x < B.x;
+    pA = [rightward ? A.x + W : A.x, midY];
+    pB = [rightward ? B.x : B.x + W, midY];
+    dA = [rightward ? 1 : -1, 0];
+    dB = [-dA[0], 0];
+    isHorizontal = true;
+  } else {
+    // Vertical connection
+    const midX = overlap(A.x, A.x + W, B.x, B.x + W);
+    const downward = A.absY < B.absY;
+    pA = [midX, downward ? A.absY + A.h : A.absY];
+    pB = [midX, downward ? B.absY : B.absY + B.h];
+    dA = [0, downward ? 1 : -1];
+    dB = [0, -dA[1]];
+    isHorizontal = false;
+  }
+
+  const mapCard = c => ({ '1': '1', '01': '0..1', 'M': '1..M', '0M': '0..M' })[c] || c;
+  
+  let svg = '<g class="link-group" data-from="' + aKey + '" data-to="' + bKey + '">';
+  svg += '<line class="ln" x1="' + pA[0] + '" y1="' + pA[1] + '" x2="' + pB[0] + '" y2="' + pB[1] + '"/>';
+  svg += makeSymbol(pA[0], pA[1], dA[0], dA[1], cardA);
+  svg += makeSymbol(pB[0], pB[1], dB[0], dB[1], cardB);
+
+  // Text labels
+  const textPos = (p, d, txt) => isHorizontal
+    ? '<text class="cardinality-text" x="' + (p[0] + d[0] * 22) + '" y="' + (p[1] - 12) + '" text-anchor="middle">' + txt + '</text>'
+    : '<text class="cardinality-text" x="' + (p[0] + 16) + '" y="' + (p[1] + d[1] * 18 + 4) + '">' + txt + '</text>';
+
+  svg += textPos(pA, dA, mapCard(cardA));
+  svg += textPos(pB, dB, mapCard(cardB));
+
+  if (label) {
+    const mx = (pA[0] + pB[0]) / 2;
+    const my = (pA[1] + pB[1]) / 2;
+    svg += '<text class="link-label" x="' + mx + '" y="' + (my + (isHorizontal ? -10 : 4)) + '" text-anchor="middle">' + label + '</text>';
+  }
+  svg += '</g>';
+  return svg;
+}
+
+// Badge Generator
+function renderBadge(x, y, type) {
+  const w = type === 'PFK' ? 36 : 28;
+  const fill = type === 'PK' ? 'var(--badge-pk-bg)' : type === 'PFK' ? 'var(--badge-pfk-bg)' : 'var(--badge-fk-bg)';
+  const txt = type === 'PK' ? 'PK' : type === 'PFK' ? 'PFK' : 'FK';
+  return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="17" rx="3.5" fill="' + fill + '"/>' +
+         '<text x="' + (x + w / 2) + '" y="' + (y + 12.5) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#ffffff">' + txt + '</text>';
+}
+
+// Table / Entity Box Renderer
+function renderEntity(ent) {
+  const sec = sections[ent.sec - 1];
+  const color = sec ? sec.color : '#3b82f6';
+  const x = ent.x;
+  const y = ent.absY;
+  const w = W;
+  const h = ent.h;
+
+  let svg = '<g class="table-node" id="node-' + ent.key + '" onclick="inspectEntity(\'' + ent.key + '\')">';
+
+  if (ent.ghost) {
+    // Reference / Ghost Table (dashed box)
+    svg += '<rect class="table-body" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="var(--card)" stroke="' + color + '" stroke-width="2" stroke-dasharray="6 4"/>';
+    svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + HH + '" rx="8" fill="' + color + '" fill-opacity="0.18"/>';
+    svg += '<text class="table-title" x="' + (x + w / 2) + '" y="' + (y + 24) + '" text-anchor="middle" fill="' + color + '" style="fill:' + color + '">' + ent.title + '</text>';
+    svg += '<text class="table-count" x="' + (x + w / 2) + '" y="' + (y + 38) + '" text-anchor="middle" fill="var(--text-muted)">REFERENCE (' + ent.targetSec + ')</text>';
+
+    ent.attrs.forEach((attr, i) => {
+      const ry = y + HH + 6 + i * RH;
+      svg += renderBadge(x + 12, ry, 'PK');
+      svg += '<text class="attr-text attr-pk" x="' + (x + 48) + '" y="' + (ry + 13) + '">' + attr.slice(1) + '</text>';
+    });
+    svg += '</g>';
+    return svg;
+  }
+
+  // Regular Table Box
+  svg += '<rect class="table-body" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="var(--card)" stroke="var(--border)" stroke-width="2"/>';
+  // Colored Header
+  svg += '<path d="M' + x + ' ' + (y + HH) + ' V' + (y + 8) + ' a8 8 0 0 1 8 -8 H' + (x + w - 8) + ' a8 8 0 0 1 8 8 V' + (y + HH) + ' Z" fill="' + color + '"/>';
+  svg += '<text class="table-title" x="' + (x + 14) + '" y="' + (y + 24) + '">' + ent.title + '</text>';
+  svg += '<text class="table-count" x="' + (x + 14) + '" y="' + (y + 38) + '">' + (ent.count || '') + '</text>';
+
+  ent.attrs.forEach((attr, i) => {
+    const ry = y + HH + i * RH;
+    const prefix = attr[0];
+    const isSpecial = /[#@$]/.test(prefix);
+    const content = isSpecial ? attr.slice(1) : attr;
+    const badgeType = prefix === '#' ? 'PK' : prefix === '$' ? 'PFK' : prefix === '@' ? 'FK' : null;
+
+    if (i > 0) {
+      svg += '<line x1="' + x + '" y1="' + (ry + 2) + '" x2="' + (x + w) + '" y2="' + (ry + 2) + '" stroke="var(--border)" stroke-opacity="0.4"/>';
+    }
+
+    if (badgeType) {
+      svg += renderBadge(x + 10, ry + 6, badgeType);
+      const textOffset = badgeType === 'PFK' ? 52 : 44;
+      svg += '<text class="attr-text ' + (badgeType === 'PK' || badgeType === 'PFK' ? 'attr-pk' : '') + '" x="' + (x + textOffset) + '" y="' + (ry + 19) + '">' + content + '</text>';
+    } else {
+      svg += '<text class="attr-text" x="' + (x + 14) + '" y="' + (ry + 19) + '">' + content + '</text>';
+    }
+  });
+
+  svg += '</g>';
+  return svg;
+}
+
+// Note Box Renderer
+function renderNote(x, y, w, color, title, lines) {
+  const h = 54 + lines.length * 24;
+  let svg = '<g class="note-box">';
+  svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="10" fill="var(--card)" stroke="' + color + '" stroke-width="2"/>';
+  svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="36" rx="10" fill="' + color + '" fill-opacity="0.15"/>';
+  svg += '<text x="' + (x + 16) + '" y="' + (y + 24) + '" font-size="14" font-weight="700" fill="' + color + '">' + title + '</text>';
+
+  lines.forEach((line, i) => {
+    svg += '<text x="' + (x + 16) + '" y="' + (y + 58 + i * 24) + '" font-size="12" fill="var(--text)">' + line + '</text>';
+  });
+  svg += '</g>';
+  return svg;
+}
+
+// Build Entire Diagram SVG
+function buildDiagram() {
+  let out = '';
+
+  // Background Sections
+  sections.forEach((sec, idx) => {
+    const y = Y0[sec.id];
+    const h = PH[sec.id];
+    out += '<g class="section-group" id="sec-' + sec.id + '">';
+    out += '<rect x="10" y="' + y + '" width="2340" height="' + h + '" rx="14" fill="' + sec.color + '" fill-opacity="0.04" stroke="' + sec.color + '" stroke-width="1.8"/>';
+    out += '<text x="36" y="' + (y + 44) + '" font-size="24" font-weight="800" fill="' + sec.color + '">SECTION ' + sec.id + ' — ' + sec.title + '</text>';
+    out += '<text x="36" y="' + (y + 70) + '" font-size="13" font-weight="500" fill="var(--text-muted)">' + sec.subtitle + '</text>';
+    out += '</g>';
+  });
+
+  // Connecting Relationships
+  links.forEach(l => {
+    out += renderLink(...l);
+  });
+
+  // Entity Boxes
+  Object.values(entities).forEach(ent => {
+    out += renderEntity(ent);
+  });
+
+  // Section 1 Notes
+  out += renderNote(40, Y0[1] + 1680, 1050, '#2563eb', 'KEY BUSINESS RULES & 3NF INTEGRITY SPECIFICATION (RESERVATIONS & REFUNDS)', [
+    '• Composite Key (pnr, passenger_no): MySQL InnoDB allows NULL passenger_no for whole-PNR cancellations / TDR claims.',
+    '• Seat Inventory: SCHEDULE_CLASS_INVENTORY tracks available, RAC, and WL seats synchronously with sp_create_booking.',
+    '• Refund Calculation: fn_calculate_cancellation_refund applies 4 cancellation slabs from REFUND_RULE based on departure time.',
+    '• TDR Rules: Table TDR_RULE defines eligibility, deadlines, and percentages for claims submitted by passengers.'
+  ]);
+
+  out += renderNote(1120, Y0[1] + 1680, 1000, '#2563eb', 'CHART PREPARATION & FARE BREAKDOWN', [
+    '• Chart Snapshot: sp_prepare_chart sweeps vacant quotas, auto-upgrades eligible passengers, purges WL, and freezes snapshot.',
+    '• Dynamic Surcharge: Evaluated per BR-B11 based on booked seat percentage slabs (10% to 50% increase).',
+    '• Concession Rules: Table CONCESSION_RULE handles Divyaangjan (35% to 75%) and Senior Citizens with proof verification.'
+  ]);
+
+  // Section 2 Legend
+  out += renderNote(40, Y0[2] + 1200, 880, '#059669', 'CROW’S FOOT NOTATION GUIDE', [
+    '• || (Double Bars) = Exactly One (1..1 mandatory)',
+    '• |o (Bar + Circle) = Zero or One (0..1 optional)',
+    '• >| (Crow’s Foot + Bar) = One or Many (1..M mandatory)',
+    '• >o (Crow’s Foot + Circle) = Zero or Many (0..M optional)',
+    '• Solid Lines = Foreign Key constraints in MySQL InnoDB engine with CASCADE or SET NULL on delete.'
+  ]);
+
+  // Section 4 Notes
+  out += renderNote(40, Y0[4] + 660, 880, '#7c3aed', 'ADMINISTRATION & SYSTEM AUDITING (MySQL)', [
+    '• AUDIT_LOG: Automatically populated by triggers (trg_audit_fare_change, trg_audit_concession_change, etc.).',
+    '• SETTING: 13 global settings govern booking window (120 days), cancellation fees (Rs 60 clerkage), and limits.',
+    '• REPORT: Stores metadata of generated administrative reconciliations, GST invoices, and financial reports.'
+  ]);
+
+  // Section 5 Hybrid Note
+  out += renderNote(40, Y0[5] + 760, 2130, '#16a34a', 'HYBRID ARCHITECTURE: DISTRIBUTED MONGODB NoSQL + RELATIONAL MySQL 8.0', [
+    '• live_train_status: High-throughput GPS updates and platform changes bypass heavy relational locking, enriched with schedule info.',
+    '• notifications & complaints: Variable document structures allow flexible category payloads, ratings, and admin resolution metadata.',
+    '• activity_logs: Non-blocking fire-and-forget logging for user logins, staff duty events, and security monitoring.',
+    '• raw_gateway_replies: Razorpay webhook payload archive providing idempotency protection against duplicate refund executions.'
+  ]);
+
+  document.getElementById('er-svg').innerHTML = out;
+}
+
+// Drawer Inspection Function
+function inspectEntity(key) {
+  const ent = entities[key];
+  if (!ent) return;
+
+  const drawer = document.getElementById('detail-drawer');
+  document.getElementById('drawer-entity-name').textContent = ent.title;
+
+  let bodyHtml = '<div style="margin-bottom:14px; font-size:13px; color:var(--text-muted);">';
+  bodyHtml += '<div><strong>Subsystem:</strong> Section ' + ent.sec + '</div>';
+  bodyHtml += '<div><strong>Row Count / Status:</strong> ' + (ent.count || 'Operational') + '</div>';
+  if (ent.ghost) bodyHtml += '<div style="color:#e11d48"><strong>Note:</strong> Reference alias to reduce long-span link crossing.</div>';
+  bodyHtml += '</div>';
+
+  bodyHtml += '<h4 style="margin:16px 0 8px 0; font-size:14px;">Attributes & Constraints (' + ent.attrs.length + ')</h4>';
+  bodyHtml += '<div style="background:var(--bg); border:1px solid var(--border); border-radius:8px;">';
+
+  ent.attrs.forEach(attr => {
+    const prefix = attr[0];
+    const isSpecial = /[#@$]/.test(prefix);
+    const content = isSpecial ? attr.slice(1) : attr;
+    const badge = prefix === '#' ? '<span style="background:var(--badge-pk-bg); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:3px;">PK</span>'
+                : prefix === '$' ? '<span style="background:var(--badge-pfk-bg); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:3px;">PFK</span>'
+                : prefix === '@' ? '<span style="background:var(--badge-fk-bg); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:3px;">FK</span>'
+                : '<span style="background:var(--border); color:var(--text-muted); font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px;">COL</span>';
+
+    bodyHtml += '<div class="attr-list-item">' + badge + '<span style="font-family:monospace; font-weight:600;">' + content + '</span></div>';
+  });
+  bodyHtml += '</div>';
+
+  // Find incoming & outgoing relationships
+  const relatedLinks = links.filter(l => l[0] === key || l[1] === key);
+  if (relatedLinks.length > 0) {
+    bodyHtml += '<h4 style="margin:20px 0 8px 0; font-size:14px;">Relationships (' + relatedLinks.length + ')</h4>';
+    bodyHtml += '<div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12px;">';
+    relatedLinks.forEach(l => {
+      const isOut = l[0] === key;
+      const other = isOut ? l[1] : l[0];
+      const arrow = isOut ? '→' : '←';
+      bodyHtml += '<div style="padding:4px 0; display:flex; justify-content:space-between;">';
+      bodyHtml += '<span>' + arrow + ' <strong>' + other + '</strong> (' + l[4] + ')</span>';
+      bodyHtml += '<span style="color:#e11d48; font-weight:700;">' + l[2] + ' : ' + l[3] + '</span>';
+      bodyHtml += '</div>';
+    });
+    bodyHtml += '</div>';
+  }
+
+  document.getElementById('drawer-content').innerHTML = bodyHtml;
+  drawer.classList.add('open');
+
+  // Highlight connecting lines
+  highlightLinks(key);
+}
+
+function closeDrawer() {
+  document.getElementById('detail-drawer').classList.remove('open');
+  clearHighlights();
+}
+
+function highlightLinks(key) {
+  document.querySelectorAll('.link-group').forEach(el => {
+    const from = el.getAttribute('data-from');
+    const to = el.getAttribute('data-to');
+    if (from === key || to === key) {
+      el.querySelector('.ln').classList.add('highlighted');
+    } else {
+      el.querySelector('.ln').classList.remove('highlighted');
+    }
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.ln').forEach(el => el.classList.remove('highlighted'));
+}
+
+// Search Feature
+function handleSearch(query) {
+  const q = query.trim().toLowerCase();
+  clearHighlights();
+  if (!q) {
+    document.querySelectorAll('.table-node').forEach(el => el.style.opacity = '1');
+    return;
+  }
+
+  let matchFound = false;
+  Object.keys(entities).forEach(k => {
+    const ent = entities[k];
+    const node = document.getElementById('node-' + k);
+    if (!node) return;
+
+    const matchesTitle = ent.title.toLowerCase().includes(q) || k.toLowerCase().includes(q);
+    const matchesAttrs = ent.attrs.some(a => a.toLowerCase().includes(q));
+
+    if (matchesTitle || matchesAttrs) {
+      node.style.opacity = '1';
+      node.querySelector('.table-body').setAttribute('stroke', '#e11d48');
+      node.querySelector('.table-body').setAttribute('stroke-width', '4');
+      if (!matchFound) {
+        window.scrollTo({ top: ent.absY * currentScale - 100, behavior: 'smooth' });
+        matchFound = true;
+      }
+    } else {
+      node.style.opacity = '0.25';
+      node.querySelector('.table-body').setAttribute('stroke', ent.ghost ? sections[ent.sec - 1].color : 'var(--border)');
+      node.querySelector('.table-body').setAttribute('stroke-width', '2');
+    }
+  });
+}
+
+// Navigation & Zoom
+let currentScale = 0.72;
+const svgElem = document.getElementById('er-svg');
+const container = document.getElementById('canvas-container');
+
+function applyZoom() {
+  svgElem.setAttribute('width', Math.round(2360 * currentScale));
+}
+function zoom(delta) {
+  currentScale = Math.max(0.3, Math.min(1.6, currentScale + delta));
+  applyZoom();
+}
+function resetZoom() {
+  currentScale = 0.72;
+  applyZoom();
+}
+function fitWidth() {
+  currentScale = Math.max(0.3, (container.clientWidth - 40) / 2360);
+  applyZoom();
+}
+function jumpTo(secId) {
+  const y = Y0[secId] * currentScale;
+  window.scrollTo({ top: container.offsetTop + y - 40, behavior: 'smooth' });
+}
+
+// Theme Toggle
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+}
+
+// Initial Render
+buildDiagram();
+applyZoom();
+</script>
+</body>
+</html>
