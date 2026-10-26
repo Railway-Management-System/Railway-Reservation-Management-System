@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/PageHeader';
 export const QuotasPage: React.FC = () => {
   const [quotas, setQuotas] = useState<QuotaRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Edit Modal State
   const [editingQuota, setEditingQuota] = useState<QuotaRule | null>(null);
@@ -19,11 +20,13 @@ export const QuotasPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await quotaService.getQuotas();
       setQuotas(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load quotas:', err);
+      setError(err?.message || 'Failed to load quota configuration.');
     } finally {
       setLoading(false);
     }
@@ -117,6 +120,12 @@ export const QuotasPage: React.FC = () => {
       <PageHeader
         title="Quota Capacity Allocation Rules"
         description="Quota partitions (General, Tatkal, Ladies, Senior Citizen, Divyaang) governing coach inventory availability."
+        actions={
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            Demo data
+          </span>
+        }
       />
 
       {/* Quota Total Distribution Summary */}
@@ -145,6 +154,8 @@ export const QuotasPage: React.FC = () => {
         data={quotas}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search quotas..."
         emptyMessage="No quota rules configured."
       />

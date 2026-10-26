@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStaff } from '../context/StaffContext';
 import { X, Printer } from 'lucide-react';
+import { formatIndiaDateTime, formatCurrency } from '../utils/formatters';
 
 export const ReceiptModal: React.FC = () => {
   const { selectedReceiptFine, setSelectedReceiptFine, data } = useStaff();
@@ -40,7 +41,7 @@ export const ReceiptModal: React.FC = () => {
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-500">Issued Timestamp:</span>
-                <span className="font-medium">{new Date(selectedReceiptFine.issuedAt).toLocaleString('en-IN')}</span>
+                <span className="font-medium">{formatIndiaDateTime(selectedReceiptFine.issuedAt)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Checking Officer:</span>
@@ -71,7 +72,7 @@ export const ReceiptModal: React.FC = () => {
 
               <div className="flex justify-between border-t border-slate-300 pt-3 mt-3 text-sm font-bold text-slate-900">
                 <span>TOTAL FINE CHARGE:</span>
-                <span className="font-mono">₹{Number(selectedReceiptFine.amount).toFixed(2)}</span>
+                <span className="font-mono">{formatCurrency(selectedReceiptFine.amount)}</span>
               </div>
             </div>
 

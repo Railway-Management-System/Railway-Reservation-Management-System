@@ -1,21 +1,20 @@
-// CONTRACT-GAP: see ADMIN_CONTRACT_GAPS.md
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { IncidentStatus } from '../constants/enums';
 import { Incident } from '../types/incident';
+import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
 
 export const incidentService = {
   async getIncidents(): Promise<Incident[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('incidents')) {
       await simulateLatency();
       return [...mockStore.getIncidents()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }
-    // CONTRACT-GAP: endpoint GET /api/admin/incidents is not defined in the live API contract yet
-    throw new Error('CONTRACT GAP: Endpoint GET /api/admin/incidents is pending in the backend contract.');
+    return httpRequest<Incident[]>('/api/admin/incidents');
   },
 
   async updateIncidentStatus(incidentId: number, status: IncidentStatus): Promise<Incident> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('incidents')) {
       await simulateLatency();
       const list = mockStore.getIncidents();
       const idx = list.findIndex((i) => i.incidentId === incidentId);

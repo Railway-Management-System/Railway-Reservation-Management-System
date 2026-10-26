@@ -11,23 +11,29 @@ import { formatCurrency, formatDateTime } from '../../utils/format';
 export const TdrPage: React.FC = () => {
   const [claims, setClaims] = useState<TdrClaim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Adjudicate Modal State
   const [adjudicatingClaim, setAdjudicatingClaim] = useState<TdrClaim | null>(null);
   const [decision, setDecision] = useState<TdrStatus>('APPROVED');
   const [refundAmountInput, setRefundAmountInput] = useState<number>(0);
+  const [remarksInput, setRemarksInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adjudicateError, setAdjudicateError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await tdrService.getTdrClaims(
         statusFilter !== 'ALL' ? (statusFilter as TdrStatus) : undefined
       );
       setClaims(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load TDR claims:', err);
+      setError(err.message || 'Failed to load TDR claims.');
     } finally {
       setLoading(false);
     }
@@ -41,21 +47,34 @@ export const TdrPage: React.FC = () => {
     setAdjudicatingClaim(claim);
     setDecision('APPROVED');
     setRefundAmountInput(claim.refundAmount || 1850);
+    setRemarksInput('');
+    setAdjudicateError(null);
   };
 
   const handleAdjudicateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!adjudicatingClaim) return;
     const refNo = adjudicatingClaim.tdrRefNo || String(adjudicatingClaim.tdrId);
+    setIsSubmitting(true);
+    setAdjudicateError(null);
     try {
-      await tdrService.adjudicateTdr(
+      const result = await tdrService.adjudicateTdr(
         refNo,
         decision,
-        decision === 'APPROVED' ? Number(refundAmountInput) : null
+        decision === 'APPROVED' ? Number(refundAmountInput) : null,
+        remarksInput.trim() || undefined
+      );
+      setSuccessMessage(
+        `TDR claim ${refNo} was successfully ${decision.toLowerCase()}.${
+          decision === 'APPROVED' && result?.refundAmount
+            ? ` Refund of ₹${Number(result.refundAmount).toFixed(2)} recorded.`
+            : ''
+        }`
       );
       await loadData();
       setAdjudicatingClaim(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to adjudicate TDR claim.');
+      setAdjudicateError(err.message || 'Failed to adjudicate TDR claim.');
     } finally {
       setIsSubmitting(false);
     }
@@ -160,10 +179,24 @@ export const TdrPage: React.FC = () => {
         }
       />
 
+      {successMessage && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center justify-between shadow-2xs">
+          <span>{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="text-emerald-600 hover:text-emerald-900 ml-3 text-xs underline font-bold cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <DataTable
         data={claims}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search claims by PNR, reason..."
         emptyMessage="No TDR claims found."
       />
@@ -172,7 +205,7 @@ export const TdrPage: React.FC = () => {
       <Modal
         isOpen={!!adjudicatingClaim}
         onClose={() => setAdjudicatingClaim(null)}
-        title={`Adjudicate TDR Claim #${adjudicatingClaim?.tdrId}`}
+        title={`Adjudicate TDR Claim: ${adjudicatingClaim?.tdrRefNo || '#' + adjudicatingClaim?.tdrId}`}
         maxWidth="md"
       >
         {adjudicatingClaim && (
@@ -185,6 +218,12 @@ export const TdrPage: React.FC = () => {
               <div className="text-slate-400">Submitted: {formatDateTime(adjudicatingClaim.submittedAt)}</div>
             </div>
 
+            {adjudicateError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium">
+                {adjudicateError}
+              </div>
+            )}
+
             <div>
               <label className="form-label">
                 Adjudication Decision *
@@ -196,7 +235,6 @@ export const TdrPage: React.FC = () => {
               >
                 <option value="APPROVED">APPROVE CLAIM (Process Refund)</option>
                 <option value="REJECTED">REJECT CLAIM (No Refund)</option>
-                <option value="UNDER_REVIEW">MARK UNDER REVIEW</option>
               </select>
             </div>
 
@@ -208,7 +246,7 @@ export const TdrPage: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
-                  min={0}
+                  min={0.01}
                   required
                   value={refundAmountInput}
                   onChange={(e) => setRefundAmountInput(Number(e.target.value))}
@@ -216,6 +254,19 @@ export const TdrPage: React.FC = () => {
                 />
               </div>
             )}
+
+            <div>
+              <label className="form-label">
+                Review Remarks (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={remarksInput}
+                onChange={(e) => setRemarksInput(e.target.value)}
+                placeholder="Enter justification or verification notes..."
+                className="form-input text-xs"
+              />
+            </div>
 
             <div className="form-section-divider flex items-center justify-end gap-2.5">
               <button
@@ -239,3 +290,4 @@ export const TdrPage: React.FC = () => {
     </div>
   );
 };
+

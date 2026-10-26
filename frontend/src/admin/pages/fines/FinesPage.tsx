@@ -12,23 +12,27 @@ export const FinesPage: React.FC = () => {
   const [fines, setFines] = useState<Fine[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFines = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [fList, sList] = await Promise.all([
+        fineService.getFines(),
+        staffService.getStaff(),
+      ]);
+      setFines(fList);
+      setStaffList(sList);
+    } catch (err: any) {
+      console.error('Failed to load fines:', err);
+      setError(err?.message || 'Failed to load penalty records.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadFines() {
-      setLoading(true);
-      try {
-        const [fList, sList] = await Promise.all([
-          fineService.getFines(),
-          staffService.getStaff(),
-        ]);
-        setFines(fList);
-        setStaffList(sList);
-      } catch (err) {
-        console.error('Failed to load fines:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadFines();
   }, []);
 
@@ -107,7 +111,6 @@ export const FinesPage: React.FC = () => {
       <PageHeader
         title="On-Spot Fines & Penalty Oversight"
         description="Inspect fine receipts issued on trains and platforms by Ticket Collectors."
-        contractGapProposedEndpoint="GET /api/admin/fines"
       />
 
       {/* Summary KPI Banner */}
@@ -130,6 +133,8 @@ export const FinesPage: React.FC = () => {
         data={fines}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadFines}
         searchPlaceholder="Search fines by offender, TC code, violation reason..."
         emptyMessage="No fine receipts found."
       />

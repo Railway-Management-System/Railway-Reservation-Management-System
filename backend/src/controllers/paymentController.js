@@ -63,17 +63,26 @@ async function createOrder(req, res, next) {
       throw new AppError('HOLD_EXPIRED', 'The 10-minute seat hold timer lapsed before payment completion.', 400);
     }
 
+    // Ensure Razorpay credentials are present
+    if (!config.RAZORPAY_KEY_ID || !config.RAZORPAY_KEY_SECRET) {
+      throw new AppError('SERVICE_UNAVAILABLE', 'Payment gateway configuration missing. Check Razorpay keys.', 503);
+    }
+
     // Convert total_fare from database to paise with exact integer math
     const amountInPaise = toPaise(booking.total_fare);
 
-    const razorpay = getRazorpayClient();
-    const orderOptions = {
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: String(pnr)
-    };
-
-    const order = await razorpay.orders.create(orderOptions);
+    let order;
+    try {
+      const razorpay = getRazorpayClient();
+      const orderOptions = {
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: String(pnr)
+      };
+      order = await razorpay.orders.create(orderOptions);
+    } catch (gwErr) {
+      throw new AppError('SERVICE_UNAVAILABLE', `Payment gateway unavailable: ${gwErr.message || 'Order creation failed'}`, 503);
+    }
 
     // Store full raw Razorpay reply plus pnr in MongoDB raw_gateway_replies
     const db = getMongoDb();
@@ -154,6 +163,10 @@ async function verifyPayment(req, res, next) {
 
     if (Number(savedOrder.amount) !== expectedAmount) {
       throw new AppError('BAD_REQUEST', 'Order amount mismatch', 400);
+    }
+
+    if (!config.RAZORPAY_KEY_SECRET) {
+      throw new AppError('SERVICE_UNAVAILABLE', 'Payment gateway configuration missing. Check Razorpay keys.', 503);
     }
 
     // Signature verification using crypto.timingSafeEqual with length check

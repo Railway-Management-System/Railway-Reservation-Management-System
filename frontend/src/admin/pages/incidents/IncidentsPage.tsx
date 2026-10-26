@@ -10,7 +10,8 @@ import { PageHeader } from '../../components/PageHeader';
 
 export const IncidentsPage: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
-    const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Status Update Modal
   const [updatingIncident, setUpdatingIncident] = useState<Incident | null>(null);
@@ -19,14 +20,15 @@ export const IncidentsPage: React.FC = () => {
 
   const loadIncidents = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [iList] = await Promise.all([
         incidentService.getIncidents(),
-        
       ]);
       setIncidents(iList);
-          } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load incidents:', err);
+      setError(err?.message || 'Failed to load safety incidents.');
     } finally {
       setLoading(false);
     }
@@ -114,13 +116,14 @@ export const IncidentsPage: React.FC = () => {
       <PageHeader
         title="Safety & Operational Incident Escalations"
         description="Monitor critical medical emergencies, technical failures, and security alerts logged across trains and stations."
-        contractGapProposedEndpoint="GET /api/admin/incidents"
       />
 
       <DataTable
         data={incidents}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadIncidents}
         searchPlaceholder="Search incidents by type, severity, location..."
         emptyMessage="No emergency incidents logged."
       />

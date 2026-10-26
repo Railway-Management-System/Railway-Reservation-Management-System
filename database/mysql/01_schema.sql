@@ -461,7 +461,8 @@ CREATE TABLE PAYMENT (
     PRIMARY KEY (payment_id),
     UNIQUE KEY uq_payment_gateway_id (gateway_payment_id),
     KEY idx_payment_pnr (pnr),
-    CONSTRAINT fk_payment_booking FOREIGN KEY (pnr) REFERENCES BOOKING (pnr) ON DELETE CASCADE
+    CONSTRAINT fk_payment_booking FOREIGN KEY (pnr) REFERENCES BOOKING (pnr) ON DELETE CASCADE,
+    CONSTRAINT chk_payment_amount CHECK (amount > 0)
 ) ENGINE=InnoDB;
 
 -- 26. CANCELLATION (435 cancellation records)

@@ -1065,6 +1065,8 @@ BEGIN
     DECLARE v_pay_row_count INT;
     DECLARE v_mismatch INT DEFAULT 0;
     DECLARE v_passengers JSON;
+    DECLARE v_neg_rejected TINYINT DEFAULT 0;
+    DECLARE v_mismatch_rejected TINYINT DEFAULT 0;
 
     SET v_passengers = JSON_ARRAY(
         JSON_OBJECT('saved_passenger_id', 7, 'name', 'Pay In Time User', 'age', 28, 'gender', 'FEMALE', 'concession_type', 'NONE', 'berth_preference', 'NO_BERTH')
@@ -1086,6 +1088,19 @@ BEGIN
     -- Advance time 5 minutes (inside 10-minute window)
     SET @as_of_time = '2026-10-18 10:05:00';
 
+    -- Test 1: Verify negative payment amount (-500) is rejected with SQLSTATE '45000'
+    test_neg_amt: BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLSTATE '45000' SET v_neg_rejected = 1;
+        CALL sp_confirm_payment(v_out_pnr, -500.00, 'UPI', 'gateway_neg_amt_01', 0, v_conf_status, v_pay_id);
+    END test_neg_amt;
+
+    -- Test 2: Verify mismatched amount (1 rupee on an 864 rupee booking) is rejected with SQLSTATE '45000'
+    test_mismatch_amt: BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLSTATE '45000' SET v_mismatch_rejected = 1;
+        CALL sp_confirm_payment(v_out_pnr, 1.00, 'UPI', 'gateway_mismatch_01', 0, v_conf_status, v_pay_id);
+    END test_mismatch_amt;
+
+    -- Test 3: Confirm payment with exact total_fare (864.00)
     CALL sp_confirm_payment(v_out_pnr, v_out_fare, 'UPI', 'gateway_pay_in_time_01', 0, v_conf_status, v_pay_id);
 
     -- Verify payment row
@@ -1113,18 +1128,19 @@ BEGIN
            OR sci.wl_count != COALESCE(res.wl_count, 0));
 
     IF v_out_stat = 'CONFIRMED' AND v_conf_status = 'CONFIRMED' AND v_db_booking_status = 'CONFIRMED'
-       AND v_pay_row_count = 1 AND v_pay_id IS NOT NULL AND v_mismatch = 0 THEN
+       AND v_pay_row_count = 1 AND v_pay_id IS NOT NULL AND v_mismatch = 0
+       AND v_neg_rejected = 1 AND v_mismatch_rejected = 1 THEN
         INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
         VALUES ('Payment Hold: Pay In Time',
-                'Status CONFIRMED, PAYMENT SUCCESS, 0 inventory mismatches',
-                CONCAT('Status: ', v_conf_status, ', PayID: ', v_pay_id, ', Mismatches: ', v_mismatch),
+                'Status CONFIRMED, PAYMENT SUCCESS, 0 mismatches, -500 and 1 rejected',
+                CONCAT('Status: ', v_conf_status, ', PayID: ', v_pay_id, ', NegRej: ', v_neg_rejected, ', MisRej: ', v_mismatch_rejected),
                 'PASS',
-                'Booking confirmed inside hold window and inventory in sync.');
+                'Booking confirmed inside hold window and invalid amounts rejected.');
     ELSE
         INSERT INTO test_results (test_name, expected_outcome, actual_outcome, status, details)
         VALUES ('Payment Hold: Pay In Time',
-                'Status CONFIRMED, PAYMENT SUCCESS, 0 inventory mismatches',
-                CONCAT('Status: ', COALESCE(v_conf_status, 'NULL'), ', DB: ', COALESCE(v_db_booking_status, 'NULL'), ', Mismatches: ', v_mismatch),
+                'Status CONFIRMED, PAYMENT SUCCESS, 0 mismatches, -500 and 1 rejected',
+                CONCAT('Status: ', COALESCE(v_conf_status, 'NULL'), ', NegRej: ', v_neg_rejected, ', MisRej: ', v_mismatch_rejected),
                 'FAIL',
                 'Payment confirmation within hold window failed.');
     END IF;

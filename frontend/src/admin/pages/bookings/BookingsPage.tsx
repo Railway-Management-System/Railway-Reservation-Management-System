@@ -28,6 +28,7 @@ export const BookingsPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [pnrFilter, setPnrFilter] = useState(initialPnr);
@@ -56,6 +57,7 @@ export const BookingsPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [bList, tList] = await Promise.all([
         bookingService.getBookings({
@@ -67,12 +69,14 @@ export const BookingsPage: React.FC = () => {
       ]);
       setBookings(bList);
       setTrains(tList);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load bookings:', err);
+      setError(err.message || 'Failed to load booking transactions.');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadData();
@@ -281,9 +285,12 @@ export const BookingsPage: React.FC = () => {
         data={bookings}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Filter reservation list..."
         emptyMessage="No reservations match the query."
       />
+
 
       {/* Ticket Details & Administrative Action Drawer */}
       <Modal

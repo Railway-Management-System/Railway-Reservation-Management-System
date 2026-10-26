@@ -347,6 +347,107 @@ export async function getUserTDRs() {
   return request('GET', '/api/tdr', null, true);
 }
 
+/**
+ * 19. File Passenger Complaint: POST /api/complaints
+ */
+export async function fileGrievance({ category, subject, description }) {
+  return request('POST', '/api/complaints', { category, subject, description }, true);
+}
+
+/**
+ * 20. List Own Complaints: GET /api/complaints (with fallback to /api/complaints/user)
+ */
+export async function getUserGrievances() {
+  try {
+    return await request('GET', '/api/complaints', null, true);
+  } catch (err) {
+    if (err.status === 404) {
+      return await request('GET', '/api/complaints/user', null, true);
+    }
+    console.error('Failed to fetch grievances:', err);
+    throw err;
+  }
+}
+
+/**
+ * 21. Live Train Status: GET /api/trains/:trainId/live-status
+ */
+export async function getTrainLiveStatus(trainId) {
+  return request('GET', `/api/trains/${encodeURIComponent(trainId)}/live-status`, null, true);
+}
+
+/**
+ * 22. Live Train Run Status connected to real backend
+ */
+export async function getTrainRunStatus(trainId, journeyDate) {
+  const numTrainId = Number(trainId);
+  const [liveData, train] = await Promise.all([
+    request('GET', `/api/trains/${encodeURIComponent(numTrainId)}/live-status`, null, true),
+    getTrainSchedule(numTrainId).catch(err => {
+      console.error(`Failed to fetch schedule for train ${numTrainId}:`, err);
+      return null;
+    })
+  ]);
+
+  if (!liveData) {
+    const err = new Error('No live status found for this train run.');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const delayMins = Number(liveData.delayMinutes || 0);
+  const status = liveData.status || (delayMins > 0 ? 'DELAYED' : 'ON_TIME');
+
+  return {
+    trainId: numTrainId,
+    trainNumber: train?.trainNumber || String(numTrainId),
+    trainName: train?.trainName || `Train ${numTrainId}`,
+    route: train?.route || [],
+    schedule: {
+      scheduleId: liveData.scheduleId,
+      trainId: numTrainId,
+      journeyDate: liveData.journeyDate || journeyDate,
+      status,
+      delayMinutes: delayMins,
+      platformNumber: liveData.platformNumber || 1
+    },
+    currentStop: {
+      station: {
+        stationName: `Platform ${liveData.platformNumber || 1}`
+      }
+    },
+    trackingIsSimulated: false
+  };
+}
+
+// ─── Formatters (India Time String & Indian Currency Grouping) ────────────────
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function formatIndiaDateTime(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return '—';
+  const cleaned = dateStr.replace(/Z$/, '').trim();
+  const match = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!match) return dateStr;
+  const [, year, month, day, hour, min] = match;
+  const monthName = MONTH_NAMES[parseInt(month, 10) - 1] || month;
+  const dayNum = parseInt(day, 10);
+  if (hour !== undefined && min !== undefined) {
+    return `${dayNum} ${monthName} ${year}, ${hour}:${min}`;
+  }
+  return `${dayNum} ${monthName} ${year}`;
+}
+
+export function formatCurrency(amount) {
+  if (amount === null || amount === undefined || amount === '') return '₹0.00';
+  const num = Number(amount);
+  if (isNaN(num)) return '₹0.00';
+  return '₹' + num.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 // ─── Unimplemented Backend Endpoints (Graceful Stubs) ─────────────────────────
 
 export async function getSavedPassengers() {
@@ -381,14 +482,12 @@ export async function updateProfile() {
 
 export {
   getTrainById,
-  getTrainRunStatus,
   getPublicAlerts,
   searchConnectingJourneys,
   getBookingByPNR,
   getUserNotifications,
   markNotificationRead,
-  getUserGrievances,
-  fileGrievance,
   getSchedules,
   getRoutes
 } from './mockService.js';
+

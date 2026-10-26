@@ -104,13 +104,19 @@ export const ReportsPage: React.FC = () => {
         title="Operational Reports & Business Analytics"
         description="Comprehensive analytical reporting across ticket revenues, route seat occupancy, cancellation refunds, and train punctuality."
         actions={
-          <button
-            onClick={exportCurrentCsv}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export Active Report (CSV)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              Demo data
+            </span>
+            <button
+              onClick={exportCurrentCsv}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Active Report (CSV)</span>
+            </button>
+          </div>
         }
       />
 

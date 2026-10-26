@@ -13,7 +13,8 @@ const {
   reportIncident,
   logDelay,
   reportCrowd,
-  reportCleanliness
+  reportCleanliness,
+  promotePassenger
 } = require('../controllers/staffController');
 
 const router = express.Router();
@@ -38,6 +39,9 @@ router.post('/no-show', requireStaffRole, markNoShow);
 
 // GET /api/staff/pnr/:pnr (STAFF and ADMIN roles, reuses getBookingByPnr)
 router.get('/pnr/:pnr', requireStaffOrAdminRole, getBookingByPnr);
+
+// POST /api/staff/promote (STAFF and ADMIN roles, calls sp_promote_passenger)
+router.post('/promote', requireStaffOrAdminRole, promotePassenger);
 
 // POST /api/staff/fines (STAFF role only, Contract 5.3)
 router.post('/fines', requireStaffRole, issueFine);

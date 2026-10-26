@@ -1,25 +1,61 @@
-import { API_CONFIG } from '../config/api.config';
+import { API_CONFIG, isServiceMock } from '../config/api.config';
 import { ScheduleStatus } from '../constants/enums';
 import { Schedule } from '../types/schedule';
 import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
 
 export const scheduleService = {
-  async getSchedules(trainId?: number, journeyDate?: string): Promise<Schedule[]> {
-    if (API_CONFIG.USE_MOCK) {
+  async getSchedules(
+    filters?: {
+      from_date?: string;
+      to_date?: string;
+      train_no?: string;
+      limit?: number;
+    } | number,
+    journeyDate?: string
+  ): Promise<Schedule[]> {
+    let resolvedFilters: {
+      from_date?: string;
+      to_date?: string;
+      train_no?: string;
+      limit?: number;
+    } = {};
+
+    if (typeof filters === 'number') {
+      resolvedFilters = {
+        train_no: String(filters),
+        from_date: journeyDate,
+        to_date: journeyDate,
+      };
+    } else if (filters && typeof filters === 'object') {
+      resolvedFilters = filters;
+    }
+
+    if (isServiceMock('schedules')) {
       await simulateLatency();
       let list = mockStore.getSchedules();
-      if (trainId) list = list.filter((s) => s.trainId === trainId);
-      if (journeyDate) list = list.filter((s) => s.journeyDate === journeyDate);
-      return [...list].sort((a, b) => b.journeyDate.localeCompare(a.journeyDate) || a.trainId - b.trainId);
+      if (resolvedFilters.train_no) {
+        list = list.filter((s) => s.trainNumber === resolvedFilters.train_no || s.trainId?.toString() === resolvedFilters.train_no);
+      }
+      if (resolvedFilters.from_date) {
+        list = list.filter((s) => s.journeyDate >= resolvedFilters.from_date!);
+      }
+      if (resolvedFilters.to_date) {
+        list = list.filter((s) => s.journeyDate <= resolvedFilters.to_date!);
+      }
+      return [...list].sort((a, b) => b.journeyDate.localeCompare(a.journeyDate) || (a.trainId || 0) - (b.trainId || 0));
     }
 
     const query = new URLSearchParams();
-    if (trainId) query.append('trainId', trainId.toString());
-    if (journeyDate) query.append('journeyDate', journeyDate);
+    if (resolvedFilters.from_date) query.append('from_date', resolvedFilters.from_date);
+    if (resolvedFilters.to_date) query.append('to_date', resolvedFilters.to_date);
+    if (resolvedFilters.train_no) query.append('train_no', resolvedFilters.train_no);
+    if (resolvedFilters.limit) query.append('limit', String(resolvedFilters.limit));
+
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return httpRequest<Schedule[]>(`/api/admin/schedules${queryString}`);
+    return await httpRequest<Schedule[]>(`/api/admin/schedules${queryString}`);
   },
+
 
   async createSchedule(payload: Omit<Schedule, 'scheduleId'>): Promise<Schedule> {
     if (API_CONFIG.USE_MOCK) {
@@ -110,30 +146,74 @@ export const scheduleService = {
   async prepareChart(scheduleId: number): Promise<{
     scheduleId: number;
     status: string;
+    trainNumber?: string;
+    journeyDate?: string;
+    chartPreparedAt?: string;
+    alreadyPrepared?: boolean;
     totalWaitlistedPromoted?: number;
     totalRacPromoted?: number;
     totalConfirmed?: number;
-    preparedAt?: string;
-    alreadyPrepared?: boolean;
-    passengers?: any[];
+    summary?: {
+      activeHoldsCancelled: number;
+      unusedQuotaSeatsReleased: number;
+      autoUpgradesProcessed: number;
+      oldClassPromotionsTriggered: number;
+      waitlistedPassengersCancelled: number;
+      totalRefundsDisbursed: number;
+      chartSnapshotRowsPersisted: number;
+    };
   }> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('chartPreparation')) {
       await simulateLatency();
       return {
         scheduleId,
         status: 'CHART_PREPARED',
-        totalWaitlistedPromoted: 2,
-        totalRacPromoted: 4,
-        totalConfirmed: 120,
-        preparedAt: '2026-10-25 22:00:00',
         alreadyPrepared: false,
+        summary: {
+          activeHoldsCancelled: 1,
+          unusedQuotaSeatsReleased: 4,
+          autoUpgradesProcessed: 2,
+          oldClassPromotionsTriggered: 2,
+          waitlistedPassengersCancelled: 2,
+          totalRefundsDisbursed: 1400.0,
+          chartSnapshotRowsPersisted: 42,
+        },
       };
     }
 
-    return httpRequest<any>(`/api/admin/schedules/${scheduleId}/chart-preparation`, {
-      method: 'POST',
-    });
+    let res: any;
+    try {
+      res = await httpRequest<any>(`/api/admin/schedules/${scheduleId}/chart-preparation`, {
+        method: 'POST',
+      });
+    } catch (err: any) {
+      if (err.status === 404) {
+        res = await httpRequest<any>(`/api/schedules/${scheduleId}/chart-preparation`, {
+          method: 'POST',
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    return {
+      scheduleId: res?.scheduleId || scheduleId,
+      trainNumber: res?.trainNumber,
+      journeyDate: res?.journeyDate,
+      chartPreparedAt: res?.chartPreparedAt,
+      status: 'CHART_PREPARED',
+      summary: res?.summary || {
+        activeHoldsCancelled: 0,
+        unusedQuotaSeatsReleased: 0,
+        autoUpgradesProcessed: 0,
+        oldClassPromotionsTriggered: 0,
+        waitlistedPassengersCancelled: 0,
+        totalRefundsDisbursed: 0,
+        chartSnapshotRowsPersisted: 0,
+      },
+    };
   },
 };
+
 
 

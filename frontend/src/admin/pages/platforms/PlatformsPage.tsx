@@ -35,9 +35,11 @@ export const PlatformsPage: React.FC = () => {
   // Delete State
   const [deletingPlatform, setDeletingPlatform] = useState<Platform | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const sId = selectedStationId !== 'ALL' ? Number(selectedStationId) : undefined;
       const [pList, sList] = await Promise.all([
@@ -46,8 +48,9 @@ export const PlatformsPage: React.FC = () => {
       ]);
       setPlatforms(pList);
       setStations(sList);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load platforms:', err);
+      setError(err?.message || 'Failed to load platform data.');
     } finally {
       setLoading(false);
     }
@@ -253,6 +256,8 @@ export const PlatformsPage: React.FC = () => {
         data={platforms}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search platforms by number, station, facility..."
         emptyMessage="No platforms found."
       />

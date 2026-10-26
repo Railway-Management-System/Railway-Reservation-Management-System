@@ -184,24 +184,25 @@ async function loginStaff(req, res, next) {
       throw new AppError('VALIDATION_ERROR', 'Employee ID or email, and password are required', 400);
     }
 
+    const id = (employeeId || email || '').trim();
     let rows;
-    if (employeeId) {
+    if (id.includes('@')) {
+      [rows] = await pool.query(
+        `SELECT u.user_id, u.email, u.password_hash, u.full_name, u.role, u.account_status,
+                s.staff_id, s.employee_no, s.designation, s.status as staff_status
+         FROM USER_ACCOUNT u
+         JOIN STAFF s ON u.user_id = s.user_id
+         WHERE u.email = ? AND u.role = 'STAFF'`,
+        [id.toLowerCase()]
+      );
+    } else {
       [rows] = await pool.query(
         `SELECT u.user_id, u.email, u.password_hash, u.full_name, u.role, u.account_status,
                 s.staff_id, s.employee_no, s.designation, s.status as staff_status
          FROM STAFF s
          JOIN USER_ACCOUNT u ON s.user_id = u.user_id
          WHERE s.employee_no = ?`,
-        [employeeId.trim()]
-      );
-    } else {
-      [rows] = await pool.query(
-        `SELECT u.user_id, u.email, u.password_hash, u.full_name, u.role, u.account_status,
-                s.staff_id, s.employee_no, s.designation, s.status as staff_status
-         FROM USER_ACCOUNT u
-         LEFT JOIN STAFF s ON u.user_id = s.user_id
-         WHERE u.email = ? AND u.role = 'STAFF'`,
-        [email.trim().toLowerCase()]
+        [id]
       );
     }
 

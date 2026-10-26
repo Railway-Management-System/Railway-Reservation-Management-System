@@ -1286,6 +1286,7 @@ img { max-width: 100%; display: block; }
 .class-avail { font-size: 11px; margin-top: 2px; }
 .class-avail.green { color: var(--clr-accent); }
 .class-avail.amber { color: var(--clr-accent-2); }
+.class-avail.orange { color: #ea580c; }
 .class-avail.red { color: var(--clr-danger); }
 .class-fare { font-size: 12px; color: var(--clr-text-3); margin-top: 2px; }
 
@@ -1668,10 +1669,10 @@ img { max-width: 100%; display: block; }
   letter-spacing: 0.5px;
 }
 
-.status-badge.CONFIRMED { background: rgba(16,185,129,0.15); color: var(--clr-accent); border: 1px solid rgba(16,185,129,0.3); }
-.status-badge.RAC { background: rgba(245,158,11,0.15); color: var(--clr-accent-2); border: 1px solid rgba(245,158,11,0.3); }
-.status-badge.WAITING_LIST { background: rgba(124,58,237,0.15); color: var(--clr-secondary); border: 1px solid rgba(124,58,237,0.3); }
-.status-badge.CANCELLED { background: rgba(239,68,68,0.15); color: var(--clr-danger); border: 1px solid rgba(239,68,68,0.3); }
+.status-badge.CONFIRMED { background: rgba(16,185,129,0.15); color: #059669; border: 1px solid rgba(16,185,129,0.3); }
+.status-badge.RAC { background: rgba(245,158,11,0.15); color: #d97706; border: 1px solid rgba(245,158,11,0.3); }
+.status-badge.WAITING_LIST, .status-badge.WL { background: rgba(249,115,22,0.15); color: #ea580c; border: 1px solid rgba(249,115,22,0.35); }
+.status-badge.CANCELLED { background: rgba(239,68,68,0.15); color: #dc2626; border: 1px solid rgba(239,68,68,0.3); }
 .status-badge.PAYMENT_PENDING { background: rgba(79,110,247,0.15); color: var(--clr-primary); border: 1px solid rgba(79,110,247,0.3); }
 .status-badge.FAILED { background: rgba(239,68,68,0.1); color: var(--clr-danger); border: 1px solid rgba(239,68,68,0.2); }
 .status-badge.active { background: rgba(16,185,129,0.15); color: var(--clr-accent); border: 1px solid rgba(16,185,129,0.3); }

@@ -1,11 +1,11 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { Platform } from '../types/station';
 import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
 
 export const platformService = {
   async getPlatforms(stationId?: number): Promise<Platform[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('platforms')) {
       await simulateLatency();
       const list = mockStore.getPlatforms();
       return stationId ? list.filter((p) => p.stationId === stationId) : list;
@@ -16,7 +16,7 @@ export const platformService = {
   },
 
   async createPlatform(payload: Omit<Platform, 'platformId'>): Promise<Platform> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('platforms')) {
       await simulateLatency();
       const list = mockStore.getPlatforms();
       const newId = Math.max(...list.map((p) => p.platformId), 0) + 1;
@@ -42,7 +42,7 @@ export const platformService = {
   },
 
   async updatePlatform(platformId: number, payload: Partial<Omit<Platform, 'platformId'>>): Promise<Platform> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('platforms')) {
       await simulateLatency();
       const list = mockStore.getPlatforms();
       const idx = list.findIndex((p) => p.platformId === platformId);
@@ -72,7 +72,7 @@ export const platformService = {
   },
 
   async deletePlatform(platformId: number): Promise<void> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('platforms')) {
       await simulateLatency();
       const list = mockStore.getPlatforms();
       const target = list.find((p) => p.platformId === platformId);

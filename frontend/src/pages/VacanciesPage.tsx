@@ -4,7 +4,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Armchair, ArrowUpRight } from 'lucide-react';
 
 export const VacanciesPage: React.FC = () => {
-  const { data, activeStaff, promoteRacPassenger } = useStaff();
+  const { data, activeStaff } = useStaff();
 
   const trainId = activeStaff.assignedTrainId || 101;
   const vacancies = data.vacancies.filter(v => v.trainId === trainId);
@@ -67,11 +67,12 @@ export const VacanciesPage: React.FC = () => {
                       <td className="py-3 px-4 text-right">
                         {racCandidates.length > 0 ? (
                           <button
-                            onClick={() => promoteRacPassenger(racCandidates[0].manifestId, v.vacancyId)}
-                            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-semibold flex items-center gap-1.5 ml-auto text-[11px] shadow-xs transition-all"
+                            disabled
+                            title="Promotion is done automatically by the database on cancellation/no-show"
+                            className="px-3 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg font-medium flex items-center gap-1.5 ml-auto text-[11px] cursor-not-allowed opacity-75"
                           >
-                            <span>Promote ({racCandidates[0].name.split(' ')[0]})</span>
-                            <ArrowUpRight className="w-3.5 h-3.5" />
+                            <span>Auto-managed ({racCandidates[0].name.split(' ')[0]})</span>
+                            <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
                           </button>
                         ) : (
                           <span className="text-[11px] text-slate-400">No RAC candidates</span>
@@ -138,10 +139,11 @@ export const VacanciesPage: React.FC = () => {
                     <td className="py-3 px-4 text-right">
                       {vacancies.length > 0 ? (
                         <button
-                          onClick={() => promoteRacPassenger(p.manifestId, vacancies[0].vacancyId)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-semibold shadow-xs ml-auto transition-all"
+                          disabled
+                          title="Promotion is done automatically by the database on cancellation/no-show"
+                          className="px-3 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[11px] font-medium ml-auto cursor-not-allowed opacity-75"
                         >
-                          Assign Berth ({vacancies[0].coachNumber}-{vacancies[0].seatNumber})
+                          Auto-promoted on No-Show
                         </button>
                       ) : (
                         <span className="text-[11px] text-slate-400 italic">No berths left</span>

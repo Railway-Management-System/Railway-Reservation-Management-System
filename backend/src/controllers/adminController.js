@@ -97,7 +97,7 @@ async function getAdminTdrs(req, res, next) {
  */
 async function reviewTdr(req, res, next) {
   try {
-    const { tdrRefNo } = req.params;
+    const tdrRefNo = req.params.tdrRefNo || req.params.id;
     const { status, remarks } = req.body;
     let { refundAmount } = req.body;
 
@@ -932,11 +932,494 @@ async function updateStaffStatus(req, res, next) {
   }
 }
 
+/**
+ * GET /api/admin/bookings
+ * List bookings with optional filters: pnr, status/bookingStatus, trainId, journeyDate, from_date, to_date, limit (default 50, max 200)
+ */
+async function getAdminBookings(req, res, next) {
+  try {
+    const { pnr, status, bookingStatus, trainId, journeyDate, from_date, to_date } = req.query;
+    let limit = parseInt(req.query.limit, 10);
+    if (isNaN(limit) || limit <= 0) limit = 50;
+    if (limit > 200) limit = 200;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (pnr) {
+      whereClauses.push('b.pnr LIKE ?');
+      params.push(`%${pnr}%`);
+    }
+
+    const effectiveStatus = bookingStatus || status;
+    if (effectiveStatus && effectiveStatus !== 'ALL') {
+      whereClauses.push('b.status = ?');
+      params.push(effectiveStatus);
+    }
+
+    if (trainId && trainId !== 'ALL') {
+      whereClauses.push('ts.train_id = ?');
+      params.push(trainId);
+    }
+
+    if (journeyDate) {
+      whereClauses.push('ts.journey_date = ?');
+      params.push(journeyDate);
+    }
+
+    if (from_date) {
+      whereClauses.push('DATE(b.created_at) >= ?');
+      params.push(from_date);
+    }
+
+    if (to_date) {
+      whereClauses.push('DATE(b.created_at) <= ?');
+      params.push(to_date);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const sql = `
+      SELECT
+        b.pnr,
+        b.user_id AS userId,
+        b.user_id,
+        u.full_name AS userName,
+        u.full_name,
+        ts.train_id AS trainId,
+        ts.train_id,
+        t.train_number AS trainNumber,
+        t.train_number,
+        t.display_name AS trainName,
+        t.display_name,
+        DATE_FORMAT(ts.journey_date, '%Y-%m-%d') AS journeyDate,
+        DATE_FORMAT(ts.journey_date, '%Y-%m-%d') AS journey_date,
+        rs_from.station_id AS boardingStationId,
+        rs_to.station_id AS destinationStationId,
+        s_from.station_code AS boardingStationCode,
+        s_to.station_code AS destinationStationCode,
+        sc.class_code AS classType,
+        sc.class_code AS class_code,
+        b.quota,
+        b.status AS bookingStatus,
+        b.status AS status,
+        CAST(b.total_fare AS DOUBLE) AS totalFare,
+        CAST(b.total_fare AS DOUBLE) AS total_fare,
+        DATE_FORMAT(b.created_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(b.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+        b.channel,
+        COUNT(pb.passenger_no) AS passengerCount
+      FROM BOOKING b
+      JOIN USER_ACCOUNT u ON b.user_id = u.user_id
+      JOIN TRAIN_SCHEDULE ts ON b.schedule_id = ts.schedule_id
+      JOIN TRAIN t ON ts.train_id = t.train_id
+      JOIN SEAT_CLASS sc ON b.class_id = sc.class_id
+      JOIN ROUTE_STOP rs_from ON b.from_stop_id = rs_from.stop_id
+      JOIN ROUTE_STOP rs_to ON b.to_stop_id = rs_to.stop_id
+      JOIN STATION s_from ON rs_from.station_id = s_from.station_id
+      JOIN STATION s_to ON rs_to.station_id = s_to.station_id
+      LEFT JOIN PASSENGER_BOOKING pb ON b.pnr = pb.pnr
+      ${whereSql}
+      GROUP BY b.pnr, b.user_id, u.full_name, ts.train_id, t.train_number, t.display_name, ts.journey_date, rs_from.station_id, rs_to.station_id, s_from.station_code, s_to.station_code, sc.class_code, b.quota, b.status, b.total_fare, b.created_at, b.channel
+      ORDER BY b.created_at DESC
+      LIMIT ?
+    `;
+
+    params.push(limit);
+    const [rows] = await pool.query(sql, params);
+
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/reports/rank
+ * Runs and returns all 5 analytical RANK reports from 06_reports.sql
+ */
+async function getRankReports(req, res, next) {
+  try {
+    const busiestTrainsDef = REPORTS_REGISTRY['busiest-trains'];
+    const topRoutesDef = REPORTS_REGISTRY['top-routes'];
+    const stationRankingDef = REPORTS_REGISTRY['station-ranking'];
+    const classRevenueDef = REPORTS_REGISTRY['class-revenue'];
+    const quotaUtilizationDef = REPORTS_REGISTRY['quota-utilization'];
+
+    const [[busiestTrains], [topRoutes], [stationRanking], [classRevenue], [quotaUtilization]] = await Promise.all([
+      pool.query(busiestTrainsDef.sql),
+      pool.query(topRoutesDef.sql),
+      pool.query(stationRankingDef.sql),
+      pool.query(classRevenueDef.sql),
+      pool.query(quotaUtilizationDef.sql)
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        busiestTrains,
+        topRoutes,
+        stationRanking,
+        classRevenue,
+        quotaUtilization,
+        reports: [
+          { reportKey: 'busiest-trains', name: busiestTrainsDef.name, data: busiestTrains },
+          { reportKey: 'top-routes', name: topRoutesDef.name, data: topRoutes },
+          { reportKey: 'station-ranking', name: stationRankingDef.name, data: stationRanking },
+          { reportKey: 'class-revenue', name: classRevenueDef.name, data: classRevenue },
+          { reportKey: 'quota-utilization', name: quotaUtilizationDef.name, data: quotaUtilization }
+        ]
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/users
+ * Read-only list of users from USER_ACCOUNT
+ */
+async function getAdminUsers(req, res, next) {
+  try {
+    const { search, status, role } = req.query;
+    const whereClauses = [];
+    const params = [];
+
+    if (search && search.trim()) {
+      whereClauses.push('(user_id = ? OR full_name LIKE ? OR email LIKE ? OR phone LIKE ?)');
+      const s = `%${search.trim()}%`;
+      const sId = parseInt(search.trim(), 10) || 0;
+      params.push(sId, s, s, s);
+    }
+
+    if (status && status !== 'ALL') {
+      whereClauses.push('account_status = ?');
+      params.push(status);
+    }
+
+    if (role && role !== 'ALL') {
+      whereClauses.push('role = ?');
+      params.push(role);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const sql = `
+      SELECT
+        user_id AS userId,
+        user_id,
+        full_name AS name,
+        full_name,
+        email,
+        phone,
+        role,
+        account_status AS accountStatus,
+        account_status,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
+      FROM USER_ACCOUNT
+      ${whereSql}
+      ORDER BY user_id ASC
+      LIMIT 100
+    `;
+
+    const [rows] = await pool.query(sql, params);
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/platforms
+ * Read-only list of platforms from PLATFORM
+ */
+async function getAdminPlatforms(req, res, next) {
+  try {
+    const { stationId } = req.query;
+    const whereClauses = [];
+    const params = [];
+
+    if (stationId) {
+      whereClauses.push('station_id = ?');
+      params.push(stationId);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const sql = `
+      SELECT
+        platform_id AS platformId,
+        platform_id,
+        station_id AS stationId,
+        station_id,
+        platform_no AS platformNumber,
+        platform_no,
+        'ACTIVE' AS status,
+        JSON_ARRAY() AS facilities
+      FROM PLATFORM
+      ${whereSql}
+      ORDER BY station_id ASC, platform_no ASC
+      LIMIT 200
+    `;
+
+    const [rows] = await pool.query(sql, params);
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/fines
+ * Read-only list of fines from FINE
+ */
+async function getAdminFines(req, res, next) {
+  try {
+    const sql = `
+      SELECT
+        fine_id AS fineId,
+        fine_id,
+        staff_id AS staffId,
+        staff_id,
+        passenger_name AS passengerName,
+        passenger_name,
+        id_proof_reference AS idProofReference,
+        id_proof_reference,
+        train_id AS trainId,
+        train_id,
+        CAST(amount AS DOUBLE) AS amount,
+        reason,
+        payment_status AS paymentStatus,
+        payment_status,
+        DATE_FORMAT(issued_at, '%Y-%m-%d %H:%i:%s') AS issuedAt,
+        DATE_FORMAT(issued_at, '%Y-%m-%d %H:%i:%s') AS issued_at
+      FROM FINE
+      ORDER BY issued_at DESC
+      LIMIT 100
+    `;
+
+    const [rows] = await pool.query(sql);
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/incidents
+ * Read-only list of incidents from INCIDENT
+ */
+async function getAdminIncidents(req, res, next) {
+  try {
+    const sql = `
+      SELECT
+        incident_id AS incidentId,
+        incident_id,
+        staff_id AS reportedBy,
+        staff_id,
+        type,
+        severity,
+        CASE WHEN schedule_id IS NOT NULL THEN 'TRAIN' ELSE 'STATION' END AS locationType,
+        station_id AS stationId,
+        station_id,
+        schedule_id AS trainId,
+        schedule_id,
+        type AS description,
+        status,
+        DATE_FORMAT(reported_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(reported_at, '%Y-%m-%d %H:%i:%s') AS created_at
+      FROM INCIDENT
+      ORDER BY reported_at DESC
+      LIMIT 100
+    `;
+
+    const [rows] = await pool.query(sql);
+    return res.status(200).json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/schedules
+ * List dated train schedules with per-class inventory (ADMIN only)
+ * Query params: from_date, to_date, train_no, limit (default 50, max 200)
+ */
+async function getAdminSchedules(req, res, next) {
+  try {
+    const fromDate = req.query.from_date || req.query.fromDate;
+    const toDate = req.query.to_date || req.query.toDate;
+    const trainNo = req.query.train_no || req.query.trainNo || req.query.trainNumber;
+
+    let limit = parseInt(req.query.limit, 10);
+    if (isNaN(limit) || limit <= 0) limit = 50;
+    if (limit > 200) limit = 200;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (fromDate) {
+      whereClauses.push('ts.journey_date >= ?');
+      params.push(fromDate);
+    }
+
+    if (toDate) {
+      whereClauses.push('ts.journey_date <= ?');
+      params.push(toDate);
+    }
+
+    if (trainNo && String(trainNo).trim()) {
+      whereClauses.push('t.train_number = ?');
+      params.push(String(trainNo).trim());
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const sql = `
+      SELECT 
+        ts.schedule_id,
+        ts.train_id,
+        t.train_number,
+        t.display_name AS train_name,
+        DATE_FORMAT(ts.journey_date, '%Y-%m-%d') AS journey_date,
+        DATE_FORMAT(ts.departure_time, '%H:%i:%s') AS departure_time,
+        DATE_FORMAT(COALESCE(rs_dest.arrival_time, (
+          SELECT rs2.arrival_time FROM ROUTE_STOP rs2 WHERE rs2.train_id = t.train_id ORDER BY rs2.stop_sequence DESC LIMIT 1
+        )), '%H:%i:%s') AS arrival_time,
+        DATE_FORMAT(ts.chart_prepared_at, '%Y-%m-%d %H:%i:%s') AS chart_prepared_at,
+        ts.status AS schedule_status,
+        ts.delay_minutes
+      FROM TRAIN_SCHEDULE ts
+      JOIN TRAIN t ON ts.train_id = t.train_id
+      LEFT JOIN ROUTE_STOP rs_dest ON t.train_id = rs_dest.train_id AND rs_dest.station_id = t.destination_station_id
+      ${whereSql}
+      ORDER BY ts.journey_date ASC, t.train_number ASC
+      LIMIT ?
+    `;
+
+    params.push(limit);
+    const [scheduleRows] = await pool.query(sql, params);
+
+    if (scheduleRows.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: []
+      });
+    }
+
+    const scheduleIds = scheduleRows.map(s => s.schedule_id);
+
+    const [classRows] = await pool.query(`
+      SELECT 
+        sci.schedule_id,
+        sci.class_id,
+        sc.class_code,
+        sc.class_name,
+        sci.total_seats,
+        sci.available_seats,
+        sci.rac_capacity,
+        sci.rac_count,
+        sci.wl_capacity,
+        sci.wl_count
+      FROM SCHEDULE_CLASS_INVENTORY sci
+      JOIN SEAT_CLASS sc ON sci.class_id = sc.class_id
+      WHERE sci.schedule_id IN (?)
+      ORDER BY sci.schedule_id ASC, sci.class_id ASC
+    `, [scheduleIds]);
+
+    const classesBySchedule = new Map();
+    for (const c of classRows) {
+      if (!classesBySchedule.has(c.schedule_id)) {
+        classesBySchedule.set(c.schedule_id, []);
+      }
+      classesBySchedule.get(c.schedule_id).push({
+        class_id: c.class_id,
+        classId: c.class_id,
+        class_code: c.class_code,
+        classCode: c.class_code,
+        class_name: c.class_name,
+        className: c.class_name,
+        available_seats: Number(c.available_seats),
+        availableSeats: Number(c.available_seats),
+        total_seats: Number(c.total_seats),
+        totalSeats: Number(c.total_seats),
+        rac_count: Number(c.rac_count),
+        racCount: Number(c.rac_count),
+        rac_capacity: Number(c.rac_capacity),
+        racCapacity: Number(c.rac_capacity),
+        wl_count: Number(c.wl_count),
+        wlCount: Number(c.wl_count),
+        wl_capacity: Number(c.wl_capacity),
+        wlCapacity: Number(c.wl_capacity)
+      });
+    }
+
+    const formattedSchedules = scheduleRows.map(s => {
+      const schedClasses = classesBySchedule.get(s.schedule_id) || [];
+      const totalAvail = schedClasses.reduce((acc, c) => acc + c.available_seats, 0);
+      const totalRac = schedClasses.reduce((acc, c) => acc + c.rac_count, 0);
+      const totalWl = schedClasses.reduce((acc, c) => acc + c.wl_count, 0);
+
+      return {
+        schedule_id: s.schedule_id,
+        scheduleId: s.schedule_id,
+        train_id: s.train_id,
+        trainId: s.train_id,
+        train_number: s.train_number,
+        trainNumber: s.train_number,
+        train_name: s.train_name,
+        trainName: s.train_name,
+        journey_date: s.journey_date,
+        journeyDate: s.journey_date,
+        departure_time: s.departure_time,
+        departureTime: s.departure_time,
+        arrival_time: s.arrival_time,
+        arrivalTime: s.arrival_time,
+        chart_prepared_at: s.chart_prepared_at,
+        chartPreparedAt: s.chart_prepared_at,
+        status: s.schedule_status,
+        delay_minutes: s.delay_minutes,
+        delayMinutes: s.delay_minutes,
+        classes: schedClasses,
+        total_available_seats: totalAvail,
+        totalAvailableSeats: totalAvail,
+        total_rac_count: totalRac,
+        totalRacCount: totalRac,
+        total_wl_count: totalWl,
+        totalWlCount: totalWl
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: formattedSchedules
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   requireAdminRole,
   getAdminTdrs,
   reviewTdr,
   prepareChart,
+  getAdminSchedules,
   getSettings,
   updateSetting,
   getAuditLogs,
@@ -944,5 +1427,11 @@ module.exports = {
   getReportByKey,
   getStaffList,
   createStaffMember,
-  updateStaffStatus
+  updateStaffStatus,
+  getAdminBookings,
+  getRankReports,
+  getAdminUsers,
+  getAdminPlatforms,
+  getAdminFines,
+  getAdminIncidents
 };

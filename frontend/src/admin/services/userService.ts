@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { AccountStatus } from '../constants/enums';
 import { User } from '../types/user';
 import { httpRequest } from './http.client';
@@ -6,7 +6,7 @@ import { mockStore, simulateLatency } from './mock.client';
 
 export const userService = {
   async getUsers(search?: string, status?: AccountStatus): Promise<User[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('users')) {
       await simulateLatency();
       let list = mockStore.getUsers().filter((u) => u.role === 'PASSENGER');
       if (search && search.trim()) {
@@ -38,7 +38,7 @@ export const userService = {
     accountStatus: AccountStatus,
     reason?: string
   ): Promise<User> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('users')) {
       await simulateLatency();
       const users = mockStore.getUsers();
       const userIndex = users.findIndex((u) => u.userId === userId);

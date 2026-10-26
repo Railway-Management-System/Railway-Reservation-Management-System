@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Clock, Trash2 } from 'lucide-react';
+import { Plus, Clock, Trash2, X } from 'lucide-react';
 import { scheduleService } from '../../services/scheduleService';
 import { trainService } from '../../services/trainService';
 import { Schedule } from '../../types/schedule';
@@ -10,16 +10,28 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Modal } from '../../components/Modal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PageHeader } from '../../components/PageHeader';
-import { formatDate, formatDelay } from '../../utils/format';
+import { formatDate, formatDelay, formatCurrency, formatDateTime } from '../../utils/format';
 
 export const SchedulesPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
+  const [trainNoFilter, setTrainNoFilter] = useState<string>('');
+  const [fromDateFilter, setFromDateFilter] = useState<string>('');
+  const [toDateFilter, setToDateFilter] = useState<string>('');
   const [selectedTrainId, setSelectedTrainId] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Success Feedback
+  const [successAlert, setSuccessAlert] = useState<{
+    scheduleId: number;
+    trainNumber?: string;
+    purgedCount: number;
+    totalRefund: number;
+  } | null>(null);
 
   // Quick Delay Updater Modal
   const [delayModalSchedule, setDelayModalSchedule] = useState<Schedule | null>(null);
@@ -31,7 +43,7 @@ export const SchedulesPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newSchedule, setNewSchedule] = useState<Omit<Schedule, 'scheduleId'>>({
     trainId: 101,
-    journeyDate: '2026-10-15',
+    journeyDate: '2026-10-27',
     status: 'ON_TIME',
     delayMinutes: 0,
   });
@@ -48,20 +60,28 @@ export const SchedulesPage: React.FC = () => {
   const [chartResult, setChartResult] = useState<any | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
 
-
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
+      const selectedTrain = selectedTrainId !== 'ALL' ? trains.find((t) => String(t.trainId) === selectedTrainId) : null;
+      const effectiveTrainNo = trainNoFilter.trim() || selectedTrain?.trainNumber || undefined;
+
       const [sList, tList] = await Promise.all([
-        scheduleService.getSchedules(selectedTrainId !== 'ALL' ? Number(selectedTrainId) : undefined),
+        scheduleService.getSchedules({
+          from_date: fromDateFilter || undefined,
+          to_date: toDateFilter || undefined,
+          train_no: effectiveTrainNo,
+        }),
         trainService.getTrains(),
       ]);
 
       const filtered = statusFilter !== 'ALL' ? sList.filter((s) => s.status === statusFilter) : sList;
       setSchedules(filtered);
       setTrains(tList);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load schedules:', err);
+      setError(err.message || 'Failed to load train schedules.');
     } finally {
       setLoading(false);
     }
@@ -69,14 +89,14 @@ export const SchedulesPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [selectedTrainId, statusFilter]);
+  }, [selectedTrainId, statusFilter, fromDateFilter, toDateFilter, trainNoFilter]);
 
   const trainMap = new Map(trains.map((t) => [t.trainId, t]));
 
   const handleOpenDelayModal = (schedule: Schedule) => {
     setDelayModalSchedule(schedule);
-    setDelayInput(schedule.delayMinutes);
-    setStatusInput(schedule.status);
+    setDelayInput(schedule.delayMinutes || 0);
+    setStatusInput(schedule.status || 'ON_TIME');
   };
 
   const handleSaveDelay = async (e: React.FormEvent) => {
@@ -86,7 +106,7 @@ export const SchedulesPage: React.FC = () => {
     setIsUpdatingDelay(true);
     try {
       const derivedStatus = delayInput > 0 && statusInput === 'ON_TIME' ? 'DELAYED' : statusInput;
-      await scheduleService.updateSchedule(delayModalSchedule.scheduleId, {
+      await scheduleService.updateSchedule(delayModalSchedule.scheduleId || (delayModalSchedule as any).schedule_id, {
         delayMinutes: Number(delayInput),
         status: derivedStatus,
       });
@@ -117,7 +137,7 @@ export const SchedulesPage: React.FC = () => {
     if (!deletingSchedule) return;
     setIsDeleting(true);
     try {
-      await scheduleService.deleteSchedule(deletingSchedule.scheduleId);
+      await scheduleService.deleteSchedule(deletingSchedule.scheduleId || (deletingSchedule as any).schedule_id);
       await loadData();
       setDeletingSchedule(null);
     } catch (err: any) {
@@ -127,36 +147,132 @@ export const SchedulesPage: React.FC = () => {
     }
   };
 
+  const handlePrepareChart = async (e?: React.FormEvent, directScheduleId?: number) => {
+    if (e) e.preventDefault();
+    const idToPrepare = directScheduleId || Number(targetScheduleId);
+    if (!idToPrepare) return;
+
+    setIsPreparingChart(true);
+    setChartResult(null);
+    setChartError(null);
+    try {
+      const res = await scheduleService.prepareChart(idToPrepare);
+      setChartResult(res);
+      setSuccessAlert({
+        scheduleId: idToPrepare,
+        trainNumber: res.trainNumber,
+        purgedCount: res.summary?.waitlistedPassengersCancelled ?? 0,
+        totalRefund: res.summary?.totalRefundsDisbursed ?? 0,
+      });
+      await loadData();
+    } catch (err: any) {
+      setChartError(err.message || 'Failed to prepare reservation chart.');
+    } finally {
+      setIsPreparingChart(false);
+    }
+  };
+
+  // Check if target schedule in modal is already prepared
+  const modalTargetSched = schedules.find(
+    (s) => Number(s.scheduleId || s.schedule_id) === Number(targetScheduleId)
+  );
+  const isModalTargetAlreadyPrepared = Boolean(
+    modalTargetSched?.chartPreparedAt || modalTargetSched?.chart_prepared_at
+  );
+
   const columns: Column<Schedule>[] = [
     {
       header: 'Schedule ID',
       accessorKey: 'scheduleId',
       sortable: true,
-      cell: (row) => <span className="font-mono font-bold text-slate-900">#{row.scheduleId}</span>,
+      cell: (row) => (
+        <span className="font-mono font-bold text-slate-900">
+          #{row.scheduleId || row.schedule_id}
+        </span>
+      ),
     },
     {
       header: 'Train Service',
       cell: (row) => {
-        const train = trainMap.get(row.trainId);
+        const train = trainMap.get(row.trainId || row.train_id || 0);
+        const trainNumber = row.trainNumber || row.train_number || train?.trainNumber || row.trainId;
+        const trainName = row.trainName || row.train_name || train?.trainName || '';
         return (
           <div>
             <span className="font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded text-xs border border-orange-200 tracking-tight">
-              {train?.trainNumber || row.trainId}
+              {trainNumber}
             </span>
-            <div className="text-xs text-slate-700 mt-0.5 font-medium">{train?.trainName}</div>
+            <div className="text-xs text-slate-700 mt-0.5 font-medium">{trainName}</div>
           </div>
         );
       },
     },
     {
-      header: 'Departure Date',
+      header: 'Journey Date',
       accessorKey: 'journeyDate',
       sortable: true,
       cell: (row) => (
         <span className="font-mono text-xs font-semibold text-slate-800">
-          {formatDate(row.journeyDate)}
+          {formatDate(row.journeyDate || row.journey_date || '')}
         </span>
       ),
+    },
+    {
+      header: 'Departure',
+      cell: (row) => (
+        <div className="text-xs font-mono">
+          <div className="font-semibold text-slate-800">{row.departureTime || row.departure_time || '—'}</div>
+          {(row.arrivalTime || row.arrival_time) && (
+            <div className="text-[11px] text-slate-500">Arr: {row.arrivalTime || row.arrival_time}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: 'Chart Status',
+      cell: (row) => {
+        const isPrepared = Boolean(row.chartPreparedAt || row.chart_prepared_at);
+        return isPrepared ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Prepared
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            Open
+          </span>
+        );
+      },
+    },
+    {
+      header: 'RAC & WL Counts',
+      cell: (row) => {
+        const racCount = row.totalRacCount ?? row.total_rac_count ?? 0;
+        const wlCount = row.totalWlCount ?? row.total_wl_count ?? 0;
+        return (
+          <div>
+            <div className="font-mono text-xs font-medium">
+              <span className="text-slate-500">RAC: </span>
+              <span className="font-bold text-amber-700">{racCount}</span>
+              <span className="text-slate-300 mx-1">|</span>
+              <span className="text-slate-500">WL: </span>
+              <span className="font-bold text-rose-700">{wlCount}</span>
+            </div>
+            {row.classes && row.classes.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {row.classes.map((c) => (
+                  <span
+                    key={c.classCode || c.class_code}
+                    className="inline-block px-1.5 py-0.5 text-[10px] bg-slate-100 rounded text-slate-700 border border-slate-200 font-mono"
+                    title={`${c.className || c.class_name}: ${c.availableSeats ?? c.available_seats} available, RAC ${c.racCount ?? c.rac_count}/${c.racCapacity ?? c.rac_capacity}, WL ${c.wlCount ?? c.wl_count}/${c.wlCapacity ?? c.wl_capacity}`}
+                  >
+                    {c.classCode || c.class_code}: Avail {c.availableSeats ?? c.available_seats} (R:{c.racCount ?? c.rac_count}, W:{c.wlCount ?? c.wl_count})
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: 'Running Status',
@@ -171,59 +287,59 @@ export const SchedulesPage: React.FC = () => {
       cell: (row) => (
         <span
           className={`font-mono text-xs font-bold ${
-            row.delayMinutes > 0 ? 'text-amber-700' : 'text-emerald-700'
+            (row.delayMinutes || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'
           }`}
         >
-          {formatDelay(row.delayMinutes)}
+          {formatDelay(row.delayMinutes || 0)}
         </span>
       ),
     },
     {
       header: 'Actions',
       align: 'right',
-      cell: (row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => handleOpenDelayModal(row)}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors flex items-center gap-1"
-            title="Update Live Delay"
-          >
-            <Clock className="w-3.5 h-3.5 text-orange-600" />
-            <span>Delay Status</span>
-          </button>
-          <button
-            onClick={() => setDeletingSchedule(row)}
-            className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors"
-            title="Delete Schedule"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ),
+      cell: (row) => {
+        const isPrepared = Boolean(row.chartPreparedAt || row.chart_prepared_at);
+        const schedId = Number(row.scheduleId || row.schedule_id || 0);
+        return (
+          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+            <button
+              onClick={() => handlePrepareChart(undefined, schedId)}
+              disabled={isPrepared || isPreparingChart}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1 ${
+                isPrepared
+                  ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+              }`}
+              title={isPrepared ? 'Reservation chart already prepared' : 'Execute Chart Preparation'}
+            >
+              <span>{isPrepared ? 'Prepared' : 'Prepare Chart'}</span>
+            </button>
+            <button
+              onClick={() => handleOpenDelayModal(row)}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Update Live Delay"
+            >
+              <Clock className="w-3.5 h-3.5 text-orange-600" />
+              <span>Delay</span>
+            </button>
+            <button
+              onClick={() => setDeletingSchedule(row)}
+              className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors cursor-pointer"
+              title="Delete Schedule"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
-
-  const handlePrepareChart = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetScheduleId) return;
-    setIsPreparingChart(true);
-    setChartResult(null);
-    setChartError(null);
-    try {
-      const res = await scheduleService.prepareChart(Number(targetScheduleId));
-      setChartResult(res);
-    } catch (err: any) {
-      setChartError(err.message || 'Failed to prepare reservation chart.');
-    } finally {
-      setIsPreparingChart(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dated Train Schedules & Delay Control"
-        description="Maintain calendar train runs, monitor running statuses (ON_TIME / DELAYED / CANCELLED), and apply operational delay updates."
+        description="Maintain calendar train runs, monitor real-time class inventories (available / RAC / WL), prepare charts, and apply operational delay updates."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -232,32 +348,10 @@ export const SchedulesPage: React.FC = () => {
                 setChartResult(null);
                 setChartError(null);
               }}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
             >
               <span>Prepare Chart</span>
             </button>
-            <select
-              value={selectedTrainId}
-              onChange={(e) => setSelectedTrainId(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 focus:ring-2 focus:ring-orange-500 focus:outline-none"
-            >
-              <option value="ALL">All Trains</option>
-              {trains.map((t) => (
-                <option key={t.trainId} value={t.trainId}>
-                  {t.trainNumber} - {t.trainName}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 focus:ring-2 focus:ring-orange-500 focus:outline-none"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ON_TIME">ON_TIME Only</option>
-              <option value="DELAYED">DELAYED Only</option>
-              <option value="CANCELLED">CANCELLED Only</option>
-            </select>
             <button
               onClick={() => setCreateModalOpen(true)}
               className="btn-secondary"
@@ -269,13 +363,135 @@ export const SchedulesPage: React.FC = () => {
         }
       />
 
+      {/* Success Banner after Chart Preparation */}
+      {successAlert && (
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-xs flex items-center justify-between shadow-xs">
+          <div className="space-y-0.5">
+            <div className="font-extrabold text-emerald-950 text-sm flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Reservation Chart Prepared Successfully {successAlert.trainNumber ? `(Train ${successAlert.trainNumber})` : `(Schedule #${successAlert.scheduleId})`}
+            </div>
+            <div className="text-emerald-900 font-medium text-xs">
+              Waitlisted Passengers Purged: <span className="font-bold text-orange-700">{successAlert.purgedCount}</span> &bull; Total Refunds Disbursed: <span className="font-bold text-emerald-800">{formatCurrency(successAlert.totalRefund)}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setSuccessAlert(null)}
+            className="p-1 text-emerald-700 hover:text-emerald-950 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-wrap items-center gap-3">
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            Train Number
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. 12951"
+            value={trainNoFilter}
+            onChange={(e) => setTrainNoFilter(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none w-32"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            Or Select Train
+          </label>
+          <select
+            value={selectedTrainId}
+            onChange={(e) => {
+              setSelectedTrainId(e.target.value);
+              if (e.target.value !== 'ALL') {
+                const t = trains.find((tr) => String(tr.trainId) === e.target.value);
+                if (t) setTrainNoFilter(t.trainNumber);
+              } else {
+                setTrainNoFilter('');
+              }
+            }}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none max-w-xs"
+          >
+            <option value="ALL">All Trains</option>
+            {trains.map((t) => (
+              <option key={t.trainId} value={t.trainId}>
+                {t.trainNumber} - {t.trainName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            From Date
+          </label>
+          <input
+            type="date"
+            value={fromDateFilter}
+            onChange={(e) => setFromDateFilter(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            To Date
+          </label>
+          <input
+            type="date"
+            value={toDateFilter}
+            onChange={(e) => setToDateFilter(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            Running Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ON_TIME">ON_TIME Only</option>
+            <option value="DELAYED">DELAYED Only</option>
+            <option value="CANCELLED">CANCELLED Only</option>
+          </select>
+        </div>
+
+        {(trainNoFilter || fromDateFilter || toDateFilter || selectedTrainId !== 'ALL' || statusFilter !== 'ALL') && (
+          <div className="self-end pb-0.5">
+            <button
+              onClick={() => {
+                setTrainNoFilter('');
+                setSelectedTrainId('ALL');
+                setFromDateFilter('');
+                setToDateFilter('');
+                setStatusFilter('ALL');
+              }}
+              className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors cursor-pointer"
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+      </div>
 
       <DataTable
         data={schedules}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search schedule by date, train, delay..."
-        emptyMessage="No train schedules found."
+        emptyMessage="No schedules found"
       />
 
       {/* Delay Adjustment Modal */}
@@ -289,10 +505,10 @@ export const SchedulesPage: React.FC = () => {
           <form onSubmit={handleSaveDelay} className="space-y-4">
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
               <div className="font-bold text-slate-800">
-                Train: {trainMap.get(delayModalSchedule.trainId)?.trainNumber} - {trainMap.get(delayModalSchedule.trainId)?.trainName}
+                Train: {delayModalSchedule.trainNumber || delayModalSchedule.train_number || trainMap.get(delayModalSchedule.trainId || 0)?.trainNumber} - {delayModalSchedule.trainName || delayModalSchedule.train_name || trainMap.get(delayModalSchedule.trainId || 0)?.trainName}
               </div>
               <div className="text-slate-500 font-mono">
-                Date: {formatDate(delayModalSchedule.journeyDate)} (Schedule #{delayModalSchedule.scheduleId})
+                Date: {formatDate(delayModalSchedule.journeyDate || delayModalSchedule.journey_date)} (Schedule #{delayModalSchedule.scheduleId || delayModalSchedule.schedule_id})
               </div>
             </div>
 
@@ -435,7 +651,7 @@ export const SchedulesPage: React.FC = () => {
       <ConfirmDialog
         isOpen={!!deletingSchedule}
         title="Delete Dated Schedule"
-        message={`Are you sure you want to delete dated run #${deletingSchedule?.scheduleId} on ${deletingSchedule?.journeyDate}?`}
+        message={`Are you sure you want to delete dated run #${deletingSchedule?.scheduleId || deletingSchedule?.schedule_id} on ${deletingSchedule?.journeyDate || deletingSchedule?.journey_date}?`}
         confirmLabel="Delete Schedule"
         isDestructive={true}
         isLoading={isDeleting}
@@ -450,9 +666,9 @@ export const SchedulesPage: React.FC = () => {
         title="Execute Chart Preparation"
         maxWidth="md"
       >
-        <form onSubmit={handlePrepareChart} className="space-y-4">
+        <form onSubmit={(e) => handlePrepareChart(e)} className="space-y-4">
           <p className="text-xs text-slate-500">
-            Execute final chart preparation for a train run (Contract 7.2). This allocates confirmed berths to RAC and Waitlisted passengers according to reservation priority rules.
+            Execute final chart preparation for a train run (Contract 7.2). This allocates confirmed berths to RAC and Waitlisted passengers according to reservation priority rules and purges waitlisted passengers.
           </p>
 
           <div>
@@ -465,9 +681,14 @@ export const SchedulesPage: React.FC = () => {
               min={1}
               value={targetScheduleId}
               onChange={(e) => setTargetScheduleId(e.target.value)}
-              placeholder="e.g. 101"
+              placeholder="e.g. 1001"
               className="form-input mono"
             />
+            {isModalTargetAlreadyPrepared && (
+              <p className="mt-1 text-xs text-amber-700 font-medium">
+                Note: Reservation chart is already prepared for schedule #{targetScheduleId}.
+              </p>
+            )}
           </div>
 
           {chartError && (
@@ -477,22 +698,60 @@ export const SchedulesPage: React.FC = () => {
           )}
 
           {chartResult && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-1">
-              <div className="font-bold text-emerald-800">
-                Chart Status: {chartResult.status} {chartResult.alreadyPrepared ? '(Already Prepared)' : ''}
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
+                <span className="font-extrabold text-emerald-900 text-sm">
+                  Reservation Chart Prepared {chartResult.alreadyPrepared ? '(Pre-existing Result)' : 'Successfully'}
+                </span>
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-emerald-200 text-emerald-900">
+                  {chartResult.trainNumber ? `Train #${chartResult.trainNumber}` : `Schedule #${chartResult.scheduleId}`}
+                </span>
               </div>
-              <div className="text-emerald-700">
-                Confirmed Berths: <span className="font-bold">{chartResult.totalConfirmed ?? '—'}</span>
-              </div>
-              <div className="text-emerald-700">
-                RAC Promoted: <span className="font-bold">{chartResult.totalRacPromoted ?? 0}</span>
-              </div>
-              <div className="text-emerald-700">
-                WL Promoted: <span className="font-bold">{chartResult.totalWaitlistedPromoted ?? 0}</span>
-              </div>
-              {chartResult.preparedAt && (
-                <div className="text-slate-500 text-[11px] font-mono">
-                  Prepared At: {chartResult.preparedAt}
+
+              {chartResult.summary && (
+                <div className="grid grid-cols-2 gap-2 text-emerald-950 font-medium">
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">WL Purged & Cancelled</span>
+                    <span className="font-bold text-sm text-orange-700">
+                      {chartResult.summary.waitlistedPassengersCancelled ?? chartResult.totalWaitlistedPromoted ?? 0} pax
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">Total Refunds Disbursed</span>
+                    <span className="font-bold text-sm text-emerald-800">
+                      {formatCurrency(chartResult.summary.totalRefundsDisbursed ?? 0)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">Active Holds Cancelled</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      {chartResult.summary.activeHoldsCancelled ?? 0}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">Unused Quota Seats Released</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      {chartResult.summary.unusedQuotaSeatsReleased ?? 0}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">Auto-Upgrades Processed</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      {chartResult.summary.autoUpgradesProcessed ?? 0}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/80 border border-emerald-200">
+                    <span className="text-[11px] text-slate-500 block">Chart Snapshots Persisted</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      {chartResult.summary.chartSnapshotRowsPersisted ?? chartResult.totalConfirmed ?? 0} rows
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {(chartResult.chartPreparedAt || chartResult.preparedAt) && (
+                <div className="text-slate-500 text-[11px] font-mono pt-1">
+                  Prepared At: {formatDateTime(chartResult.chartPreparedAt || chartResult.preparedAt)}
                 </div>
               )}
             </div>
@@ -508,10 +767,10 @@ export const SchedulesPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={isPreparingChart || !targetScheduleId}
-              className="btn-secondary"
+              disabled={isPreparingChart || !targetScheduleId || isModalTargetAlreadyPrepared}
+              className={`btn-secondary ${isModalTargetAlreadyPrepared ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isPreparingChart ? 'Executing...' : 'Prepare Chart'}
+              {isPreparingChart ? 'Executing...' : isModalTargetAlreadyPrepared ? 'Already Prepared' : 'Prepare Chart'}
             </button>
           </div>
         </form>
@@ -519,4 +778,3 @@ export const SchedulesPage: React.FC = () => {
     </div>
   );
 };
-

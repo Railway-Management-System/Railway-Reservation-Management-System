@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { CreateStaffPayload, Staff, UpdateStaffPayload } from '../types/staff';
 import { User } from '../types/user';
 import { httpRequest } from './http.client';
@@ -6,7 +6,7 @@ import { mockStore, simulateLatency } from './mock.client';
 
 export const staffService = {
   async getStaff(): Promise<Staff[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('staff')) {
       await simulateLatency();
       return mockStore.getStaff();
     }
@@ -22,7 +22,7 @@ export const staffService = {
     const employeeNo = payload.employeeNo || payload.employeeId || `EMP-${Date.now().toString().slice(-4)}`;
     const password = payload.password || 'StaffPassword123!';
 
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('staff')) {
       await simulateLatency();
       const users = mockStore.getUsers();
       const staffList = mockStore.getStaff();
@@ -84,7 +84,7 @@ export const staffService = {
   },
 
   async updateStaff(staffId: number, payload: UpdateStaffPayload): Promise<Staff> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('staff')) {
       await simulateLatency();
       const staffList = mockStore.getStaff();
       const idx = staffList.findIndex((s) => s.staffId === staffId);

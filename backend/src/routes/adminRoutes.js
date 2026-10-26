@@ -5,6 +5,7 @@ const {
   getAdminTdrs,
   reviewTdr,
   prepareChart,
+  getAdminSchedules,
   getSettings,
   updateSetting,
   getAuditLogs,
@@ -12,7 +13,13 @@ const {
   getReportByKey,
   getStaffList,
   createStaffMember,
-  updateStaffStatus
+  updateStaffStatus,
+  getAdminBookings,
+  getRankReports,
+  getAdminUsers,
+  getAdminPlatforms,
+  getAdminFines,
+  getAdminIncidents
 } = require('../controllers/adminController');
 
 const {
@@ -70,6 +77,9 @@ const router = express.Router();
 // All admin routes require ADMIN authentication
 router.use(authenticate, requireAdminRole);
 
+// GET /api/admin/schedules - List dated train schedules (Contract 7.2.1)
+router.get('/schedules', getAdminSchedules);
+
 // POST /api/admin/schedules/:scheduleId/chart-preparation - Chart preparation execution (BR-B12a, Contract 7.2)
 router.post('/schedules/:scheduleId/chart-preparation', prepareChart);
 
@@ -79,11 +89,27 @@ router.get('/settings', getSettings);
 // PUT /api/admin/settings/:key - Update system setting (Contract 7.1)
 router.put('/settings/:key', updateSetting);
 
+// GET /api/admin/bookings - List bookings with optional filters (pnr, status, from_date, to_date, limit)
+router.get('/bookings', getAdminBookings);
+
+// GET /api/admin/users - List users from real USER_ACCOUNT table
+router.get('/users', getAdminUsers);
+
+// GET /api/admin/platforms - List platforms from real PLATFORM table
+router.get('/platforms', getAdminPlatforms);
+
+// GET /api/admin/fines - List fines from real FINE table
+router.get('/fines', getAdminFines);
+
+// GET /api/admin/incidents - List incidents from real INCIDENT table
+router.get('/incidents', getAdminIncidents);
+
 // GET /api/admin/tdr - List pending/filtered TDRs
 router.get('/tdr', getAdminTdrs);
 
-// PUT /api/admin/tdr/:tdrRefNo - Review TDR claim
+// PUT /api/admin/tdr/:tdrRefNo and PUT /api/admin/tdr/:id - Review TDR claim
 router.put('/tdr/:tdrRefNo', reviewTdr);
+router.put('/tdr/:id', reviewTdr);
 
 // GET /api/admin/audit-logs - Paged forensic audit trail in MySQL (Contract 7.4)
 router.get('/audit-logs', getAuditLogs);
@@ -109,6 +135,9 @@ router.put('/complaints/:grievanceId', adminUpdateComplaint);
 
 // GET /api/admin/reports - List available analytical RANK reports (06_reports.sql)
 router.get('/reports', listReports);
+
+// GET /api/admin/reports/rank - 5 RANK reports from 06_reports.sql for admin dashboard
+router.get('/reports/rank', getRankReports);
 
 // GET /api/admin/reports/:reportKey - Run specific report and record in REPORT table
 router.get('/reports/:reportKey', getReportByKey);

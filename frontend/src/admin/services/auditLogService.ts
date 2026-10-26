@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api.config';
+import { API_CONFIG, isServiceMock } from '../config/api.config';
 import { AuditLog } from '../types/auditLog';
 import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
@@ -14,7 +14,7 @@ export interface AuditLogFilters {
 
 export const auditLogService = {
   async getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('auditLogs')) {
       await simulateLatency();
       let logs = mockStore.getAuditLogs();
 
@@ -52,7 +52,7 @@ export const auditLogService = {
   },
 
   async getActivityLogs(filters?: { page?: number; limit?: number; userId?: number; action?: string }): Promise<any[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('auditLogs')) {
       await simulateLatency();
       return mockStore.getAuditLogs();
     }

@@ -227,6 +227,23 @@ async function runTests() {
       .update(`${orderId1}|${simPaymentId1}`)
       .digest('hex');
 
+    // Safety Check: verify sp_confirm_payment rejects -500 and 1 rupee on 864 booking with SQLSTATE 45000
+    let negErrThrown = false;
+    try {
+      await pool.query("CALL sp_confirm_payment(?, -500.00, 'UPI', 'gateway_neg_test', 0, @s, @p)", [pnr1]);
+    } catch (err) {
+      negErrThrown = err.message.includes('PAYMENT_AMOUNT_INVALID') || err.code === 'ER_SIGNAL_EXCEPTION';
+    }
+    assert(negErrThrown, 'sp_confirm_payment rejects negative amount (-500) with SQLSTATE 45000');
+
+    let mismatchErrThrown = false;
+    try {
+      await pool.query("CALL sp_confirm_payment(?, 1.00, 'UPI', 'gateway_mismatch_test', 0, @s, @p)", [pnr1]);
+    } catch (err) {
+      mismatchErrThrown = err.message.includes('PAYMENT_AMOUNT_MISMATCH') || err.code === 'ER_SIGNAL_EXCEPTION';
+    }
+    assert(mismatchErrThrown, 'sp_confirm_payment rejects mismatched amount (1 rupee on 864 booking) with SQLSTATE 45000');
+
     const verifyRes1 = await request('POST', '/api/payments/razorpay/verify', {
       pnr: pnr1,
       razorpayOrderId: orderId1,

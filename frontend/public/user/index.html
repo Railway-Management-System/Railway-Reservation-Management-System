@@ -325,7 +325,7 @@
           <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
           <span>Profile</span>
         </a>
-        <a href="#" class="nav-item" onclick="navigateTo('passengers')" id="nav-passengers">
+        <a href="#" class="nav-item" onclick="navigateTo('passengers')" id="nav-passengers" style="display: none !important;">
           <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
           <span>Saved Passengers</span>
         </a>
@@ -465,7 +465,7 @@
       </div>
 
       <!-- ══════════════════════════════════════ BOOK TICKETS / SEARCH -->
-      <div id="page-search" class="page hidden">
+      <div id="page-search" class="page">
         <div class="page-header">
           <h1 class="page-title">Book Tickets</h1>
           <p class="page-sub">Search and book train tickets across India</p>
@@ -543,7 +543,7 @@
         </div>
 
         <!-- STEP 2: SEARCH RESULTS -->
-        <div id="booking-step-2" class="booking-step hidden">
+        <div id="booking-step-2" class="booking-step">
           <div class="results-header">
             <button class="btn-back" onclick="goToStep(1)">← Modify Search</button>
             <div class="results-summary" id="results-summary"></div>
@@ -552,7 +552,7 @@
         </div>
 
         <!-- STEP 3: PASSENGER DETAILS -->
-        <div id="booking-step-3" class="booking-step hidden">
+        <div id="booking-step-3" class="booking-step">
           <div class="results-header">
             <button class="btn-back" onclick="goToStep(2)">← Back to Results</button>
             <h2 class="step-title">Passenger Details</h2>
@@ -631,7 +631,7 @@
         </div>
 
         <!-- STEP 4: BOOKING SUMMARY -->
-        <div id="booking-step-4" class="booking-step hidden">
+        <div id="booking-step-4" class="booking-step">
           <div class="results-header">
             <button class="btn-back" onclick="goToStep(3)">← Back</button>
             <h2 class="step-title">Booking Summary</h2>
@@ -658,7 +658,7 @@
         </div>
 
         <!-- STEP 5: PAYMENT -->
-        <div id="booking-step-5" class="booking-step hidden">
+        <div id="booking-step-5" class="booking-step">
           <div class="results-header">
             <button class="btn-back" onclick="goToStep(4)">← Back</button>
             <h2 class="step-title">Payment Gateway</h2>
@@ -706,7 +706,7 @@
         </div>
 
         <!-- STEP 6: CONFIRMATION -->
-        <div id="booking-step-6" class="booking-step hidden">
+        <div id="booking-step-6" class="booking-step">
           <div class="confirmation-page">
             <div class="confirm-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -728,7 +728,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ MY BOOKINGS -->
-      <div id="page-bookings" class="page hidden">
+      <div id="page-bookings" class="page">
         <div class="page-header">
           <h1 class="page-title">My Bookings</h1>
           <button class="btn-primary" onclick="navigateTo('search')">+ Book New Ticket</button>
@@ -746,7 +746,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ PNR ENQUIRY -->
-      <div id="page-pnr" class="page hidden">
+      <div id="page-pnr" class="page">
         <div class="page-header">
           <h1 class="page-title">PNR Enquiry</h1>
           <p class="page-sub">Check the current status of any ticket</p>
@@ -761,11 +761,11 @@
           <p class="pnr-hint">e.g. 2849102841</p>
         </div>
 
-        <div id="pnr-result" class="hidden"></div>
+        <div id="pnr-result"></div>
       </div>
 
       <!-- ══════════════════════════════════════════ PROFILE -->
-      <div id="page-profile" class="page hidden">
+      <div id="page-profile" class="page">
         <div class="page-header">
           <h1 class="page-title">My Profile</h1>
         </div>
@@ -806,7 +806,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ SAVED PASSENGERS -->
-      <div id="page-passengers" class="page hidden">
+      <div id="page-passengers" class="page">
         <div class="page-header">
           <h1 class="page-title">Saved Passengers</h1>
           <button class="btn-primary" onclick="openAddPassengerModal()">+ Add Passenger</button>
@@ -815,7 +815,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ TDR -->
-      <div id="page-tdr" class="page hidden">
+      <div id="page-tdr" class="page">
         <div class="page-header">
           <h1 class="page-title">TDR / Refunds</h1>
           <button class="btn-primary" onclick="openFileTDRModal()">+ File TDR</button>
@@ -824,7 +824,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ GRIEVANCES -->
-      <div id="page-grievances" class="page hidden">
+      <div id="page-grievances" class="page">
         <div class="page-header">
           <h1 class="page-title">Grievances</h1>
           <button class="btn-primary" onclick="openFileGrievanceModal()">+ File Complaint</button>
@@ -833,7 +833,7 @@
       </div>
 
       <!-- ══════════════════════════════════════════ ALERTS -->
-      <div id="page-alerts" class="page hidden">
+      <div id="page-alerts" class="page">
         <div class="page-header">
           <h1 class="page-title">Alerts & Notifications</h1>
           <button class="btn-secondary" onclick="markAllRead()">Mark All Read</button>
@@ -1038,7 +1038,7 @@
   <p class="loading-text" id="loading-text">Processing...</p>
 </div>
 
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js" onerror="window.__rzp_load_failed=true;"></script>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body>
