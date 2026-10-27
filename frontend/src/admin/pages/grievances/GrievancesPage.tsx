@@ -21,9 +21,11 @@ export const GrievancesPage: React.FC = () => {
   const [responseText, setResponseText] = useState('');
   const [statusSelection, setStatusSelection] = useState<GrievanceStatus>('RESOLVED');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const gList = await grievanceService.getGrievances();
       setGrievances(gList);
@@ -31,8 +33,9 @@ export const GrievancesPage: React.FC = () => {
         const uList = await userService.getUsers();
         setUsers(uList);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load grievances:', err);
+      setError(err?.message || 'Failed to load grievance tickets.');
     } finally {
       setLoading(false);
     }
@@ -140,13 +143,14 @@ export const GrievancesPage: React.FC = () => {
       <PageHeader
         title="Passenger Grievances & Redressal"
         description="Review passenger complaint tickets, coordinate with on-ground supervisors, and issue official railway resolution remarks."
-        contractGapProposedEndpoint="GET /api/admin/grievances"
       />
 
       <DataTable
         data={grievances}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search complaints by subject, category, author..."
         emptyMessage="No grievance tickets found."
       />

@@ -303,7 +303,7 @@ Monetary settlement transactions. For online bookings, uses Razorpay in TEST mod
 | :--- | :--- | :--- | :--- | :--- |
 | `payment_id` | `INT` | No | Primary Key | Unique payment transaction record |
 | `pnr` | `VARCHAR(10)` | Yes | FK -> `BOOKING.pnr` | Associated PNR (can be NULL for late payment refund) |
-| `amount` | `DECIMAL(10,2)`| No | - | Exact payment amount collected |
+| `amount` | `DECIMAL(10,2)`| No | CHECK (`amount` > 0) | Exact payment amount collected (strictly positive; rejected via SQLSTATE '45000' if <= 0 or <> booking total fare) |
 | `method` | `ENUM` | No | Payment Mode Enum | `'CREDIT_CARD'`, `'DEBIT_CARD'`, `'UPI'`, `'NET_BANKING'`, `'CASH'` |
 | `status` | `ENUM` | No | Payment Status Enum | `'PENDING'`, `'SUCCESS'`, `'FAILED'` |
 | `gateway_payment_id` **`(new)`**| `VARCHAR(128)`| Yes| Unique | Razorpay test payment ID (ensures idempotency, BR-B14) |

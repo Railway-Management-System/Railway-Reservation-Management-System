@@ -3,6 +3,7 @@ import { useStaff } from '../context/StaffContext';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { FileText, Printer, DollarSign, AlertCircle } from 'lucide-react';
+import { formatIndiaDateTime, formatCurrency } from '../utils/formatters';
 
 interface FinesPageProps {
   prefillName?: string;
@@ -56,7 +57,7 @@ export const FinesPage: React.FC<FinesPageProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Total Penalty Fines Collected"
-          value={`₹${totalCollected.toFixed(2)}`}
+          value={formatCurrency(totalCollected)}
           subtitle="Settled on-spot via Cash / UPI"
           icon={DollarSign}
           color="emerald"
@@ -64,7 +65,7 @@ export const FinesPage: React.FC<FinesPageProps> = ({
 
         <StatCard
           title="Unsettled / Pending Challans"
-          value={`₹${totalUnpaid.toFixed(2)}`}
+          value={formatCurrency(totalUnpaid)}
           subtitle="Issued for recovery at destination"
           icon={AlertCircle}
           color="rose"
@@ -188,12 +189,12 @@ export const FinesPage: React.FC<FinesPageProps> = ({
                   <td className="py-3 px-4 font-semibold text-slate-800">{f.passengerName}</td>
                   <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">{f.idProofReference}</td>
                   <td className="py-3 px-4 text-slate-700">{f.reason.replace(/_/g, ' ')}</td>
-                  <td className="py-3 px-4 font-mono font-bold text-slate-900">₹{Number(f.amount).toFixed(2)}</td>
+                  <td className="py-3 px-4 font-mono font-bold text-slate-900">{formatCurrency(f.amount)}</td>
                   <td className="py-3 px-4">
                     <StatusBadge status={f.paymentStatus} size="sm" />
                   </td>
                   <td className="py-3 px-4 text-slate-500 text-[11px]">
-                    {new Date(f.issuedAt).toLocaleDateString('en-GB')} {new Date(f.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatIndiaDateTime(f.issuedAt)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button

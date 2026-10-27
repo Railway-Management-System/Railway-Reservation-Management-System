@@ -10,6 +10,7 @@ import { formatDateTime } from '../../utils/format';
 export const AuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [entityFilter, setEntityFilter] = useState('ALL');
@@ -20,14 +21,16 @@ export const AuditLogsPage: React.FC = () => {
 
   const loadLogs = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await auditLogService.getAuditLogs({
         entityType: entityFilter !== 'ALL' ? entityFilter : undefined,
         action: actionFilter !== 'ALL' ? actionFilter : undefined,
       });
       setLogs(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load audit logs:', err);
+      setError(err?.message || 'Failed to load audit log events.');
     } finally {
       setLoading(false);
     }
@@ -138,6 +141,8 @@ export const AuditLogsPage: React.FC = () => {
         data={logs}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadLogs}
         searchPlaceholder="Search audit events by action, entity, actor..."
         emptyMessage="No audit log events found."
       />

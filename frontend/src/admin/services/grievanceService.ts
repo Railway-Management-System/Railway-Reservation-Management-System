@@ -1,11 +1,11 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { Grievance, GrievanceStatus } from '../types/grievance';
 import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
 
 export const grievanceService = {
   async getGrievances(status?: string): Promise<Grievance[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('grievances')) {
       await simulateLatency();
       let list = mockStore.getGrievances();
       if (status && status !== 'ALL') {
@@ -23,7 +23,7 @@ export const grievanceService = {
     response: string,
     status: GrievanceStatus
   ): Promise<Grievance> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('grievances')) {
       await simulateLatency();
       const list = mockStore.getGrievances();
       const idx = list.findIndex((g) => String(g.grievanceId) === String(grievanceId));

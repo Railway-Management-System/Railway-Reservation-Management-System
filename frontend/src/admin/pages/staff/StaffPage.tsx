@@ -31,9 +31,11 @@ export const StaffPage: React.FC = () => {
   // Edit Staff Modal State
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [sList, stList] = await Promise.all([
         staffService.getStaff(),
@@ -41,8 +43,9 @@ export const StaffPage: React.FC = () => {
       ]);
       setStaffList(sList);
       setStations(stList);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load staff list:', err);
+      setError(err?.message || 'Failed to load staff members.');
     } finally {
       setLoading(false);
     }
@@ -177,6 +180,8 @@ export const StaffPage: React.FC = () => {
         data={staffList}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadData}
         searchPlaceholder="Search staff by employee code, name, designation..."
         emptyMessage="No railway personnel found."
       />

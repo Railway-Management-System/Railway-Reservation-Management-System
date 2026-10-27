@@ -631,40 +631,55 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setServerChart(chartList);
               setChartStatus({ loading: false, error: null, prepared: true });
 
-              // Map chartList rows to manifest passengers in state if available
+              // Map chartList rows to manifest passengers in state and update existing rows
               if (chartList.length > 0) {
-                const mappedPassengers: ManifestPassenger[] = chartList.map((c, idx) => ({
-                  manifestId: c.snapshotId || (idx + 1000),
-                  bookingId: 1000 + idx,
-                  pnr: c.pnr,
-                  trainId: assignment.scheduleId || 101,
-                  journeyDate: new Date().toISOString().split('T')[0],
-                  boardingStationId: c.fromStationId || 1,
-                  destinationStationId: c.toStationId || 2,
-                  passengerId: c.passengerNo || (idx + 1),
-                  name: c.passengerName || 'Passenger',
-                  age: 30,
-                  gender: 'MALE',
-                  idProofType: 'GOVT_ID',
-                  idProofReference: c.pnr ? `PNR-${c.pnr}` : 'VERIFIED',
-                  coachNumber: c.coachNo || null,
-                  seatNumber: c.seatNo || null,
-                  berthType: c.berthType || null,
-                  classType: '3A',
-                  quota: 'GN',
-                  bookingStatus: (c.status as any) || 'CONFIRMED',
-                  boardingStatus: 'NOT_VERIFIED',
-                  verificationStatus: 'UNCHECKED',
-                  verificationNotes: '',
-                  verifiedAt: null
-                }));
-
                 setData(prev => {
-                  const existingPnrs = new Set(prev.manifest.map(m => m.pnr));
-                  const newFromChart = mappedPassengers.filter(m => !existingPnrs.has(m.pnr));
+                  const chartMap = new Map(chartList.map(c => [`${c.pnr}-${c.passengerNo}`, c]));
+                  const updatedExisting = prev.manifest.map(m => {
+                    const key = `${m.pnr}-${m.passengerId}`;
+                    const fromChart = chartMap.get(key);
+                    if (fromChart) {
+                      chartMap.delete(key);
+                      return {
+                        ...m,
+                        coachNumber: fromChart.coachNo || m.coachNumber,
+                        seatNumber: fromChart.seatNo || m.seatNumber,
+                        berthType: fromChart.berthType || m.berthType,
+                        bookingStatus: (fromChart.status as any) || m.bookingStatus
+                      };
+                    }
+                    return m;
+                  });
+
+                  const remainingNew: ManifestPassenger[] = Array.from(chartMap.values()).map((c, idx) => ({
+                    manifestId: c.snapshotId || (Date.now() + idx),
+                    bookingId: 1000 + idx,
+                    pnr: c.pnr,
+                    trainId: assignment.scheduleId || 101,
+                    journeyDate: new Date().toISOString().split('T')[0],
+                    boardingStationId: c.fromStationId || 1,
+                    destinationStationId: c.toStationId || 2,
+                    passengerId: c.passengerNo || 1,
+                    name: c.passengerName || 'Passenger',
+                    age: 30,
+                    gender: 'MALE',
+                    idProofType: 'GOVT_ID',
+                    idProofReference: c.pnr ? `PNR-${c.pnr}` : 'VERIFIED',
+                    coachNumber: c.coachNo || null,
+                    seatNumber: c.seatNo || null,
+                    berthType: c.berthType || null,
+                    classType: '3A',
+                    quota: 'GN',
+                    bookingStatus: (c.status as any) || 'CONFIRMED',
+                    boardingStatus: 'NOT_VERIFIED',
+                    verificationStatus: 'UNCHECKED',
+                    verificationNotes: '',
+                    verifiedAt: null
+                  }));
+
                   return {
                     ...prev,
-                    manifest: [...newFromChart, ...prev.manifest]
+                    manifest: [...updatedExisting, ...remainingNew]
                   };
                 });
               }
@@ -737,18 +752,18 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // ─── Real No-Show API Call ────────────────────────────────────────────────
-  const noShowPassengerApi = async (pnr: string, passengerNo: number): Promise<{ success: boolean; message: string }> => {
+  const noShowPassengerApi = async (pnr: string, passengerNo: number): Promise<{ success: boolean; message: string; promotedPassengerName?: string }> => {
     try {
-      const res = await staffApiService.markNoShow(pnr, passengerNo);
-      showToast(`No-show marked: PNR ${pnr} Pax #${passengerNo}. Seat released! (${res.status})`, 'error');
-      return { success: true, message: `Status: ${res.status}` };
+      const res: any = await staffApiService.markNoShow(pnr, passengerNo);
+      const promotedPassengerName = res?.promotedPassengerName || res?.promotedPassenger?.name || res?.promoted?.name;
+      return { success: true, message: `Status: ${res.status}`, promotedPassengerName };
     } catch (err: any) {
       showToast(`No-show failed: ${err.message}`, 'error');
       return { success: false, message: err.message };
     }
   };
 
-  // Dual Action: Calls real API if passenger has PNR and passengerNo, then updates state
+  // Dual Action: Calls real API if passenger has PNR and passengerNo, then updates state & re-fetches manifest
   const markPassengerBoarding = async (
     manifestId: number,
     status: BoardingStatus,
@@ -771,9 +786,25 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return; // Do NOT update state if server refused boarding
         }
       } else if (status === 'NO_SHOW') {
+        const prevRac = data.manifest.filter(m => m.bookingStatus === 'RAC');
         const noShowRes = await noShowPassengerApi(pnr, passengerNo);
         if (!noShowRes.success) {
           return; // Do NOT update state if server refused no-show
+        }
+
+        // Re-fetch manifest from API immediately
+        await refreshAssignmentAndChart();
+
+        // Show clear notification including promoted passenger name if available
+        let promoted = noShowRes.promotedPassengerName;
+        if (!promoted && prevRac.length > 0) {
+          promoted = prevRac[0].name;
+        }
+
+        if (promoted) {
+          showToast(`No-Show recorded for ${targetPassenger.name}. Seat vacated. ${promoted} promoted to Confirmed berth!`, 'success');
+        } else {
+          showToast(`No-Show recorded for ${targetPassenger.name}. Seat vacated and released to available pool!`, 'success');
         }
       }
     }
@@ -821,39 +852,10 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const promoteRacPassenger = (manifestId: number, vacancyId: number) => {
-    const vacancy = data.vacancies.find(v => v.vacancyId === vacancyId);
-    const passenger = data.manifest.find(m => m.manifestId === manifestId);
-    if (!vacancy || !passenger) return null;
-
-    let updatedPassenger: ManifestPassenger | null = null;
-
-    setData(prev => {
-      const nextManifest = prev.manifest.map(p => {
-        if (p.manifestId === manifestId) {
-          updatedPassenger = {
-            ...p,
-            coachNumber: vacancy.coachNumber,
-            seatNumber: vacancy.seatNumber,
-            berthType: vacancy.berthType,
-            bookingStatus: 'CONFIRMED' as const,
-            verificationNotes: `Promoted from ${p.bookingStatus} by TC to confirmed berth.`
-          };
-          return updatedPassenger;
-        }
-        return p;
-      });
-
-      const nextVacancies = prev.vacancies.filter(v => v.vacancyId !== vacancyId);
-      return {
-        ...prev,
-        manifest: nextManifest,
-        vacancies: nextVacancies
-      };
-    });
-
-    showToast(`Successfully promoted ${passenger.name} to Confirmed Berth ${vacancy.coachNumber}-${vacancy.seatNumber}!`, 'success');
-    return updatedPassenger;
+  // Promotion is strictly handled by database stored procedure sp_promote_passenger on cancellation/no-show (BR-W4, BR-W5)
+  const promoteRacPassenger = (_manifestId: number, _vacancyId: number) => {
+    showToast('Promotion is done automatically by the database on cancellation/no-show', 'info');
+    return null;
   };
 
   // ─── Real Fine API Call ───────────────────────────────────────────────────

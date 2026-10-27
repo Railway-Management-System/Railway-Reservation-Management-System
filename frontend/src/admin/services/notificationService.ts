@@ -1,11 +1,11 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { BroadcastNotificationPayload, Notification } from '../types/notification';
 import { httpRequest } from './http.client';
 import { mockStore, simulateLatency } from './mock.client';
 
 export const notificationService = {
   async getNotifications(): Promise<Notification[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('notifications')) {
       await simulateLatency();
       // Admin notifications: all notifications or targeted to user 7
       const list = mockStore.getNotifications();
@@ -16,7 +16,7 @@ export const notificationService = {
   },
 
   async markAsRead(notificationId: number): Promise<void> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('notifications')) {
       await simulateLatency(100);
       const list = mockStore.getNotifications();
       const item = list.find((n) => n.notificationId === notificationId);
@@ -35,7 +35,7 @@ export const notificationService = {
   // CONTRACT-GAP: see ADMIN_CONTRACT_GAPS.md
   // Broadcast endpoint is not in current API contract. Simulated in-memory.
   async broadcastNotification(payload: BroadcastNotificationPayload): Promise<Notification> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('notifications')) {
       await simulateLatency();
       const list = mockStore.getNotifications();
       const newId = Math.max(...list.map((n) => n.notificationId), 0) + 1;

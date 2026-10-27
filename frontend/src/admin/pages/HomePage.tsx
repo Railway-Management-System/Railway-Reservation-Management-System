@@ -38,7 +38,7 @@ export default function HomePage() {
       setEmail('admin@railways.gov.in');
       setPassword('AdminPassword123!');
     } else if (role === 'Staff') {
-      setEmail('staff@railways.gov.in');
+      setEmail('EMP-TC-101');
       setPassword('StaffPassword123!');
     } else {
       setEmail('rahul.sharma@example.com');
@@ -65,7 +65,9 @@ export default function HomePage() {
         navigate(ADMIN_ROUTES.DASHBOARD);
       } else if (selectedRole === 'Staff') {
         // Validate staff credentials before navigating
-        await authService.staffLogin(email.trim(), password);
+        const staffId = email.trim() || 'EMP-TC-101';
+        const staffPass = password || 'StaffPassword123!';
+        await authService.staffLogin(staffId, staffPass);
         navigate('/staff');
       } else {
         // Passenger Portal — no server auth needed
@@ -305,7 +307,7 @@ export default function HomePage() {
                         selectedRole === 'Admin' 
                           ? 'admin@railways.gov.in' 
                           : selectedRole === 'Staff' 
-                          ? 'staff@railways.gov.in' 
+                          ? 'EMP-TC-101' 
                           : 'rahul.sharma@example.com'
                       }
                       value={email}

@@ -17,7 +17,8 @@
     "test:d4": "node scripts/test-d4.js",
     "test:all": "node scripts/test-all.js",
     "simulate:daily": "node scripts/simulate-daily.js",
-    "demo:refresh": "node scripts/demo-refresh.js"
+    "demo:refresh": "node scripts/demo-refresh.js",
+    "demo:chain": "node scripts/demo-chain.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

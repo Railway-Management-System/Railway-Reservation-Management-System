@@ -112,32 +112,63 @@ async function run() {
       }
     }
 
+async function cleanupTestObjects(connection) {
+  try {
+    await connection.query('DROP TABLE IF EXISTS test_results;');
+    await connection.query(`
+      DROP PROCEDURE IF EXISTS test_story_1;
+      DROP PROCEDURE IF EXISTS test_story_2;
+      DROP PROCEDURE IF EXISTS test_story_3;
+      DROP PROCEDURE IF EXISTS test_story_4;
+      DROP PROCEDURE IF EXISTS test_story_5;
+      DROP PROCEDURE IF EXISTS test_waiting_list_full;
+      DROP PROCEDURE IF EXISTS test_rac_open;
+      DROP PROCEDURE IF EXISTS test_berth_preference_not_met;
+      DROP PROCEDURE IF EXISTS test_monthly_limit_exceeded;
+      DROP PROCEDURE IF EXISTS test_chart_prepared;
+      DROP PROCEDURE IF EXISTS test_whole_pnr_cancel_two_seats;
+      DROP PROCEDURE IF EXISTS test_cancel_wl_passenger;
+      DROP PROCEDURE IF EXISTS test_whole_pnr_cancel_mixed_passengers;
+      DROP PROCEDURE IF EXISTS test_cancel_after_chart;
+      DROP PROCEDURE IF EXISTS test_tatkal_confirmed_cancel;
+      DROP PROCEDURE IF EXISTS test_counter_ticket_cancel;
+      DROP PROCEDURE IF EXISTS test_real_general_waiting_list_full;
+      DROP PROCEDURE IF EXISTS test_real_general_rac_allocation;
+      DROP PROCEDURE IF EXISTS test_real_inventory_sync_after_cancel_promotion;
+      DROP PROCEDURE IF EXISTS test_payment_hold_pay_in_time;
+      DROP PROCEDURE IF EXISTS test_payment_hold_pay_late;
+      DROP PROCEDURE IF EXISTS test_payment_hold_expires_and_released;
+      DROP PROCEDURE IF EXISTS test_payment_hold_same_gateway_id_twice;
+      DROP PROCEDURE IF EXISTS test_counter_booking_unchanged;
+      DROP PROCEDURE IF EXISTS test_payment_hold_pay_late_promotes_waiting;
+      DROP PROCEDURE IF EXISTS test_confirmed_booking_second_payment_refunded;
+      DROP PROCEDURE IF EXISTS test_all_inventory_counters_match_real_counts;
+      DROP PROCEDURE IF EXISTS sp_run_all_tests;
+    `);
+
+    const [leftoverProcs] = await connection.query(
+      `SELECT ROUTINE_NAME FROM information_schema.ROUTINES 
+       WHERE ROUTINE_SCHEMA = 'railway_db' 
+         AND ROUTINE_TYPE = 'PROCEDURE' 
+         AND (ROUTINE_NAME LIKE 'test\\_%' OR ROUTINE_NAME = 'sp_run_all_tests')`
+    );
+
+    if (Array.isArray(leftoverProcs) && leftoverProcs.length > 0) {
+      for (const row of leftoverProcs) {
+        if (row.ROUTINE_NAME && (row.ROUTINE_NAME.startsWith('test_') || row.ROUTINE_NAME === 'sp_run_all_tests')) {
+          await connection.query(`DROP PROCEDURE IF EXISTS \`${row.ROUTINE_NAME}\``);
+        }
+      }
+    }
+  } catch (cleanErr) {
+    console.error('Warning: Error during test cleanup:', cleanErr.message);
+  }
+}
+
     const keepTests = process.argv.includes('--with-tests');
     if (!keepTests) {
       console.log('\n--- Step 8b: Cleaning up Test Harness Objects ---');
-      await connection.query(`
-        DROP TABLE IF EXISTS test_results;
-        DROP PROCEDURE IF EXISTS test_story_1;
-        DROP PROCEDURE IF EXISTS test_story_2;
-        DROP PROCEDURE IF EXISTS test_story_3;
-        DROP PROCEDURE IF EXISTS test_story_4;
-        DROP PROCEDURE IF EXISTS test_story_5;
-        DROP PROCEDURE IF EXISTS test_waiting_list_full;
-        DROP PROCEDURE IF EXISTS test_rac_open;
-        DROP PROCEDURE IF EXISTS test_berth_preference_not_met;
-        DROP PROCEDURE IF EXISTS test_monthly_limit_exceeded;
-        DROP PROCEDURE IF EXISTS test_chart_prepared;
-        DROP PROCEDURE IF EXISTS test_whole_pnr_cancel_two_seats;
-        DROP PROCEDURE IF EXISTS test_cancel_wl_passenger;
-        DROP PROCEDURE IF EXISTS test_whole_pnr_cancel_mixed_passengers;
-        DROP PROCEDURE IF EXISTS test_cancel_after_chart;
-        DROP PROCEDURE IF EXISTS test_tatkal_confirmed_cancel;
-        DROP PROCEDURE IF EXISTS test_counter_ticket_cancel;
-        DROP PROCEDURE IF EXISTS test_real_general_waiting_list_full;
-        DROP PROCEDURE IF EXISTS test_real_general_rac_allocation;
-        DROP PROCEDURE IF EXISTS test_real_inventory_sync_after_cancel_promotion;
-        DROP PROCEDURE IF EXISTS sp_run_all_tests;
-      `);
+      await cleanupTestObjects(connection);
       console.log('✓ Test harness procedures and test_results table cleaned up.');
     }
 
@@ -154,7 +185,14 @@ async function run() {
     if (err.sql) console.error('SQL:', err.sql.slice(0, 200));
     process.exit(1);
   } finally {
-    if (connection) await connection.end();
+    if (connection) {
+      try {
+        if (!process.argv.includes('--with-tests')) {
+          await cleanupTestObjects(connection);
+        }
+      } catch (_) {}
+      await connection.end();
+    }
   }
 }
 

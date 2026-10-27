@@ -1,16 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, ArrowLeft, RefreshCw } from 'lucide-react';
+import { ExternalLink, ArrowLeft } from 'lucide-react';
 
 export const PassengerPortalPage: React.FC = () => {
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-900 text-slate-100 overflow-hidden font-sans">
+    <div className="fixed inset-0 flex flex-col h-screen w-screen bg-slate-900 text-slate-100 overflow-hidden font-sans">
       {/* Top Unified System Header */}
       <header className="h-14 bg-slate-950 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
           <Link
             to="/"
-
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -38,14 +37,16 @@ export const PassengerPortalPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Embedded Passenger Application Frame */}
-      <div className="flex-1 w-full relative bg-slate-50">
+      {/* Embedded Passenger Application Frame - Exact Height, Zero Outer Scroll */}
+      <div className="flex-1 min-h-0 w-full relative bg-slate-900 overflow-hidden">
         <iframe
           src="/user/index.html"
           title="Passenger Portal - RailConnect"
-          className="w-full h-full border-none"
+          className="w-full h-full border-none block"
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
         />
       </div>
     </div>
   );
 };
+

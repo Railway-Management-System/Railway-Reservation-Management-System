@@ -441,7 +441,7 @@ Authorization: Bearer <jwt_or_mock_token>
   "success": true,
   "data": {
     "holdToken": "HOLD-882104-BCT-NDLS",
-    "expiresAt": "2026-10-18T16:10:00Z",
+    "expiresAt": "2026-10-18 16:10:00",
     "holdDurationSeconds": 600,
     "quota": "GENERAL",
     "seatsHeld": 2
@@ -533,7 +533,7 @@ Authorization: Bearer <jwt_or_mock_token>
         "totalFare": 2039.80
       }
     ],
-    "expiresAt": "2026-10-18T16:10:00Z"
+    "expiresAt": "2026-10-18 16:10:00"
   }
 }
 ```
@@ -587,7 +587,7 @@ Authorization: Bearer <jwt_or_mock_token>
     "pnr": "2849102841",
     "paymentStatus": "SUCCESS",
     "gatewayPaymentId": "pay_test_8829104",
-    "paidAt": "2026-10-18T16:05:22Z",
+    "paidAt": "2026-10-18 16:05:22",
     "bookingStatus": "CONFIRMED",
     "passengers": [
       {
@@ -876,7 +876,7 @@ Authorization: Bearer <jwt_or_mock_token>
     "pnr": "2849102841",
     "reason": "TRAIN_DELAYED_OVER_3_HOURS",
     "status": "FILED",
-    "filedAt": "2026-10-18T16:15:00.000Z",
+    "filedAt": "2026-10-18 16:15:00",
     "tdrRefNos": [
       "TDR-2849102841-1-1"
     ],
@@ -905,7 +905,7 @@ Authorization: Bearer <jwt_or_mock_token>
       "passengerNo": 1,
       "reason": "TRAIN_DELAYED_OVER_3_HOURS",
       "status": "FILED",
-      "filedAt": "2026-10-18T16:15:00.000Z",
+      "filedAt": "2026-10-18 16:15:00",
       "refundAmount": null,
       "remarks": null
     }
@@ -926,7 +926,7 @@ Authorization: Bearer <jwt_or_mock_token>
     "passengerNo": 1,
     "reason": "TRAIN_DELAYED_OVER_3_HOURS",
     "status": "FILED",
-    "filedAt": "2026-10-18T16:15:00.000Z",
+    "filedAt": "2026-10-18 16:15:00",
     "refundAmount": null,
     "remarks": null
   }
@@ -954,8 +954,8 @@ Authorization: Bearer <jwt_or_mock_token>
     "scheduleId": 1001,
     "stationId": 21,
     "dutyType": "TRAIN_DUTY",
-    "shiftStart": "2026-10-18T06:00:00.000Z",
-    "shiftEnd": "2026-10-18T14:00:00.000Z",
+    "shiftStart": "2026-10-18 06:00:00",
+    "shiftEnd": "2026-10-18 14:00:00",
     "isActive": false,
     "station": {
       "stationId": 21,
@@ -998,7 +998,7 @@ Authorization: Bearer <jwt_or_mock_token>
       "toStationId": 10,
       "toStationCode": "NDLS",
       "concessionFlag": false,
-      "generatedAt": "2026-10-23T12:00:00.000Z"
+      "generatedAt": "2026-10-23 12:00:00"
     }
   ]
 }
@@ -1076,6 +1076,31 @@ Authorization: Bearer <jwt_or_mock_token>
     }
     ```
   - **Errors**: `400 Bad Request` (Passenger status not eligible for no-show [BR-ST4]), `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Staff not assigned on TRAIN_DUTY for this train schedule, or non-staff token), `404 Not Found` (Booking or passenger not found).
+
+- **`POST /api/staff/promote`**:
+  - **Role**: `STAFF` and `ADMIN`
+  - **Behavior**: Calls stored procedure `sp_promote_passenger` directly in MySQL with input validation only (no promotion logic in Node).
+  - **Request Body**:
+    ```json
+    {
+      "scheduleId": 1001,
+      "classId": 3,
+      "seatId": 23273
+    }
+    ```
+  - **Response (200 OK)**:
+    ```json
+    {
+      "success": true,
+      "message": "Promotion executed successfully via sp_promote_passenger",
+      "data": {
+        "scheduleId": 1001,
+        "classId": 3,
+        "seatId": 23273
+      }
+    }
+    ```
+  - **Errors**: `400 Bad Request` (Invalid or missing scheduleId/classId), `401 Unauthorized` (Missing/invalid token), `403 Forbidden` (Insufficient permissions).
 
 ### 5.3 On-Spot Fines & Incident Reports
 
@@ -1278,7 +1303,7 @@ Authorization: Bearer <jwt_or_mock_token>
     "coachId": 301,
     "type": "AC_SERVICE",
     "status": "OPEN",
-    "createdAt": "2026-10-18T16:20:00Z"
+    "createdAt": "2026-10-18 16:20:00"
   }
 }
 ```
@@ -1300,7 +1325,7 @@ Authorization: Bearer <jwt_or_mock_token>
   "data": {
     "maintId": 901,
     "status": "COMPLETED",
-    "completedAt": "2026-10-18T18:00:00Z"
+    "completedAt": "2026-10-18 18:00:00"
   }
 }
 ```
@@ -1323,7 +1348,7 @@ Authorization: Bearer <jwt_or_mock_token>
       "settingKey": "BOOKING_WINDOW_DAYS",
       "settingValue": "7",
       "description": "Advance booking window in days",
-      "updatedAt": "2026-10-18T00:00:00.000Z"
+      "updatedAt": "2026-10-18 00:00:00"
     }
   ]
 }
@@ -1352,7 +1377,7 @@ Authorization: Bearer <jwt_or_mock_token>
   "data": {
     "settingKey": "BOOKING_WINDOW_DAYS",
     "settingValue": "7",
-    "updatedAt": "2026-10-18T16:22:00.000Z"
+    "updatedAt": "2026-10-18 16:22:00"
   }
 }
 ```
@@ -1369,7 +1394,7 @@ Authorization: Bearer <jwt_or_mock_token>
     "scheduleId": 1001,
     "trainNumber": "12951",
     "journeyDate": "2026-10-20",
-    "chartPreparedAt": "2026-10-20T09:00:00Z",
+    "chartPreparedAt": "2026-10-20 09:00:00",
     "summary": {
       "activeHoldsCancelled": 3,
       "unusedQuotaSeatsReleased": 28,
@@ -1380,6 +1405,94 @@ Authorization: Bearer <jwt_or_mock_token>
       "chartSnapshotRowsPersisted": 842
     }
   }
+}
+```
+
+### 7.2.1 List Dated Train Schedules
+- **Method / Endpoint**: `GET /api/admin/schedules`
+- **Role**: Admin (`requireAdminRole`)
+- **Query Parameters**:
+  - `from_date` (optional, string `YYYY-MM-DD`): Filter schedules on or after journey date.
+  - `to_date` (optional, string `YYYY-MM-DD`): Filter schedules on or before journey date.
+  - `train_no` (optional, string): Filter by train number.
+  - `limit` (optional, integer): Maximum schedules to return (default 50, max 200).
+- **Request Example**:
+  `GET /api/admin/schedules?from_date=2026-10-27&to_date=2026-11-02&train_no=12951&limit=50`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "schedule_id": 1001,
+      "scheduleId": 1001,
+      "train_id": 101,
+      "trainId": 101,
+      "train_number": "12951",
+      "trainNumber": "12951",
+      "train_name": "MUMBAI TEJAS RAJDHANI",
+      "trainName": "MUMBAI TEJAS RAJDHANI",
+      "journey_date": "2026-10-27",
+      "journeyDate": "2026-10-27",
+      "departure_time": "16:30:00",
+      "departureTime": "16:30:00",
+      "arrival_time": "08:32:00",
+      "arrivalTime": "08:32:00",
+      "chart_prepared_at": null,
+      "chartPreparedAt": null,
+      "status": "ON_TIME",
+      "delay_minutes": 0,
+      "delayMinutes": 0,
+      "classes": [
+        {
+          "class_id": 1,
+          "classId": 1,
+          "class_code": "1A",
+          "classCode": "1A",
+          "class_name": "First AC",
+          "className": "First AC",
+          "available_seats": 24,
+          "availableSeats": 24,
+          "total_seats": 24,
+          "totalSeats": 24,
+          "rac_count": 0,
+          "racCount": 0,
+          "rac_capacity": 0,
+          "racCapacity": 0,
+          "wl_count": 0,
+          "wlCount": 0,
+          "wl_capacity": 6,
+          "wlCapacity": 6
+        },
+        {
+          "class_id": 2,
+          "classId": 2,
+          "class_code": "2A",
+          "classCode": "2A",
+          "class_name": "AC 2 Tier",
+          "className": "AC 2 Tier",
+          "available_seats": 96,
+          "availableSeats": 96,
+          "total_seats": 96,
+          "totalSeats": 96,
+          "rac_count": 0,
+          "racCount": 0,
+          "rac_capacity": 10,
+          "racCapacity": 10,
+          "wl_count": 0,
+          "wlCount": 0,
+          "wl_capacity": 24,
+          "wlCapacity": 24
+        }
+      ],
+      "total_available_seats": 120,
+      "totalAvailableSeats": 120,
+      "total_rac_count": 0,
+      "totalRacCount": 0,
+      "total_wl_count": 0,
+      "totalWlCount": 0
+    }
+  ]
 }
 ```
 
@@ -1398,7 +1511,7 @@ Authorization: Bearer <jwt_or_mock_token>
       "passengerNo": 1,
       "reason": "TRAIN_DELAYED_OVER_3_HOURS",
       "status": "FILED",
-      "filedAt": "2026-10-18T16:15:00.000Z",
+      "filedAt": "2026-10-18 16:15:00",
       "evidenceRef": "DELAY_LOG_STATION_BCT",
       "refundAmount": null,
       "remarks": null,
@@ -1411,6 +1524,7 @@ Authorization: Bearer <jwt_or_mock_token>
   - **Errors**: `401 Unauthorized` (Token missing or invalid), `403 Forbidden` (Non-admin token).
 
 - **`PUT /api/admin/tdr/:tdrRefNo`**:
+  - **Aliases**: `PUT /api/admin/tdr/:id`, `PUT /api/tdr/admin/:id`
   - **Role**: Admin (admin ID extracted from token)
   - **Request Body (Approval)**:
 ```json
@@ -1810,6 +1924,209 @@ Safe rules:
     "total": 3,
     "totalPages": 1
   }
+}
+```
+
+---
+
+### 7.9 Admin Operations & Query Endpoints
+
+#### 7.9.1 List Reservations
+- **Method / Endpoint**: `GET /api/admin/bookings`
+- **Role**: `ADMIN`
+- **Query Parameters**:
+  - `pnr` (optional, string)
+  - `status` or `bookingStatus` (optional: `CONFIRMED`, `RAC`, `WAITING_LIST`, `CANCELLED`, `PAYMENT_PENDING`, `FAILED`)
+  - `trainId` (optional, number)
+  - `journeyDate` (optional, YYYY-MM-DD)
+  - `from_date` (optional, YYYY-MM-DD)
+  - `to_date` (optional, YYYY-MM-DD)
+  - `limit` (optional, integer: default 50, maximum 200)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "pnr": "2849102841",
+      "userId": 50001,
+      "userName": "Rahul Sharma",
+      "trainId": 129,
+      "trainNumber": "12951",
+      "trainName": "Mumbai Tejas Rajdhani Express",
+      "journeyDate": "2026-10-20",
+      "boardingStationId": 21,
+      "destinationStationId": 10,
+      "boardingStationCode": "BCT",
+      "destinationStationCode": "NDLS",
+      "classType": "3A",
+      "quota": "GENERAL",
+      "bookingStatus": "CONFIRMED",
+      "status": "CONFIRMED",
+      "totalFare": 2039.80,
+      "createdAt": "2026-10-18 16:05:22",
+      "channel": "ONLINE",
+      "passengerCount": 1
+    }
+  ]
+}
+```
+
+#### 7.9.2 Consolidated RANK Analytical Reports
+- **Method / Endpoint**: `GET /api/admin/reports/rank`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "busiestTrains": [
+      {
+        "rank_pos": 1,
+        "dense_rank_pos": 1,
+        "train_id": 129,
+        "train_number": "12951",
+        "train_name": "Mumbai Tejas Rajdhani Express",
+        "train_type": "RAJDHANI",
+        "total_runs_conducted": 14,
+        "total_passengers_booked": 482,
+        "total_revenue": 982140.00
+      }
+    ],
+    "topRoutes": [
+      {
+        "revenue_rank": 1,
+        "origin_code": "BCT",
+        "origin_station": "MUMBAI CENTRAL",
+        "destination_code": "NDLS",
+        "destination_station": "NEW DELHI",
+        "total_bookings_count": 210,
+        "gross_route_revenue": 452100.00,
+        "avg_fare_per_passenger": 2152.86
+      }
+    ],
+    "stationRanking": [
+      {
+        "station_rank": 1,
+        "station_id": 21,
+        "station_code": "BCT",
+        "station_name": "MUMBAI CENTRAL",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "total_boarding_passengers": 1240,
+        "originating_revenue": 2154300.00
+      }
+    ],
+    "classRevenue": [
+      {
+        "class_code": "3A",
+        "class_name": "AC 3 Tier",
+        "total_passengers": 1820,
+        "class_revenue": 3712800.00,
+        "running_cumulative_revenue": 3712800.00,
+        "revenue_pct_share": 42.15
+      }
+    ],
+    "quotaUtilization": [
+      {
+        "quota": "GENERAL",
+        "total_bookings": 1420,
+        "total_passengers": 2840,
+        "total_fare_collected": 5892100.00,
+        "avg_passenger_fare": 2074.68,
+        "quota_popularity_rank": 1
+      }
+    ]
+  }
+}
+```
+
+#### 7.9.3 User Accounts List
+- **Method / Endpoint**: `GET /api/admin/users`
+- **Role**: `ADMIN`
+- **Query Parameters**: `search` (optional), `status` (optional), `role` (optional)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "userId": 50001,
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@example.com",
+      "phone": "+91-9876543210",
+      "role": "PASSENGER",
+      "accountStatus": "ACTIVE",
+      "createdAt": "2026-10-18 10:00:00"
+    }
+  ]
+}
+```
+
+#### 7.9.4 Station Platforms List
+- **Method / Endpoint**: `GET /api/admin/platforms`
+- **Role**: `ADMIN`
+- **Query Parameters**: `stationId` (optional)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "platformId": 1,
+      "stationId": 1,
+      "platformNumber": 1,
+      "status": "ACTIVE",
+      "facilities": []
+    }
+  ]
+}
+```
+
+#### 7.9.5 Recorded Fines List
+- **Method / Endpoint**: `GET /api/admin/fines`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "fineId": 1,
+      "staffId": 1,
+      "passengerName": "Ajay Kumar",
+      "idProofReference": "VOTER-88491",
+      "trainId": 129,
+      "amount": 550.00,
+      "reason": "TICKETLESS_TRAVEL",
+      "paymentStatus": "PAID",
+      "issuedAt": "2026-10-23 19:35:46"
+    }
+  ]
+}
+```
+
+#### 7.9.6 Reported Incidents List
+- **Method / Endpoint**: `GET /api/admin/incidents`
+- **Role**: `ADMIN`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "incidentId": 1,
+      "reportedBy": 1,
+      "type": "AC_FAILURE",
+      "severity": "MEDIUM",
+      "locationType": "TRAIN",
+      "stationId": null,
+      "trainId": 1001,
+      "description": "AC_FAILURE",
+      "status": "REPORTED",
+      "createdAt": "2026-10-23 19:35:46"
+    }
+  ]
 }
 ```
 

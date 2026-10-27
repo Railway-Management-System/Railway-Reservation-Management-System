@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api.config';
+import { isServiceMock } from '../config/api.config';
 import { httpRequest } from './http.client';
 import { simulateLatency } from './mock.client';
 
@@ -27,7 +27,7 @@ const MOCK_SETTINGS: SystemSetting[] = [
 
 export const settingService = {
   async getSettings(): Promise<SystemSetting[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('settings')) {
       await simulateLatency();
       return [...MOCK_SETTINGS];
     }
@@ -35,7 +35,7 @@ export const settingService = {
   },
 
   async updateSetting(key: string, value: string | number | boolean): Promise<SystemSetting> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('settings')) {
       await simulateLatency();
       const item = MOCK_SETTINGS.find((s) => s.settingKey === key);
       if (item) {

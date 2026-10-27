@@ -11,6 +11,7 @@ import { formatDateTime } from '../../utils/format';
 export const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [readFilter, setReadFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL');
 
   // Broadcast Modal State
@@ -26,14 +27,16 @@ export const NotificationsPage: React.FC = () => {
 
   const loadNotifications = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await notificationService.getNotifications();
       let filtered = data;
       if (readFilter === 'UNREAD') filtered = data.filter((n) => !n.isRead);
       else if (readFilter === 'READ') filtered = data.filter((n) => n.isRead);
       setNotifications(filtered);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load notifications:', err);
+      setError(err?.message || 'Failed to load notifications.');
     } finally {
       setLoading(false);
     }
@@ -146,6 +149,10 @@ export const NotificationsPage: React.FC = () => {
         description="Review passenger alerts and compose administrative emergency or operational broadcasts."
         actions={
           <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              Demo data
+            </span>
             <select
               value={readFilter}
               onChange={(e) => setReadFilter(e.target.value as any)}
@@ -182,6 +189,8 @@ export const NotificationsPage: React.FC = () => {
         data={notifications}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadNotifications}
         searchPlaceholder="Search notifications by title, type, reference..."
         emptyMessage="No system alerts found."
       />

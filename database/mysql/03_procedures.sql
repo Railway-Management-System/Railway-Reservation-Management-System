@@ -748,6 +748,7 @@ proc_label: BEGIN
     WHILE v_idx < v_pass_count DO
         passenger_block: BEGIN
             DECLARE v_p_saved_id INT;
+            DECLARE v_p_saved_raw VARCHAR(64);
             DECLARE v_p_name VARCHAR(128);
             DECLARE v_p_age INT;
             DECLARE v_p_gender VARCHAR(10);
@@ -762,8 +763,12 @@ proc_label: BEGIN
             DECLARE v_queue_pos VARCHAR(16) DEFAULT NULL;
             DECLARE v_res_id INT;
 
-            SET v_p_saved_id = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].saved_passenger_id')));
-            IF v_p_saved_id IS NULL OR v_p_saved_id = 'null' OR v_p_saved_id = '' THEN SET v_p_saved_id = NULL; END IF;
+            SET v_p_saved_raw = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].saved_passenger_id')));
+            IF v_p_saved_raw IS NULL OR v_p_saved_raw = 'null' OR v_p_saved_raw = '' THEN
+                SET v_p_saved_id = NULL;
+            ELSE
+                SET v_p_saved_id = CAST(v_p_saved_raw AS UNSIGNED);
+            END IF;
             SET v_p_name = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].name')));
             SET v_p_age = JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].age'));
             SET v_p_gender = JSON_UNQUOTE(JSON_EXTRACT(p_passengers, CONCAT('$[', v_idx, '].gender')));
@@ -1392,6 +1397,7 @@ proc_label: BEGIN
     DECLARE v_booking_status VARCHAR(20);
     DECLARE v_sched_id INT;
     DECLARE v_class_id INT;
+    DECLARE v_total_fare DECIMAL(10,2);
     DECLARE v_created_at DATETIME;
     DECLARE v_hold_minutes INT DEFAULT 10;
     DECLARE v_as_of DATETIME;
@@ -1412,9 +1418,14 @@ proc_label: BEGIN
         IF p_manage_tx = 1 THEN
             ROLLBACK;
         END IF;
-        SET p_out_status = 'FAILED';
-        SET p_out_payment_id = NULL;
+        RESIGNAL;
     END;
+
+    -- Safety check: payment amount must be strictly greater than zero
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'PAYMENT_AMOUNT_INVALID: Payment amount must be strictly greater than zero.';
+    END IF;
 
     IF p_manage_tx = 1 THEN
         START TRANSACTION;
@@ -1447,8 +1458,8 @@ proc_label: BEGIN
     END IF;
 
     -- 2. Fetch booking details
-    SELECT status, created_at, schedule_id, class_id
-    INTO v_booking_status, v_created_at, v_sched_id, v_class_id
+    SELECT status, created_at, schedule_id, class_id, total_fare
+    INTO v_booking_status, v_created_at, v_sched_id, v_class_id, v_total_fare
     FROM BOOKING
     WHERE pnr = p_pnr
     FOR UPDATE;
@@ -1458,6 +1469,12 @@ proc_label: BEGIN
         SET p_out_status = 'FAILED';
         SET p_out_payment_id = NULL;
         LEAVE proc_label;
+    END IF;
+
+    -- Safety check: payment amount must equal booking total fare
+    IF p_amount <> v_total_fare THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'PAYMENT_AMOUNT_MISMATCH: Payment amount does not match booking total fare.';
     END IF;
 
     -- 3. Read HOLD_MINUTES from SETTING

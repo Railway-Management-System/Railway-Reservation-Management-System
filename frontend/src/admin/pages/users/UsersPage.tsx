@@ -13,6 +13,7 @@ import { formatDateTime } from '../../utils/format';
 export const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Drawer / Details Modal State
@@ -25,14 +26,16 @@ export const UsersPage: React.FC = () => {
 
   const loadUsers = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await userService.getUsers(
         undefined,
         statusFilter !== 'ALL' ? (statusFilter as AccountStatus) : undefined
       );
       setUsers(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load users:', err);
+      setError(err?.message || 'Failed to load user accounts.');
     } finally {
       setLoading(false);
     }
@@ -141,6 +144,8 @@ export const UsersPage: React.FC = () => {
         data={users}
         columns={columns}
         loading={loading}
+        error={error}
+        onRetry={loadUsers}
         searchPlaceholder="Search passenger by name, email, phone, or ID..."
         emptyMessage="No passenger accounts found matching criteria."
       />

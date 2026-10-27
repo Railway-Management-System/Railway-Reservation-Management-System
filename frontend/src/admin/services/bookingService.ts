@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/api.config';
+import { API_CONFIG, isServiceMock } from '../config/api.config';
 import { BookingStatus } from '../constants/enums';
 import { Booking, BookingDetail } from '../types/booking';
 import { Cancellation } from '../types/cancellation';
@@ -14,7 +14,7 @@ export interface BookingFilters {
 
 export const bookingService = {
   async getBookings(filters?: BookingFilters): Promise<Booking[]> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('bookings')) {
       await simulateLatency();
       let list = mockStore.getBookings();
 
@@ -41,11 +41,30 @@ export const bookingService = {
     if (filters?.journeyDate) query.append('journeyDate', filters.journeyDate);
     const queryString = query.toString() ? `?${query.toString()}` : '';
 
-    return httpRequest<Booking[]>(`/api/admin/bookings${queryString}`);
+    const rows = await httpRequest<any[]>(`/api/admin/bookings${queryString}`);
+    return (rows || []).map((row) => ({
+      bookingId: row.bookingId || Number(String(row.pnr).slice(-6)) || 1,
+      pnr: String(row.pnr),
+      userId: Number(row.userId || row.user_id || 0),
+      userName: row.userName || row.full_name,
+      trainId: Number(row.trainId || row.train_id || 0),
+      trainNumber: row.trainNumber || row.train_number,
+      trainName: row.trainName || row.display_name,
+      journeyDate: String(row.journeyDate || row.journey_date || ''),
+      boardingStationId: Number(row.boardingStationId || 0),
+      destinationStationId: Number(row.destinationStationId || 0),
+      boardingStationCode: row.boardingStationCode,
+      destinationStationCode: row.destinationStationCode,
+      classType: row.classType || row.class_code,
+      quota: row.quota,
+      bookingStatus: (row.bookingStatus || row.status) as BookingStatus,
+      totalFare: Number(row.totalFare !== undefined ? row.totalFare : row.total_fare || 0),
+      createdAt: String(row.createdAt || row.created_at || ''),
+    }));
   },
 
   async getBookingByPnr(pnr: string): Promise<BookingDetail> {
-    if (API_CONFIG.USE_MOCK) {
+    if (isServiceMock('bookings')) {
       await simulateLatency();
       const booking = mockStore.getBookings().find((b) => b.pnr === pnr);
       if (!booking) throw new Error(`Booking with PNR ${pnr} not found.`);
@@ -88,8 +107,43 @@ export const bookingService = {
       };
     }
 
-    return httpRequest<BookingDetail>(`/api/bookings/${pnr}`);
+    const res = await httpRequest<any>(`/api/bookings/${pnr}`);
+    const passengers = (res.passengers || []).map((p: any, idx: number) => ({
+      bookingPassengerId: p.bookingPassengerId || idx + 1,
+      bookingId: res.bookingId || Number(String(res.pnr).slice(-6)) || 1,
+      passengerId: p.passengerNo || idx + 1,
+      name: p.name,
+      coachNumber: p.coachNumber || null,
+      seatNumber: p.seatNumber !== null && p.seatNumber !== undefined ? Number(p.seatNumber) : null,
+      berthType: p.berthType || null,
+      passengerStatus: p.status || p.passengerStatus || 'CONFIRMED',
+    }));
+
+    return {
+      bookingId: res.bookingId || Number(String(res.pnr).slice(-6)) || 1,
+      pnr: String(res.pnr),
+      userId: Number(res.userId || res.user_id || 0),
+      userName: res.userName,
+      trainId: Number(res.trainId || 0),
+      trainNumber: res.trainNumber,
+      trainName: res.trainName,
+      journeyDate: String(res.journeyDate || ''),
+      boardingStationId: Number(res.boardingStationId || 0),
+      destinationStationId: Number(res.destinationStationId || 0),
+      boardingStationCode: res.boardingStation?.stationCode || res.boardingStationCode,
+      destinationStationCode: res.destinationStation?.stationCode || res.destinationStationCode,
+      classType: res.classType,
+      quota: res.quota,
+      bookingStatus: (res.bookingStatus || res.status) as BookingStatus,
+      totalFare: Number(res.totalFare || 0),
+      createdAt: String(res.createdAt || ''),
+      passengers,
+      payment: res.payment || null,
+      cancellation: res.cancellation || null,
+      tdr: res.tdr || null,
+    };
   },
+
 
   async overrideBooking(pnr: string, payload: Partial<Booking>): Promise<Booking> {
     if (API_CONFIG.USE_MOCK) {
@@ -186,12 +240,26 @@ export const bookingService = {
       };
     }
 
-    return httpRequest<{ cancellationId: number; pnr: string; cancellationCharge: number; refundAmount: number; status: string }>(
-      `/api/admin/bookings/${pnr}/cancel`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ passengerIds: passengerIds || [] }),
+    try {
+      return await httpRequest<{ cancellationId: number; pnr: string; cancellationCharge: number; refundAmount: number; status: string }>(
+        `/api/bookings/${pnr}/cancel`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ passengerNos: passengerIds || [] }),
+        }
+      );
+    } catch (err: any) {
+      if (err.status === 404) {
+        return await httpRequest<{ cancellationId: number; pnr: string; cancellationCharge: number; refundAmount: number; status: string }>(
+          `/api/admin/bookings/${pnr}/cancel`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ passengerIds: passengerIds || [] }),
+          }
+        );
       }
-    );
+      throw err;
+    }
   },
 };
+

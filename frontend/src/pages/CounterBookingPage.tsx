@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStaff } from '../context/StaffContext';
 import { Ticket, User, CreditCard, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { formatCurrency } from '../utils/formatters';
 
 export const CounterBookingPage: React.FC = () => {
   const { createCounterBooking, activeStaff } = useStaff();
@@ -105,7 +106,7 @@ export const CounterBookingPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-xs">
               <div>PNR: <strong className="text-emerald-950 font-bold">{bookingResult.pnr || bookingResult.booking?.pnr || 'GENERATED'}</strong></div>
               <div>Status: <strong>{bookingResult.bookingStatus || bookingResult.booking?.status || 'CONFIRMED'}</strong></div>
-              <div>Fare: <strong>₹{bookingResult.totalFare || bookingResult.booking?.totalFare || 1450}</strong></div>
+              <div>Fare: <strong>{formatCurrency(bookingResult.totalFare || bookingResult.booking?.totalFare || 1450)}</strong></div>
               <div>Payment: <strong>CASH (Confirmed)</strong></div>
             </div>
           </div>

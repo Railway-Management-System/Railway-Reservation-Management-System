@@ -2,6 +2,7 @@ import React from 'react';
 import { useStaff } from '../context/StaffContext';
 import { StatCard } from '../components/StatCard';
 import { Train, CheckCircle2, UserX, Armchair, Receipt, ArrowRight } from 'lucide-react';
+import { formatCurrency } from '../utils/formatters';
 
 interface OverviewPageProps {
   setActiveTab: (tab: string) => void;
@@ -60,7 +61,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ setActiveTab }) => {
 
         <StatCard
           title="Fines Collected"
-          value={`₹${totalFines.toFixed(0)}`}
+          value={formatCurrency(totalFines)}
           subtitle={`${data.fines.length} penalties issued`}
           icon={Receipt}
           color="orange"

@@ -991,6 +991,54 @@ async function reportCleanliness(req, res, next) {
   }
 }
 
+/**
+ * POST /api/staff/promote (STAFF and ADMIN roles)
+ * Calls sp_promote_passenger directly in SQL without any business logic in Node
+ */
+async function promotePassenger(req, res, next) {
+  try {
+    const scheduleId = req.body.scheduleId || req.body.schedule_id;
+    const classId = req.body.classId || req.body.class_id;
+    const seatId = req.body.seatId || req.body.freedSeatId || req.body.seat_id || null;
+
+    const parsedScheduleId = parseInt(scheduleId, 10);
+    const parsedClassId = parseInt(classId, 10);
+    const parsedSeatId = seatId ? parseInt(seatId, 10) : null;
+
+    if (!parsedScheduleId || isNaN(parsedScheduleId) || parsedScheduleId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'BAD_REQUEST', message: 'Valid positive scheduleId is required' }
+      });
+    }
+
+    if (!parsedClassId || isNaN(parsedClassId) || parsedClassId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'BAD_REQUEST', message: 'Valid positive classId is required' }
+      });
+    }
+
+    // Call stored procedure sp_promote_passenger
+    await pool.query(
+      'CALL sp_promote_passenger(?, ?, ?)',
+      [parsedScheduleId, parsedClassId, parsedSeatId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Promotion executed successfully via sp_promote_passenger',
+      data: {
+        scheduleId: parsedScheduleId,
+        classId: parsedClassId,
+        seatId: parsedSeatId
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   requireStaffRole,
   requireStaffOrAdminRole,
@@ -1004,5 +1052,6 @@ module.exports = {
   reportIncident,
   logDelay,
   reportCrowd,
-  reportCleanliness
+  reportCleanliness,
+  promotePassenger
 };

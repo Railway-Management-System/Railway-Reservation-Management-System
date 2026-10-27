@@ -533,8 +533,14 @@ async function enterDashboard() {
         console.error('Failed to load user bookings:', err);
         return [];
       }),
-      Service.getSavedPassengers(user.userId).catch(() => []),
-      Service.getUserNotifications(user.userId).catch(() => [])
+      Service.getSavedPassengers(user.userId).catch(err => {
+        console.error('Failed to load saved passengers:', err);
+        return [];
+      }),
+      Service.getUserNotifications(user.userId).catch(err => {
+        console.error('Failed to load user notifications:', err);
+        return [];
+      })
     ]);
 
     State.allBookings = Array.isArray(bookings) ? bookings : [];
@@ -563,7 +569,10 @@ window.navigateTo = (page) => {
   // Update pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.getElementById(`page-${page}`);
-  if (target) target.classList.add('active');
+  if (target) {
+    target.classList.remove('hidden');
+    target.classList.add('active');
+  }
 
   // Update nav items
   document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -749,7 +758,10 @@ window.goToStep = (stepNum) => {
   // Hide all steps
   document.querySelectorAll('.booking-step').forEach(s => s.classList.remove('active'));
   const stepEl = document.getElementById(`booking-step-${stepNum}`);
-  if (stepEl) stepEl.classList.add('active');
+  if (stepEl) {
+    stepEl.classList.remove('hidden');
+    stepEl.classList.add('active');
+  }
 
   // Update step indicators
   for (let i = 1; i <= 6; i++) {
@@ -816,7 +828,12 @@ window.handleSearchTrains = async (e) => {
     renderSearchResults(results);
     goToStep(2);
   } catch (err) {
+    console.error('Failed to search trains:', err);
     showToast('Failed to search trains. Please try again.', 'error');
+    const container = document.getElementById('train-results');
+    if (container) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Train search failed</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Please check stations and date'}</div></div>`;
+    }
   } finally {
     hideLoading();
     btn.textContent = 'Search Trains';
@@ -838,7 +855,7 @@ function renderSearchResults(results) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🚂</div>
-        <div class="empty-title">No trains found</div>
+        <div class="empty-title">No trains found for this route and date</div>
         <div class="empty-sub">Try different dates or stations</div>
       </div>`;
     return;
@@ -854,7 +871,7 @@ function renderSearchResults(results) {
       const waitlist = a.availableSeats === 0 && a.racCount === 0;
       let availClass = 'green', availText = `${a.availableSeats} AVL`;
       if (racOnly) { availClass = 'amber'; availText = `RAC ${a.racCount}`; }
-      if (waitlist) { availClass = 'red'; availText = `WL ${a.waitingListCount}`; }
+      if (waitlist) { availClass = 'orange'; availText = `WL ${a.waitingListCount}`; }
 
       const fareAmount = a.estimatedTotalFare != null ? a.estimatedTotalFare : (a.baseFare != null ? a.baseFare : 0);
 
@@ -863,7 +880,7 @@ function renderSearchResults(results) {
              onclick="selectClassForTrain(${train.trainId}, '${a.classType}', this)">
           <div class="class-type">${a.classType}</div>
           <div class="class-avail ${availClass}">${availText}</div>
-          <div class="class-fare">from ₹${fareAmount}</div>
+          <div class="class-fare">from ${formatMoney(fareAmount)}</div>
         </div>
       `;
     }).join('');
@@ -1394,6 +1411,7 @@ async function initSummaryStep() {
       startHoldTimer(State.bookingFlow.secondsRemaining);
       showToast(`Seats reserved on hold! PNR: ${bookingRes.pnr}`, 'info');
     } catch (err) {
+      console.error('Failed to reserve seats on hold:', err);
       hideLoading();
       showToast(err?.message || 'Failed to reserve seats. Please retry.', 'error');
       goToStep(3);
@@ -1424,21 +1442,21 @@ function renderServerFareBreakdown() {
   });
 
   document.getElementById('fare-breakdown').innerHTML = `
-    <div class="fare-row"><span class="fare-label">Base Fare</span><span class="fare-amount">₹${sumBase.toFixed(2)}</span></div>
-    <div class="fare-row"><span class="fare-label">Reservation Charge</span><span class="fare-amount">₹${sumReservation.toFixed(2)}</span></div>
-    ${sumSuperfast > 0 ? `<div class="fare-row"><span class="fare-label">Superfast Surcharge</span><span class="fare-amount">₹${sumSuperfast.toFixed(2)}</span></div>` : ''}
-    ${sumTatkal > 0 ? `<div class="fare-row"><span class="fare-label">Tatkal Charge</span><span class="fare-amount">₹${sumTatkal.toFixed(2)}</span></div>` : ''}
-    ${sumDynamic > 0 ? `<div class="fare-row"><span class="fare-label">Dynamic Surcharge</span><span class="fare-amount">₹${sumDynamic.toFixed(2)}</span></div>` : ''}
-    ${sumGst > 0 ? `<div class="fare-row"><span class="fare-label">GST</span><span class="fare-amount">₹${sumGst.toFixed(2)}</span></div>` : ''}
-    ${sumInsurance > 0 ? `<div class="fare-row"><span class="fare-label">Travel Insurance</span><span class="fare-amount">₹${sumInsurance.toFixed(2)}</span></div>` : ''}
-    ${sumDiscount > 0 ? `<div class="fare-row"><span class="fare-label">Concession Discount</span><span class="fare-amount fare-discount">-₹${sumDiscount.toFixed(2)}</span></div>` : ''}
+    <div class="fare-row"><span class="fare-label">Base Fare</span><span class="fare-amount">${formatMoney(sumBase)}</span></div>
+    <div class="fare-row"><span class="fare-label">Reservation Charge</span><span class="fare-amount">${formatMoney(sumReservation)}</span></div>
+    ${sumSuperfast > 0 ? `<div class="fare-row"><span class="fare-label">Superfast Surcharge</span><span class="fare-amount">${formatMoney(sumSuperfast)}</span></div>` : ''}
+    ${sumTatkal > 0 ? `<div class="fare-row"><span class="fare-label">Tatkal Charge</span><span class="fare-amount">${formatMoney(sumTatkal)}</span></div>` : ''}
+    ${sumDynamic > 0 ? `<div class="fare-row"><span class="fare-label">Dynamic Surcharge</span><span class="fare-amount">${formatMoney(sumDynamic)}</span></div>` : ''}
+    ${sumGst > 0 ? `<div class="fare-row"><span class="fare-label">GST</span><span class="fare-amount">${formatMoney(sumGst)}</span></div>` : ''}
+    ${sumInsurance > 0 ? `<div class="fare-row"><span class="fare-label">Travel Insurance</span><span class="fare-amount">${formatMoney(sumInsurance)}</span></div>` : ''}
+    ${sumDiscount > 0 ? `<div class="fare-row"><span class="fare-label">Concession Discount</span><span class="fare-amount fare-discount">-${formatMoney(sumDiscount)}</span></div>` : ''}
     <div class="fare-total">
       <span>Total Payable (Server Authoritative)</span>
-      <span class="fare-total-amount">₹${total.toFixed(2)}</span>
+      <span class="fare-total-amount">${formatMoney(total)}</span>
     </div>
   `;
 
-  document.getElementById('payment-total-amount').textContent = `₹${total.toFixed(2)}`;
+  document.getElementById('payment-total-amount').textContent = formatMoney(total);
 }
 
 // Step 5 - Razorpay TEST Payment Gateway
@@ -1453,6 +1471,11 @@ window.processPaymentFlow = async () => {
   if (State.bookingFlow.secondsRemaining <= 0) {
     showToast('Your seat hold timer has expired. Please restart the booking.', 'error');
     goToStep(1);
+    return;
+  }
+
+  if (typeof window.Razorpay === 'undefined' || window.__rzp_load_failed) {
+    showToast('Payment window could not load. Check internet and retry.', 'error');
     return;
   }
 
@@ -1471,8 +1494,8 @@ window.processPaymentFlow = async () => {
       throw new Error('Invalid gateway order response from server');
     }
 
-    if (typeof window.Razorpay === 'undefined') {
-      throw new Error('Razorpay Checkout SDK is not loaded. Please verify internet connection.');
+    if (typeof window.Razorpay === 'undefined' || window.__rzp_load_failed) {
+      throw new Error('Payment window could not load. Check internet and retry.');
     }
 
     // 2. Open official Razorpay modal
@@ -1560,7 +1583,10 @@ window.processPaymentFlow = async () => {
     hideLoading();
     btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Pay Securely Now';
     btn.disabled = false;
-    showToast(err?.message || 'Failed to initiate payment. Please try again.', 'error');
+    const msg = (typeof window.Razorpay === 'undefined' || window.__rzp_load_failed || err?.message?.includes('Checkout SDK') || err?.message?.includes('Payment window'))
+      ? 'Payment window could not load. Check internet and retry.'
+      : (err?.message || 'Payment window could not load. Check internet and retry.');
+    showToast(msg, 'error');
   }
 };
 
@@ -1571,7 +1597,7 @@ function renderExpiredRefundNotice(refund) {
       <div class="warning-box" style="margin-top:12px;background:rgba(239,68,68,0.1);border:1px solid var(--clr-danger);color:var(--clr-text-1);">
         <strong>⚠️ Seat Hold Expired (HOLD_EXPIRED)</strong>
         <p style="margin:6px 0 0 0;font-size:13px;">Your payment was captured after the seat hold duration lapsed. The railway booking could not be completed, and an automatic 100% gateway refund has been registered.</p>
-        ${refund ? `<div style="font-size:12px;margin-top:6px;color:var(--clr-text-2);">Refund ID: ${refund.refundId || 'Auto'} | Status: ${refund.status || 'PROCESSED'} | Amount: ₹${refund.amount || '—'}</div>` : ''}
+        ${refund ? `<div style="font-size:12px;margin-top:6px;color:var(--clr-text-2);">Refund ID: ${refund.refundId || 'Auto'} | Status: ${refund.status || 'PROCESSED'} | Amount: ${refund.amount ? formatMoney(refund.amount) : '—'}</div>` : ''}
       </div>
     `;
   }
@@ -1629,7 +1655,7 @@ function renderConfirmationPage(confirmation) {
         </div>
         <div class="ticket-meta-item">
           <div class="tmeta-label">Total Fare Paid</div>
-          <div class="tmeta-value" style="color:var(--clr-primary)">₹${Number(State.bookingFlow.totalFare).toFixed(2)}</div>
+          <div class="tmeta-value" style="color:var(--clr-primary)">${formatMoney(State.bookingFlow.totalFare)}</div>
         </div>
       </div>
     </div>
@@ -1658,7 +1684,15 @@ window.bookAnotherTicket = () => {
 // ════════════════════════════════════════════════════════════════ MY BOOKINGS
 
 function renderBookingsPage() {
-  renderFilteredBookings(State.allBookings);
+  try {
+    renderFilteredBookings(State.allBookings);
+  } catch (err) {
+    console.error('Failed to render bookings:', err);
+    const container = document.getElementById('bookings-list');
+    if (container) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Failed to load bookings</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Please refresh'}</div></div>`;
+    }
+  }
 }
 
 window.filterBookings = (status, btn) => {
@@ -1683,7 +1717,7 @@ function renderFilteredBookings(bookings) {
     const canTDR = b.bookingStatus === 'CONFIRMED';
     const trainDisplayName = b.trainName || (b.trainNumber ? `Train ${b.trainNumber}` : (b.train?.trainName || 'Train'));
     const paxCountText = b.passengerCount ? ` · ${b.passengerCount} passenger${b.passengerCount > 1 ? 's' : ''}` : '';
-    const fareDisplay = b.totalFare != null ? `₹${Number(b.totalFare).toFixed(2)}` : '—';
+    const fareDisplay = b.totalFare != null ? formatMoney(b.totalFare) : '—';
 
     return `
       <div class="booking-full-card">
@@ -1809,7 +1843,7 @@ window.searchPNR = async () => {
           </div>
           <div style="text-align:right;">
             <div class="bfc-fare-label">Total Fare</div>
-            <div class="bfc-fare">${result.totalFare != null ? `₹${Number(result.totalFare).toFixed(2)}` : '—'}</div>
+            <div class="bfc-fare">${result.totalFare != null ? formatMoney(result.totalFare) : '—'}</div>
           </div>
         </div>
         <div style="padding:16px 20px;border-top:1px solid var(--clr-border);">
@@ -1819,6 +1853,7 @@ window.searchPNR = async () => {
       </div>
     `;
   } catch (err) {
+    console.error('PNR enquiry error:', err);
     hideLoading();
     const container = document.getElementById('pnr-result');
     if (container) {
@@ -1827,10 +1862,10 @@ window.searchPNR = async () => {
         ? `No booking found for PNR: ${pnr}`
         : (err?.message || 'Failed to fetch PNR details');
       container.innerHTML = `
-        <div class="card" style="text-align:center;padding:40px;">
-          <div style="font-size:48px;margin-bottom:16px;">🔍</div>
-          <h3 style="margin-bottom:8px;">PNR Enquiry</h3>
-          <p style="color:var(--clr-text-2);">${errorMsg}</p>
+        <div class="card" style="text-align:center;padding:40px;border-color:var(--clr-danger, #ef4444);">
+          <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+          <h3 style="margin-bottom:8px;color:var(--clr-danger, #ef4444);">PNR Enquiry Failed</h3>
+          <p style="color:var(--clr-danger, #ef4444);">${errorMsg}</p>
         </div>`;
     }
     showToast(err?.message || 'Failed to fetch PNR details', 'error');
@@ -1877,46 +1912,52 @@ window.updateProfile = async (e) => {
 
 function renderPassengersPage() {
   const container = document.getElementById('passengers-grid');
+  try {
+    if (!State.savedPassengers.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No saved passengers</div><div class="empty-sub">Add frequently travelling passengers for quick booking</div></div>`;
+      return;
+    }
 
-  if (!State.savedPassengers.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No saved passengers</div><div class="empty-sub">Add frequently travelling passengers for quick booking</div></div>`;
-    return;
-  }
-
-  container.innerHTML = State.savedPassengers.map(p => `
-    <div class="passenger-card">
-      <div class="pax-card-header">
-        <div class="pax-avatar">${getInitials(p.name)}</div>
-        <div>
-          <div class="pax-card-name">${p.name}</div>
-          <div class="pax-card-sub">${p.age} yrs | ${p.gender}</div>
+    container.innerHTML = State.savedPassengers.map(p => `
+      <div class="passenger-card">
+        <div class="pax-card-header">
+          <div class="pax-avatar">${getInitials(p.name)}</div>
+          <div>
+            <div class="pax-card-name">${p.name}</div>
+            <div class="pax-card-sub">${p.age} yrs | ${p.gender}</div>
+          </div>
         </div>
-      </div>
-      <div class="pax-details">
-        <div class="pax-detail-row">
-          <span class="pax-detail-label">ID Proof</span>
-          <span class="pax-detail-value">${p.idProofType}: ${p.idProofReference}</span>
-        </div>
-        <div class="pax-detail-row">
-          <span class="pax-detail-label">Berth Pref.</span>
-          <span class="pax-detail-value">${p.berthPreference}</span>
-        </div>
-        <div class="pax-detail-row">
-          <span class="pax-detail-label">Concession</span>
-          <span class="pax-detail-value">${p.concessionType !== 'NONE' ? p.concessionType : 'None'}</span>
-        </div>
-        ${p.disabilityType !== 'NONE' ? `
+        <div class="pax-details">
           <div class="pax-detail-row">
-            <span class="pax-detail-label">Disability</span>
-            <span class="pax-detail-value">${p.disabilityType}</span>
-          </div>` : ''}
+            <span class="pax-detail-label">ID Proof</span>
+            <span class="pax-detail-value">${p.idProofType}: ${p.idProofReference}</span>
+          </div>
+          <div class="pax-detail-row">
+            <span class="pax-detail-label">Berth Pref.</span>
+            <span class="pax-detail-value">${p.berthPreference}</span>
+          </div>
+          <div class="pax-detail-row">
+            <span class="pax-detail-label">Concession</span>
+            <span class="pax-detail-value">${p.concessionType !== 'NONE' ? p.concessionType : 'None'}</span>
+          </div>
+          ${p.disabilityType !== 'NONE' ? `
+            <div class="pax-detail-row">
+              <span class="pax-detail-label">Disability</span>
+              <span class="pax-detail-value">${p.disabilityType}</span>
+            </div>` : ''}
+        </div>
+        <div class="pax-card-footer">
+          <button class="btn-secondary-sm" onclick="editPassenger(${p.passengerId})">Edit</button>
+          <button class="btn-secondary-sm" style="color:var(--clr-danger);" onclick="deletePassenger(${p.passengerId})">Remove</button>
+        </div>
       </div>
-      <div class="pax-card-footer">
-        <button class="btn-secondary-sm" onclick="editPassenger(${p.passengerId})">Edit</button>
-        <button class="btn-secondary-sm" style="color:var(--clr-danger);" onclick="deletePassenger(${p.passengerId})">Remove</button>
-      </div>
-    </div>
-  `).join('');
+    `).join('');
+  } catch (err) {
+    console.error('Failed to render passengers:', err);
+    if (container) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Failed to load passengers</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Error'}</div></div>`;
+    }
+  }
 }
 
 let editingPassengerId = null;
@@ -2024,14 +2065,15 @@ async function renderTDRPage() {
         <div style="text-align:right;">
           <span class="status-badge ${t.status}">${(t.status || 'FILED').replace(/_/g, ' ')}</span>
           ${t.refundAmount ? `
-            <div class="tdr-refund" style="margin-top:8px;">₹${Number(t.refundAmount).toFixed(2)}</div>
+            <div class="tdr-refund" style="margin-top:8px;">${formatMoney(t.refundAmount)}</div>
             <div class="tdr-refund-label">Refund Amount</div>
           ` : '<div style="font-size:12px;color:var(--clr-text-3);margin-top:8px;">Under Review</div>'}
         </div>
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load TDR data</div><div class="empty-sub">${err?.message || 'Please refresh'}</div></div>`;
+    console.error('Failed to load TDR data:', err);
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Failed to load TDR data</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Please refresh'}</div></div>`;
   }
 }
 
@@ -2075,6 +2117,7 @@ window.submitTDR = async (e) => {
     renderTDRPage();
     e.target.reset();
   } catch (err) {
+    console.error('Failed to file TDR:', err);
     hideLoading();
     showToast(err?.message || 'Failed to file TDR', 'error');
   }
@@ -2111,7 +2154,8 @@ async function renderGrievancesPage() {
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load grievances</div></div>`;
+    console.error('Failed to load grievances:', err);
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Failed to load grievances</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Please refresh'}</div></div>`;
   }
 }
 
@@ -2133,8 +2177,9 @@ window.submitGrievance = async (e) => {
     renderGrievancesPage();
     e.target.reset();
   } catch (err) {
+    console.error('Failed to file complaint:', err);
     hideLoading();
-    showToast('Failed to file complaint', 'error');
+    showToast(err?.message || 'Failed to file complaint', 'error');
   }
 };
 
@@ -2142,27 +2187,33 @@ window.submitGrievance = async (e) => {
 
 function renderAlertsPage() {
   const container = document.getElementById('alerts-list');
+  try {
+    if (!State.notifications.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">No notifications</div><div class="empty-sub">You're all caught up!</div></div>`;
+      return;
+    }
 
-  if (!State.notifications.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">No notifications</div><div class="empty-sub">You're all caught up!</div></div>`;
-    return;
-  }
-
-  container.innerHTML = State.notifications.map(n => `
-    <div class="alert-item ${n.type} ${n.isRead ? '' : 'unread'}" id="alert-${n.notificationId}">
-      <div class="alert-icon">${getAlertIcon(n.type)}</div>
-      <div class="alert-content">
-        <div class="alert-title">${n.title}</div>
-        <div class="alert-msg">${n.message}</div>
-        <div class="alert-time">${timeAgo(n.createdAt)}</div>
+    container.innerHTML = State.notifications.map(n => `
+      <div class="alert-item ${n.type} ${n.isRead ? '' : 'unread'}" id="alert-${n.notificationId}">
+        <div class="alert-icon">${getAlertIcon(n.type)}</div>
+        <div class="alert-content">
+          <div class="alert-title">${n.title}</div>
+          <div class="alert-msg">${n.message}</div>
+          <div class="alert-time">${timeAgo(n.createdAt)}</div>
+        </div>
+        ${!n.isRead ? `
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <div class="unread-dot"></div>
+            <button class="btn-secondary-sm" onclick="markRead(${n.notificationId})">Mark Read</button>
+          </div>` : ''}
       </div>
-      ${!n.isRead ? `
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
-          <div class="unread-dot"></div>
-          <button class="btn-secondary-sm" onclick="markRead(${n.notificationId})">Mark Read</button>
-        </div>` : ''}
-    </div>
-  `).join('');
+    `).join('');
+  } catch (err) {
+    console.error('Failed to render alerts:', err);
+    if (container) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title" style="color:var(--clr-danger, #ef4444);">Failed to load alerts</div><div class="empty-sub" style="color:var(--clr-danger, #ef4444);">${err?.message || 'Error'}</div></div>`;
+    }
+  }
 }
 
 window.markRead = async (id) => {
@@ -2220,8 +2271,8 @@ window.openCancelModal = async (pnr) => {
     const estimate = await Service.getRefundEstimate(pnr);
     currentRefundEstimate = estimate;
 
-    document.getElementById('cancel-charge').textContent = `₹${Number(estimate.totalCancellationCharge).toFixed(2)}`;
-    document.getElementById('cancel-refund').textContent = `₹${Number(estimate.totalRefundAmount).toFixed(2)}`;
+    document.getElementById('cancel-charge').textContent = formatMoney(estimate.totalCancellationCharge);
+    document.getElementById('cancel-refund').textContent = formatMoney(estimate.totalRefundAmount);
 
     // Render individual passenger selection
     if (paxContainer && Array.isArray(estimate.passengers) && estimate.passengers.length > 0) {
@@ -2234,7 +2285,7 @@ window.openCancelModal = async (pnr) => {
                 <input type="checkbox" class="cancel-pax-chk" value="${p.passengerNo}" checked onchange="recalculateSelectedCancellationRefund()" />
                 <span><strong>#${p.passengerNo}</strong> ${p.name}</span>
               </div>
-              <span style="color:var(--clr-text-3);">Refund: ₹${Number(p.refundAmount).toFixed(2)}</span>
+              <span style="color:var(--clr-text-3);">Refund: ${formatMoney(p.refundAmount)}</span>
             </label>
           `).join('')}
         </div>
@@ -2245,6 +2296,7 @@ window.openCancelModal = async (pnr) => {
 
     if (confirmBtn) confirmBtn.disabled = false;
   } catch (err) {
+    console.error('Cancel modal estimate error:', err);
     document.getElementById('cancel-charge').textContent = '—';
     document.getElementById('cancel-refund').textContent = '—';
     if (paxContainer) {
@@ -2260,8 +2312,8 @@ window.recalculateSelectedCancellationRefund = async () => {
   const selectedNos = checkboxes.map(cb => parseInt(cb.value, 10));
 
   if (selectedNos.length === 0) {
-    document.getElementById('cancel-charge').textContent = '₹0.00';
-    document.getElementById('cancel-refund').textContent = '₹0.00';
+    document.getElementById('cancel-charge').textContent = formatMoney(0);
+    document.getElementById('cancel-refund').textContent = formatMoney(0);
     const confirmBtn = document.getElementById('btn-confirm-cancel');
     if (confirmBtn) confirmBtn.disabled = true;
     return;
@@ -2269,11 +2321,12 @@ window.recalculateSelectedCancellationRefund = async () => {
 
   try {
     const freshEstimate = await Service.getRefundEstimate(pendingCancelPNR, selectedNos);
-    document.getElementById('cancel-charge').textContent = `₹${Number(freshEstimate.totalCancellationCharge).toFixed(2)}`;
-    document.getElementById('cancel-refund').textContent = `₹${Number(freshEstimate.totalRefundAmount).toFixed(2)}`;
+    document.getElementById('cancel-charge').textContent = formatMoney(freshEstimate.totalCancellationCharge);
+    document.getElementById('cancel-refund').textContent = formatMoney(freshEstimate.totalRefundAmount);
     const confirmBtn = document.getElementById('btn-confirm-cancel');
     if (confirmBtn) confirmBtn.disabled = false;
   } catch (err) {
+    console.error('Recalculate refund error:', err);
     showToast('Failed to update refund estimate for selection', 'warning');
   }
 };
@@ -2292,7 +2345,7 @@ window.confirmCancellation = async () => {
     const result = await Service.cancelBooking(pendingCancelPNR, selectedNos);
     hideLoading();
     closeModal('modal-cancel-booking');
-    showToast(`Cancellation successful! Refund of ₹${Number(result.refundAmount).toFixed(2)} processed.`, 'success');
+    showToast(`Cancellation successful! Refund of ${formatMoney(result.refundAmount)} processed.`, 'success');
 
     // Reload bookings to reflect updated statuses
     const updatedBookings = await Service.getUserBookings();
@@ -2303,6 +2356,7 @@ window.confirmCancellation = async () => {
     renderBookingsPage();
     updateBookingBadge();
   } catch (err) {
+    console.error('Cancellation error:', err);
     hideLoading();
     if (confirmBtn) confirmBtn.disabled = false;
     showToast(err?.message || 'Cancellation failed. Please try again.', 'error');
@@ -2361,11 +2415,33 @@ function hideLoading() {
 
 function formatDate(dateStr) {
   if (!dateStr) return '—';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-    });
-  } catch { return dateStr; }
+  if (typeof Service !== 'undefined' && Service.formatIndiaDateTime) {
+    return Service.formatIndiaDateTime(dateStr);
+  }
+  const str = String(dateStr).trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!match) return str;
+  const [, year, month, day, hour, min] = match;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthName = months[parseInt(month, 10) - 1] || month;
+  const dayNum = parseInt(day, 10);
+  if (hour !== undefined && min !== undefined) {
+    return `${dayNum} ${monthName} ${year}, ${hour}:${min}`;
+  }
+  return `${dayNum} ${monthName} ${year}`;
+}
+
+function formatMoney(amount) {
+  if (typeof Service !== 'undefined' && Service.formatCurrency) {
+    return Service.formatCurrency(amount);
+  }
+  if (amount === null || amount === undefined || amount === '') return '₹0.00';
+  const num = Number(amount);
+  if (isNaN(num)) return '₹0.00';
+  return '₹' + num.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function timeAgo(dateStr) {

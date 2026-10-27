@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, AlertCircle, RefreshCw } from 'lucide-react';
 
 export interface Column<T> {
   header: string;
@@ -16,6 +16,8 @@ interface DataTableProps<T> {
   searchFilter?: (item: T, query: string) => boolean;
   pageSize?: number;
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   emptyMessage?: string;
   extraHeaderActions?: React.ReactNode;
 }
@@ -27,6 +29,8 @@ export function DataTable<T extends Record<string, any>>({
   searchFilter,
   pageSize = 10,
   loading = false,
+  error = null,
+  onRetry,
   emptyMessage = 'No records found.',
   extraHeaderActions,
 }: DataTableProps<T>) {
@@ -147,7 +151,30 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading ? (
+            {error ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="p-3 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div className="max-w-md">
+                      <p className="text-sm font-bold text-rose-800">{error}</p>
+                      <p className="text-xs text-slate-400 mt-1">An error occurred while communicating with the railway service.</p>
+                    </div>
+                    {onRetry && (
+                      <button
+                        onClick={onRetry}
+                        className="mt-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Retry Request</span>
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : loading ? (
               Array.from({ length: 5 }).map((_, rIdx) => (
                 <tr key={rIdx} className="animate-pulse">
                   {columns.map((_, cIdx) => (
@@ -158,6 +185,7 @@ export function DataTable<T extends Record<string, any>>({
                 </tr>
               ))
             ) : paginatedData.length === 0 ? (
+
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-500">
                   <div className="flex flex-col items-center justify-center">
